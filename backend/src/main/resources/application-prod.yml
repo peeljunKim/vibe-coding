@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 2
+  data:
+    redis:
+      ssl:
+        enabled: true
+
+server:
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  structured:
+    format:
+      console: ecs
+
