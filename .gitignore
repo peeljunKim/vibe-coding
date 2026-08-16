@@ -96,6 +96,7 @@ docker-compose.yml
 .editorconfig
 README.md
 .github/
+docs/
 
 frontend/.prettierrc.json 
 frontend/eslint.config.js 
