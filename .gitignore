@@ -22,9 +22,8 @@ service-account*.json
 *.keystore
 *.der
 .npmrc
-backend/src/main/resources/application-local.yml
-backend/src/main/resources/application-secret.yml
-backend/src/main/resources/application-secrets.yml
+**/application*.yml
+**/application*.yaml
 
 # Frontend dependencies, build output, and caches
 frontend/node_modules/
@@ -97,6 +96,9 @@ docker-compose.yml
 README.md
 .github/
 docs/
+AGENTS.md
+.ai/
+
 
 frontend/.prettierrc.json 
 frontend/eslint.config.js 
