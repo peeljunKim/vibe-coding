@@ -1,4 +1,6 @@
-# Environment variables and local overrides
+# Repository 제외용 Local 설정과 생성물
+
+# 환경 변수와 Local 덮어쓰기
 .env
 .env.*
 **/.env
@@ -6,8 +8,17 @@
 !**/.env.example
 !**/.env.template
 .envrc
+local.properties
+**/local.properties
+*.local.properties
+*.local.yml
+*.local.yaml
+*.local.json
+*.local.toml
+.java-version.local
+.tool-versions.local
 
-# Credentials, private keys, and local secret configuration
+# 자격 증명과 개인키
 secrets/
 **/secrets/
 credentials*.json
@@ -24,8 +35,10 @@ service-account*.json
 .npmrc
 **/application*.yml
 **/application*.yaml
+!backend/src/main/resources/application.yml
+!backend/src/main/resources/application-prod.yml
 
-# Frontend dependencies, build output, and caches
+# Frontend 의존성과 생성물
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
@@ -36,19 +49,19 @@ frontend/playwright-report/
 frontend/test-results/
 npm-debug.log*
 
-# Backend build output and runtime artifacts
+# Backend 생성물
 backend/target/
 *.class
 hs_err_pid*
 replay_pid*
 
-# Logs
+# 로그
 logs/
 **/logs/
 *.log
 *.log.*
 
-# Caches and temporary files
+# 캐시와 임시 파일
 .cache/
 **/.cache/
 tmp/
@@ -61,7 +74,7 @@ temp/
 *.swo
 *~
 
-# IDE metadata
+# IDE 설정
 .idea/
 .vscode/
 .fleet/
@@ -70,44 +83,28 @@ backend/.classpath
 backend/.project
 backend/.settings/
 
-# OS metadata
+# 운영체제 생성 파일
 .DS_Store
 ._*
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# Local infrastructure data and generated output
+# Local 인프라 데이터와 검증 생성물
 infra/data/
 infra/volumes/
 .docker/
 output/
-infra/
 
-
-# Local planning and agent files retained from the existing project
-MVP_REQUIREMENTS.md
-PLAN_REVIEW.html
-skills-lock.json
+# Local Agent Skill
 .agents/
-docker-compose.yml
-.env.example
-.editorconfig
-README.md
-.github/
-docs/
-AGENTS.md
-.ai/
+skills-lock.json
 
+# 생성된 검토 문서
+PLAN_REVIEW.html
 
-frontend/.prettierrc.json 
-frontend/eslint.config.js 
-frontend/index.html 
-frontend/package-lock.json 
-frontend/package.json 
-frontend/tsconfig.app.json 
-frontend/tsconfig.json 
-frontend/tsconfig.node.json 
-frontend/vite.config.ts
-frontend/tsconfig.node.json 
-frontend/vite.config.ts
+# 활성 CI Workflow 외 GitHub Local 설정
+.github/*
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/ci.yml

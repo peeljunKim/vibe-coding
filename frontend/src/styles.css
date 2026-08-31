@@ -1,3 +1,4 @@
+/* 초기 설정 화면 공통 스타일 */
 :root {
   color: #17252c;
   background: #edf3f6;
@@ -55,4 +56,3 @@ p {
   color: #5d7079;
   font-size: 0.95rem;
 }
-

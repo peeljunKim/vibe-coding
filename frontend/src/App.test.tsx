@@ -1,3 +1,4 @@
+// 초기 화면 표시 검증
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import App from './App'

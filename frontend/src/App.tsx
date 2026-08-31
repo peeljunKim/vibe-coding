@@ -1,3 +1,4 @@
+// 초기 설정 상태 화면
 function App() {
   return (
     <main className="setup-page">
@@ -14,4 +15,3 @@ function App() {
 }
 
 export default App
-
