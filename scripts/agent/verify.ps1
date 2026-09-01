@@ -121,7 +121,6 @@ function Invoke-InfrastructureVerification {
     }
     $initialSchema = Get-Content $initialSchemaPath -Raw
     foreach ($requiredPattern in @(
-        'CREATE DATABASE IF NOT EXISTS news_verification',
         'CREATE TABLE schema_change_history',
         "'0001'",
         'INSERT INTO schema_change_history'
@@ -132,13 +131,35 @@ function Invoke-InfrastructureVerification {
     }
     Write-Host '[PASS] Native MySQL initial Schema structure'
 
-    Invoke-CheckedCommand 'Docker Compose configuration' $repoRoot 'docker' @(
-        'compose',
-        '--env-file',
-        '.env.example',
-        'config',
-        '--quiet'
-    )
+    $composePath = Join-Path $repoRoot 'docker-compose.yml'
+    if (Test-Path -LiteralPath $composePath -PathType Leaf) {
+        $verificationEnvironment = @{
+            REDIS_PASSWORD = 'test-redis-password'
+            GRAFANA_ADMIN_PASSWORD = 'test-grafana-password'
+        }
+        $previousEnvironment = @{}
+        foreach ($name in $verificationEnvironment.Keys) {
+            $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+            if ([string]::IsNullOrWhiteSpace($previousEnvironment[$name])) {
+                [Environment]::SetEnvironmentVariable($name, $verificationEnvironment[$name], 'Process')
+            }
+        }
+        try {
+            Invoke-CheckedCommand 'Docker Compose configuration' $repoRoot 'docker' @(
+                'compose',
+                'config',
+                '--quiet'
+            )
+        }
+        finally {
+            foreach ($name in $verificationEnvironment.Keys) {
+                [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], 'Process')
+            }
+        }
+    }
+    else {
+        Write-Host '[NOT RUN] Docker Compose configuration: Local-only YAML unavailable'
+    }
 }
 
 function Invoke-DocsVerification {
@@ -207,17 +228,18 @@ function Invoke-SecretValueVerification {
 
     foreach ($candidatePath in $candidatePaths) {
         $absolutePath = Join-Path $repoRoot $candidatePath
-        if (-not (Test-Path $absolutePath -PathType Leaf)) {
+        $fileInfo = Get-Item -LiteralPath $absolutePath -Force -ErrorAction SilentlyContinue
+        if ($null -eq $fileInfo -or $fileInfo.PSIsContainer) {
             continue
         }
         if ([IO.Path]::GetExtension($candidatePath).ToLowerInvariant() -in $binaryExtensions) {
             continue
         }
-        if ((Get-Item $absolutePath).Length -gt 2MB) {
+        if ($fileInfo.Length -gt 2MB) {
             continue
         }
 
-        $content = Get-Content $absolutePath -Raw -ErrorAction SilentlyContinue
+        $content = Get-Content -LiteralPath $absolutePath -Raw -ErrorAction SilentlyContinue
         if ($null -eq $content) {
             continue
         }

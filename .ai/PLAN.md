@@ -1,43 +1,40 @@
+<!-- 현재 목표와 검증 상태 -->
 # 현재 작업 계획
 
 ## Goal
 
-Native MySQL 초기 Schema와 Git Version SQL 변경 관리 적용
+Local 설정 비추적, Harness Git 유지, GitHub Actions 검증 안정화
 
 ## Scope
 
-- `infra/mysql/schema/*`, `docker-compose.yml`, `.env.example`
-- `README.md`, `docs/architecture/*`, `.ai/*`, `AGENTS.md`
-- `scripts/agent/verify.ps1`, `MVP_REQUIREMENTS.md`
+- `.gitignore`, `.github/workflows/ci.yml`, `scripts/agent/verify.ps1`
+- `.env.example`, `frontend/.env.example`
+- `AGENTS.md`, `.ai/*`, `docs/agent/*`, `docs/architecture/*`
 
 ## Plan
 
-1. Native MySQL 설치·Service·Client 상태 확인
-2. Compose의 영구 MySQL Service 제거
-3. 업무 Table을 제외한 초기 Schema 변경 이력 SQL 작성
-4. Git Version SQL의 이유·내용·호환성·Rollback 절차 문서화
-5. DB 승인 규칙을 파괴적 Schema 변경 기준으로 수정
-6. SQL 구조·Compose·Harness 검증
+1. `.env.example`과 Local 설정의 Git 제외 규칙 확인
+2. Harness Job 필수 Markdown의 명시적 Git 유지 규칙 확인
+3. 사라진 변경 후보 파일을 허용하도록 검증 Script 수정
+4. CI에서 `.env.example` 없이 Infrastructure 검증 가능하도록 수정
+5. 주석 지원 파일의 짧은 명사형 파일 역할 주석 확인
+6. 변경 Scope 검증과 전체 Diff Review
 
 ## Verification Status
 
-- Native MySQL 설치와 Service: PASS, Windows MySQL 8.0.30 Service 실행
-- Local MySQL Version 기준: PASS, Service와 전용 Client 8.0.30
-- 초기 Schema SQL 구조: PASS
-- 격리 Native MySQL 초기 Schema 적용과 이력 조회: PASS
-- 실제 Local Schema 적용: NOT RUN, Root `.env`와 인증 정보 없음
-- Infrastructure compose config: NOT RUN
-- Harness 문서 구조와 Secret 검사: NOT RUN
-- Git diff whitespace: NOT RUN
+- `.env.example` Git 제외 규칙: PASS
+- Harness Markdown Git 유지 규칙: PASS
+- 사라진 변경 후보 파일 처리: PASS, 단일 `Get-Item` 결과의 Null과 Directory를 건너뜀
+- `.env.example` 없는 Infrastructure 검증: PASS, Process 전용 검증값으로 Compose 해석
+- 주석 지원 파일의 역할 주석: PASS, 주석 불가 JSON·Lockfile·Binary 제외
+- 변경 범위 Build·Test: PASS, Backend 1 Test와 Frontend 1 Test
+- Harness 문서와 Secret 검사: PASS
+- Git diff whitespace: PASS
 - 배포 검증: NOT RUN, AWS Resource와 배포 구현 없음
 - 언론사 추출 검증: NOT RUN, 수집기 구현 없음
 - E2E: NOT RUN, 전략만 확정되고 Playwright Config와 Test 없음
 
 ## Deferred
-
-[Native MySQL 초기 Schema 실제 적용을 위한 Local Root 인증 설정이 필요합니다.]
-
-[배포 환경에 설치할 Native MySQL Version 정보가 필요합니다.]
 
 [Local 개발 완료 후 사용할 DuckDNS 서브도메인 이름이 필요합니다.]
 

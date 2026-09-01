@@ -1,3 +1,4 @@
+<!-- AI Agent 단계별 작업 Loop -->
 # Harness와 Loop Workflow
 
 ## Context Loop

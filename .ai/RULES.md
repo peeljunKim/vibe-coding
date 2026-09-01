@@ -1,3 +1,4 @@
+<!-- AI Agent 구현과 보안 Guardrail -->
 # 프로젝트 작업 규칙
 
 ## Evidence
@@ -23,7 +24,7 @@
 ## Comment
 
 - 새 사람이 관리하는 파일은 문법이 허용할 때 첫 부분에 한 줄 역할 주석 작성
-- Markdown은 첫 제목을 파일 역할로 사용
+- Markdown은 첫 줄의 짧은 HTML 주석으로 파일 역할 표시
 - JSON, Lockfile, Binary, 생성물처럼 주석이 불가능하거나 불필요한 파일은 역할 주석 제외
 - 복잡한 책임 경계와 비자명한 의도만 주석화
 - 클래스 설명과 메서드 역할은 짧고 쉬운 한국어 명사형
@@ -59,6 +60,7 @@
 - 무시된 Local 설정을 읽거나 수정하기 위해 `.gitignore` 규칙을 일시 해제하지 않음
 - AI Agent는 Git 무시 여부와 관계없이 Local 파일을 직접 읽고 필요한 범위에서 수정
 - 실제 설정 파일에 `git add -f` 사용 금지
+- YAML 설정은 Local 전용으로 유지하고 활성 CI Workflow만 Git 추적 예외 적용
 - 추적·Stage·비무시 신규 파일에서 실제 Key, Secret, Token, App Password, Private Key 값 검사 필수
 - `.env.example`에는 변수 이름과 비민감 Local URL만 기록하고 실제 값은 사용자가 `.env`에 직접 입력
 - OAuth 공급자 Console의 Callback URL과 Backend 처리 경로를 구현·테스트에서 동일하게 유지

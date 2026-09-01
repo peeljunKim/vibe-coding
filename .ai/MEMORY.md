@@ -1,3 +1,4 @@
+<!-- Repository 고정 사실과 미확정 정보 -->
 # 프로젝트 고정 Context
 
 ## Confirmed
@@ -14,7 +15,7 @@
 - AI: 비공개 Prototype에서 Gemini 3.7 Flash 무료 등급 사용
 - Evidence Search: PubMed NCBI E-utilities와 허용된 공식 기관 자료 사용
 - 초기 언론사: 통신·방송·종합·경제·건강 매체 20곳을 추출 시험 후보로 선정
-- Deployment: AWS Free Plan의 단일 EC2, DuckDNS, Host 설치 MySQL과 동일 서버 Redis
+- Deployment: AWS Free Plan의 단일 EC2, DuckDNS, Local과 동일한 Native MySQL 8.0.30과 동일 서버 Redis
 - Availability: EC2 장애 대응이 아닌 Blue/Green 애플리케이션 배포 중 무중단만 보장
 - E2E: Playwright, Vite Preview, PR Chromium, Release 전 Chrome·Edge 검증
 - Local OAuth: 서비스 기준 URL `http://localhost:8080`
@@ -40,5 +41,3 @@
 [Local 개발 완료 후 사용할 DuckDNS 서브도메인 이름이 필요합니다.]
 
 [Local 개발 완료 후 AWS 계정의 Free Plan 대상 여부 확인이 필요합니다.]
-
-[배포 환경에 설치할 Native MySQL Version 정보가 필요합니다.]

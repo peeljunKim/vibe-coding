@@ -5,7 +5,6 @@
 .env.*
 **/.env
 **/.env.*
-!**/.env.example
 !**/.env.template
 .envrc
 local.properties
@@ -35,8 +34,10 @@ service-account*.json
 .npmrc
 **/application*.yml
 **/application*.yaml
-!backend/src/main/resources/application.yml
-!backend/src/main/resources/application-prod.yml
+
+# Local YAML 설정
+*.yml
+*.yaml
 
 # Frontend 의존성과 생성물
 frontend/node_modules/
@@ -102,6 +103,19 @@ skills-lock.json
 
 # 생성된 검토 문서
 PLAN_REVIEW.html
+
+# Local Markdown 문서와 Harness 추적 예외
+*.md
+**/*.md
+!AGENTS.md
+!MVP_REQUIREMENTS.md
+!.ai/
+!.ai/*.md
+!docs/
+!docs/agent/
+!docs/agent/*.md
+!docs/architecture/
+!docs/architecture/*.md
 
 # 활성 CI Workflow 외 GitHub Local 설정
 .github/*

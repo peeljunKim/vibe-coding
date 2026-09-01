@@ -1,3 +1,4 @@
+<!-- Repository 구조와 위험 근거 -->
 # Project Discovery와 Risk Guardrail
 
 기준일: 2026-08-31
@@ -16,7 +17,7 @@
 | Configuration | Root·Frontend `.env.example`, Spring `application.yml`/`application-prod.yml`, Docker Compose |
 | Architecture | 현재 코드는 React 단일 App과 Spring Boot 부트스트랩·Security 설정 수준 |
 | Domain Structure | 요구사항에는 건강 뉴스, 제목 확인, 회원, 기록, 공유, 신고가 있으나 Domain 코드는 아직 없음 |
-| Database/Persistence | 목표 MySQL 8.4 Native Service, Git Version SQL, JPA `ddl-auto: validate`; 업무 Entity/Repository는 아직 없음 |
+| Database/Persistence | Local MySQL 8.0.30 Native Service, Git Version SQL, JPA `ddl-auto: validate`; 업무 Entity/Repository는 아직 없음 |
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session, 3일 분석 Cache 설정 |
 | External Services | Gmail SMTP, Google/Kakao/Naver OAuth, Gemini·PubMed 환경 변수 자리만 존재; 실제 Provider 구현 없음 |
 | Authentication/Authorization | Spring Security, Cookie CSRF, Actuator 일부 공개, 나머지 요청 인증 필요; Domain 인증 흐름은 미구현 |
@@ -36,7 +37,7 @@
 - README와 CI는 Maven Wrapper 실행 파일을 사용하지만 현재 `mvnw`와 `mvnw.cmd`는 없고 Wrapper JAR와 속성만 있음
 - Frontend `package.json`에는 E2E 명령이 있으나 Playwright 설정과 E2E 테스트 파일은 없음
 - JPA, Redis, OAuth, Mail, Testcontainers 의존성은 존재하지만 대부분의 Domain 사용 코드는 아직 없음
-- Repository 목표 MySQL은 8.4지만 현재 Windows Service Binary는 8.0.30이고 Scoop 기본 Client는 9.7.1
+- Local Schema 작업은 Windows Service 전용 MySQL 8.0.30 Client를 사용하며 Scoop 기본 Client 9.7.1은 사용하지 않음
 
 ## 확정된 Prototype 결정
 
@@ -129,7 +130,7 @@
 | 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |
 | Blue/Green Schema 충돌 | 두 Application Version이 동일 DB 사용 | Traffic 전환 전 양쪽 Version 호환 Migration 검증 |
 | 선언된 검증과 실행 차이 | Wrapper launcher 부재, E2E 설정 부재 | 실행 가능성 먼저 확인하고 `NOT RUN`과 도구 실패를 구분 |
-| Harness 비추적 | 기존 `.gitignore`가 Build/Config/Harness 파일을 제외 | 재현에 필요한 설정과 Harness를 Git 추적 대상으로 유지 |
+| Harness 비추적 | Local Markdown 제외 요청과 CI의 Harness 문서 의존 | `AGENTS.md`, `.ai`, `docs/agent`, 연결된 Architecture 문서를 명시적으로 Git 추적 |
 
 ## Harness Architecture
 
