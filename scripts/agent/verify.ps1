@@ -115,21 +115,25 @@ function Invoke-BackendVerification {
 }
 
 function Invoke-InfrastructureVerification {
-    $initialSchemaPath = Join-Path $repoRoot 'infra\mysql\schema\V0001__schema_change_history.sql'
-    if (-not (Test-Path $initialSchemaPath -PathType Leaf)) {
-        throw 'Initial Native MySQL Schema file missing'
+    $schemaDirectory = Join-Path $repoRoot 'infra\mysql\schema'
+    $schemaFiles = @(Get-ChildItem -LiteralPath $schemaDirectory -Filter 'V????__*.sql' -File -ErrorAction SilentlyContinue)
+    if ($schemaFiles.Count -eq 0) {
+        Write-Host '[NOT APPLICABLE] Git Schema SQL: no domain schema changes'
     }
-    $initialSchema = Get-Content $initialSchemaPath -Raw
-    foreach ($requiredPattern in @(
-        'CREATE TABLE schema_change_history',
-        "'0001'",
-        'INSERT INTO schema_change_history'
-    )) {
-        if ($initialSchema -notmatch [regex]::Escape($requiredPattern)) {
-            throw "Initial Native MySQL Schema requirement missing: $requiredPattern"
+    foreach ($schemaFile in $schemaFiles) {
+        $schemaSql = Get-Content -LiteralPath $schemaFile.FullName -Raw
+        foreach ($requiredPattern in @('-- 이유:', '-- 내용:', '-- 호환성:', '-- Rollback:')) {
+            if ($schemaSql -notmatch [regex]::Escape($requiredPattern)) {
+                throw "Git Schema SQL metadata missing in $($schemaFile.Name): $requiredPattern"
+            }
+        }
+        if ($schemaSql -match '(?i)schema_change_history') {
+            throw "Database-side Schema history is not allowed: $($schemaFile.Name)"
         }
     }
-    Write-Host '[PASS] Native MySQL initial Schema structure'
+    if ($schemaFiles.Count -gt 0) {
+        Write-Host '[PASS] Git-managed Native MySQL Schema SQL structure'
+    }
 
     $composePath = Join-Path $repoRoot 'docker-compose.yml'
     if (Test-Path -LiteralPath $composePath -PathType Leaf) {

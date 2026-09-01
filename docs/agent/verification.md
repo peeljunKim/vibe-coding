@@ -27,7 +27,7 @@ Script는 기존 Repository 도구만 사용한다. Frontend는 npm scripts, Bac
 | --- | --- | --- |
 | Frontend | ESLint → Vitest → TypeScript/Vite Build | `frontend/package.json`, GitHub Actions |
 | Backend | Compile → JUnit → Package | Maven `verify`, GitHub Actions |
-| Infrastructure | Native MySQL 초기 SQL 구조 → Compose 구문과 환경 변수 해석 | Version SQL, 검증 Process 전용 환경 변수와 `docker compose config --quiet` |
+| Infrastructure | Git 관리 Schema SQL Metadata → DB 이력 Table 금지 → Compose 해석 | Version SQL, 검증 Process 전용 환경 변수와 `docker compose config --quiet` |
 | E2E | Vite Preview → Chromium Scenario → Release Chrome·Edge | Playwright 전략, 지원 Browser 정책 |
 | Docs/Harness | 필수 파일·참조 확인 → Diff whitespace 검사 | `AGENTS.md`, Harness 구조 |
 

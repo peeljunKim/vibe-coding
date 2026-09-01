@@ -89,7 +89,7 @@ Require User Approval:
 Do Not Perform Automatically:
 
 - Secret, API Key, 비밀번호 생성·변경·노출
-- 운영 DB Schema·데이터의 직접 변경·삭제와 Version SQL 자동 적용
+- 운영 DB Schema·데이터의 직접 변경·삭제와 Git 관리 Schema SQL 자동 적용
 - AWS IAM, Security Group, DNS 실제 변경
 - 비용 발생 가능 Resource 생성과 운영 배포
 - 강제 Push, Branch 삭제, `reset --hard`

@@ -10,7 +10,7 @@
 - Local Java 17: Oracle JDK 17.0.11 실행 확인, Scoop OpenJDK 17.0.2 예비 경로 실행 확인
 - Persistence와 상태: Local MySQL 8.0.30 Native Service, JPA, Redis 8 기반 세션·캐시 구성
 - Local MySQL: Windows Service Binary와 전용 Client 8.0.30, Scoop 기본 Client 9.7.1은 Schema 작업에 사용하지 않음
-- Schema 관리: Flyway·Liquibase 없이 Git Version SQL과 `schema_change_history`, JPA `ddl-auto: validate`
+- Schema 관리: Flyway·Liquibase와 DB 이력 Table 없이 GitHub의 Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`
 - Monitoring: Spring Boot Actuator, Prometheus, Grafana 구성
 - AI: 비공개 Prototype에서 Gemini 3.7 Flash 무료 등급 사용
 - Evidence Search: PubMed NCBI E-utilities와 허용된 공식 기관 자료 사용

@@ -6,7 +6,7 @@
 ### MySQL
 
 - Host에 직접 설치한 Native MySQL Service
-- Version SQL 기반 Schema 변경
+- GitHub Version SQL·Commit·PR 기반 Schema 변경
 - 사용자와 인증 정보
 - 초대 코드 사용 이력
 - 분석 작업 원장

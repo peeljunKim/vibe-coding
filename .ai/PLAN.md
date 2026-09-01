@@ -3,32 +3,29 @@
 
 ## Goal
 
-Local 설정 비추적, Harness Git 유지, GitHub Actions 검증 안정화
+DB 내부 이력 Table 제거와 GitHub 중심 Schema 변경 관리
 
 ## Scope
 
-- `.gitignore`, `.github/workflows/ci.yml`, `scripts/agent/verify.ps1`
-- `.env.example`, `frontend/.env.example`
-- `AGENTS.md`, `.ai/*`, `docs/agent/*`, `docs/architecture/*`
+- `infra/mysql/schema/*`, `scripts/agent/verify.ps1`, `scripts/agent/setup-local-mysql.ps1`
+- `.ai/*`, `docs/agent/*`, `docs/architecture/*`
 
 ## Plan
 
-1. `.env.example`과 Local 설정의 Git 제외 규칙 확인
-2. Harness Job 필수 Markdown의 명시적 Git 유지 규칙 확인
-3. 사라진 변경 후보 파일을 허용하도록 검증 Script 수정
-4. CI에서 `.env.example` 없이 Infrastructure 검증 가능하도록 수정
-5. 주석 지원 파일의 짧은 명사형 파일 역할 주석 확인
-6. 변경 Scope 검증과 전체 Diff Review
+1. DB 내부 변경 이력 Table과 의존 절차 제거
+2. 실제 Domain Schema 변경만 Version SQL로 추가
+3. 변경 이유와 적용 결과를 GitHub Commit·PR·문서에서 관리
+4. DB 이력 Table 재도입 방지 검증 추가
+5. Local DB와 애플리케이션 계정 설정 절차 분리
+6. Infrastructure와 Harness 검증
 
 ## Verification Status
 
-- `.env.example` Git 제외 규칙: PASS
-- Harness Markdown Git 유지 규칙: PASS
-- 사라진 변경 후보 파일 처리: PASS, 단일 `Get-Item` 결과의 Null과 Directory를 건너뜀
-- `.env.example` 없는 Infrastructure 검증: PASS, Process 전용 검증값으로 Compose 해석
-- 주석 지원 파일의 역할 주석: PASS, 주석 불가 JSON·Lockfile·Binary 제외
-- 변경 범위 Build·Test: PASS, Backend 1 Test와 Frontend 1 Test
-- Harness 문서와 Secret 검사: PASS
+- DB 내부 변경 이력 Table 제거: PASS
+- GitHub 중심 Schema 변경 절차: PASS
+- DB 이력 Table 금지 검증: PASS
+- Local DB와 계정 설정 Script 구문: PASS
+- Infrastructure와 Harness 검증: PASS
 - Git diff whitespace: PASS
 - 배포 검증: NOT RUN, AWS Resource와 배포 구현 없음
 - 언론사 추출 검증: NOT RUN, 수집기 구현 없음
