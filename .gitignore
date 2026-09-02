@@ -103,6 +103,8 @@ skills-lock.json
 
 # 생성된 검토 문서
 PLAN_REVIEW.html
+docs/architecture/images/database-erd.svg
+infra/mysql/schema/V0001__create_initial_domain_schema.sql
 
 # Local Markdown 문서와 Harness 추적 예외
 *.md

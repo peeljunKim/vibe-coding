@@ -8,7 +8,7 @@
 - Host에 직접 설치한 Native MySQL Service
 - GitHub Version SQL·Commit·PR 기반 Schema 변경
 - 사용자와 인증 정보
-- 초대 코드 사용 이력
+- 사용자별 설정 초대 코드 검증 완료 사실
 - 분석 작업 원장
 - 저장 결과, 공유, 신고
 - 지원 언론사와 감사 이벤트
