@@ -11,9 +11,9 @@
 
 ## 현재 Schema
 
-업무 Entity와 업무 Table이 아직 없으므로 Git에 적용할 Schema SQL도 없다. Database와 Local 애플리케이션 계정 생성은 `scripts/agent/setup-local-mysql.ps1`의 Local 설정 절차이며 Schema 변경 이력에 포함하지 않는다.
+최초 업무 Schema는 `infra/mysql/schema/V0001__create_initial_domain_schema.sql`에 정의한다. 요구사항 분석, 관계, 컬럼, 인덱스와 삭제 정책은 `docs/architecture/DATABASE_DESIGN.md`를 기준으로 검토한다.
 
-첫 업무 Entity가 추가될 때 실제 Table 생성 SQL을 `V0001`로 시작한다.
+Database와 Local 애플리케이션 계정 생성은 `scripts/agent/setup-local-mysql.ps1`의 Local 설정 절차이며 Schema 변경 이력에 포함하지 않는다.
 
 ## 파일 규칙
 
