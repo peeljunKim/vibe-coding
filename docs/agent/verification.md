@@ -27,7 +27,7 @@ Script는 기존 Repository 도구만 사용한다. Frontend는 npm scripts, Bac
 | --- | --- | --- |
 | Frontend | ESLint → Vitest → TypeScript/Vite Build | `frontend/package.json`, GitHub Actions |
 | Backend | Compile → JUnit → Package | Maven `verify`, GitHub Actions |
-| Infrastructure | Git 관리 Schema SQL Metadata → DB 이력 Table 금지 → Compose 해석 | Version SQL, 검증 Process 전용 환경 변수와 `docker compose config --quiet` |
+| Infrastructure | 존재하는 Schema SQL Metadata → DB 이력 Table 금지 → Compose 해석 | Local 초기 SQL 또는 Git 후속 Version SQL, 검증 Process 전용 환경 변수와 `docker compose config --quiet` |
 | E2E | Vite Preview → Chromium Scenario → Release Chrome·Edge | Playwright 전략, 지원 Browser 정책 |
 | Docs/Harness | 필수 파일·참조 확인 → Diff whitespace 검사 | `AGENTS.md`, Harness 구조 |
 
@@ -49,8 +49,8 @@ Frontend formatting은 `npm run format`으로 별도 확인한다. 현재 기준
 
 ## Git 추적 경계
 
-- Git 제외: 실제 `.env`, 모든 `.env.example`, CI Workflow 외 YAML, 개인별 Local 설정, Credentials
-- Git 유지: `AGENTS.md`, `.ai/*.md`, `docs/agent/*.md`, `docs/architecture/*.md`, `MVP_REQUIREMENTS.md`
+- Git 제외: 실제 `.env`, 모든 `.env.example`, CI Workflow 외 YAML, 개인별 Local 설정, Credentials, 초기 Domain Schema `V0001__create_initial_domain_schema.sql`
+- Git 유지: `AGENTS.md`, `.ai/*.md`, `docs/agent/*.md`, `docs/architecture/*.md`, `MVP_REQUIREMENTS.md`, V0002 이후 후속 Schema 변경 SQL
 - CI 원칙: `.github/workflows/ci.yml`만 YAML 예외로 유지하고 Harness Job은 Git에 유지된 문서만 검사
 - 금지: 검증을 위한 `.gitignore` 일시 해제와 `git add -f`
 

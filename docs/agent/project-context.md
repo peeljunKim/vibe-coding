@@ -17,7 +17,7 @@
 | Configuration | Root·Frontend `.env.example`, Spring `application.yml`/`application-prod.yml`, Docker Compose |
 | Architecture | 현재 코드는 React 단일 App과 Spring Boot 부트스트랩·Security 설정 수준 |
 | Domain Structure | 요구사항에는 건강 뉴스, 제목 확인, 회원, 기록, 공유, 신고가 있으나 Domain 코드는 아직 없음 |
-| Database/Persistence | Local MySQL 8.0.30 Native Service, GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 업무 Entity/Repository는 아직 없음 |
+| Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 업무 Entity/Repository는 아직 없음 |
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session, 3일 분석 Cache 설정 |
 | External Services | Gmail SMTP, Google/Kakao/Naver OAuth, Gemini·PubMed 환경 변수 자리만 존재; 실제 Provider 구현 없음 |
 | Authentication/Authorization | Spring Security, Cookie CSRF, Actuator 일부 공개, 나머지 요청 인증 필요; Domain 인증 흐름은 미구현 |
@@ -125,7 +125,7 @@
 | 개인정보·Secret 노출 | OAuth, SMTP, AI key, IP hash 설정 | 실제 `.env` 금지, 기사 원문·IP·개인정보 Log 금지 |
 | 인증·관리자 권한 누락 | Security와 `ADMIN` 서버 검사 요구 | Frontend 숨김과 무관한 서버 인가 테스트 필수 |
 | Redis 장애 시 비용 제한 우회 | Cache·세션·이용량·Lock 책임 집중 | 이용량 또는 Lock 확인 불가 시 새 AI 분석 중단 |
-| Schema drift | `ddl-auto: validate`, GitHub Version SQL 방식, DB 이력 Table 미사용 | Entity와 호환 SQL을 함께 추가하고 Commit·PR에 적용 결과 기록 |
+| Schema drift | `ddl-auto: validate`, Local 초기 SQL과 이후 GitHub Version SQL 방식, DB 이력 Table 미사용 | Entity와 V0002 이후 호환 SQL을 함께 추가하고 Commit·PR에 적용 결과 기록 |
 | 무료 AI 데이터 처리 | Gemini 무료 등급을 Prototype에 사용 | 공개 기사·허용 근거만 전송하고 개인정보·기밀정보 차단 |
 | 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |
 | Blue/Green Schema 충돌 | 두 Application Version이 동일 DB 사용 | Traffic 전환 전 양쪽 Version 호환 Migration 검증 |
