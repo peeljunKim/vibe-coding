@@ -10,7 +10,8 @@
 3. `.ai/PLAN.md`에서 진행 중 목표와 알려진 검증 상태 확인
 4. 작업과 관련된 모듈의 구현 → 설정 → 테스트 순서로 탐색
 5. DB Schema 변경에는 `docs/architecture/DATABASE_SCHEMA.md` 확인
-6. 도메인 정책 변경에만 `MVP_REQUIREMENTS.md`의 관련 절을 선택적으로 확인
+6. Frontend UI·Figma·OAuth 버튼 작업에는 `docs/agent/frontend.md` 확인
+7. 도메인 정책 변경에만 `MVP_REQUIREMENTS.md`의 관련 절을 선택적으로 확인
 
 Repository 전체나 요구사항 전체를 매번 읽지 않는다. `rg`로 관련 심볼과 정책을 먼저 찾고, 연결된 파일만 단계적으로 읽는다.
 

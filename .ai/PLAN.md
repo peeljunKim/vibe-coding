@@ -1,45 +1,33 @@
-<!-- 현재 목표와 검증 상태 -->
+<!-- 현재 Frontend 작업 대상과 진행 상태 -->
 # 현재 작업 계획
 
-## Goal
+## Target
 
-Figma 기반 Frontend 구현 전 Local 환경 준비
+- Figma file: `qo0ztGDqf3MrinTOyyySy9`
+- Figma node: `13:719`
+- URL: `https://www.figma.com/design/qo0ztGDqf3MrinTOyyySy9/기사체크-·-데스크톱-UX-UI?node-id=13-719`
+- 화면 범위: Desktop 구현과 시각 비교
 
-## Scope
+## Current Status
 
-- Node, npm, Java와 Frontend 기존 검증 상태
-- Figma 대상 Node 접근 상태
-- Git에서 제외된 Root와 Frontend 환경 변수 Template
-- Source, SecurityConfig, OAuth 로직 변경 제외
+- Frontend 전용 Harness 문서와 `AGENTS.md` 연결: PASS
+- Docs/Harness, Secret와 Diff 검사: PASS
+- Figma Design Context와 Screenshot 접근: PASS
+- Node 22.18.0, npm 10.9.3과 Java 17.0.11: PASS
+- Clean Clone `npm ci`: PASS
+- 기존 Frontend Lint, 1개 Test와 Build: PASS
+- Figma 화면 구현: NOT RUN
+- OAuth Redirect와 Provider 연동: NOT RUN
+- Browser·E2E와 Figma 비교: NOT RUN
 
-## Plan
+## Next Loop
 
-1. Local 개발 도구 Version 확인
-2. Figma 대상 Node 접근 확인
-3. OAuth Redirect에 필요한 비민감 Backend Base URL 변수 보완
-4. 환경 변수 Template의 Git 비추적 상태 확인
-5. 기존 Frontend Lint, Test, Build 기준선 확인
+1. 대상 Node의 Frame 범위와 상태 확인
+2. 관련 Frontend 구조와 재사용 대상 확인
+3. `Confirmed / Inferred / Required`와 구현 계획 보고
+4. 사용자 승인 대상 확인 후 최소 단위 구현
+5. 관련 검증 → Browser 비교 → Self Review → Diff Review
 
-## Verification Status
+## Required Before Live OAuth
 
-- Node와 npm: PASS, Node 22.18.0과 npm 10.9.3
-- Java: PASS, Oracle JDK 17.0.11
-- Figma Context: PASS, file `qo0ztGDqf3MrinTOyyySy9`의 node `13:719`
-- Frontend Lint: PASS
-- Frontend Test: PASS, 1개 Test
-- Frontend Build: PASS
-- Frontend Clean Clone 의존성 설치: PASS, npm 10.9.3 Lockfile 재생성과 `npm ci`
-- OAuth 환경 변수 Template: PASS, Root `APP_BASE_URL`과 Frontend `VITE_BACKEND_BASE_URL` 분리
-- 환경 변수 Template Git 비추적: PASS, Local 파일 보존과 인덱스 제거
-- Docs/Harness와 Secret 검사: PASS
-- Git diff whitespace: PASS
-- 실제 OAuth Provider 연동: NOT RUN, Source와 Security 설정 변경 제외
-- 배포 검증: NOT RUN, AWS Resource와 배포 구현 없음
-- 언론사 추출 검증: NOT RUN, 수집기 구현 없음
-- E2E: NOT RUN, 전략만 확정되고 Playwright Config와 Test 없음
-
-## Deferred
-
-[Local 개발 완료 후 사용할 DuckDNS 서브도메인 이름이 필요합니다.]
-
-[Local 개발 완료 후 AWS 계정의 Free Plan 대상 여부 확인이 필요합니다.]
+[실제 Provider 연동 검증 전에 OAuth Client ID와 Client Secret의 Local `.env` 입력이 필요합니다.]
