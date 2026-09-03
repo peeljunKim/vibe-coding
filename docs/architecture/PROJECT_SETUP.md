@@ -6,7 +6,7 @@
 ### MySQL
 
 - Host에 직접 설치한 Native MySQL Service
-- GitHub Version SQL·Commit·PR 기반 Schema 변경
+- Git 제외 Local 초기 SQL과 이후 GitHub Version SQL·Commit·PR 기반 Schema 변경
 - 사용자와 인증 정보
 - 사용자별 설정 초대 코드 검증 완료 사실
 - 분석 작업 원장
@@ -79,12 +79,13 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - `.env.example`, `frontend/.env.example`: 변수 이름과 비실제 예시만 제공하는 템플릿
 - `application.yml`, `application-prod.yml`: 환경 변수 참조와 비민감 기본 설정
 - `docker-compose.yml`: 로컬 인프라 구조와 필수 환경 변수 참조
-- `infra/mysql/schema/*.sql`: Secret 없는 Version별 Schema 정의와 변경 이력
+- `infra/mysql/schema/V0002__*.sql` 이후: Secret 없는 후속 Schema 변경 이력
 - Prometheus, Grafana, Redis 설정: Secret을 포함하지 않는 공유 인프라 설정
 
 ### 포함하지 않는 설정과 데이터
 
 - `.env`, `.env.local`, 환경별 실제 `.env.*` 파일
+- `infra/mysql/schema/V0001__create_initial_domain_schema.sql`
 - `application-local.yml`, `application-secret.yml`, `application-secrets.yml`
 - API Key, OAuth Secret, Token, Password가 기록된 credentials 및 service account 파일
 - Private Key, keystore, 인증서 개인키 파일

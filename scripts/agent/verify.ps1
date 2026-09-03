@@ -118,7 +118,7 @@ function Invoke-InfrastructureVerification {
     $schemaDirectory = Join-Path $repoRoot 'infra\mysql\schema'
     $schemaFiles = @(Get-ChildItem -LiteralPath $schemaDirectory -Filter 'V????__*.sql' -File -ErrorAction SilentlyContinue)
     if ($schemaFiles.Count -eq 0) {
-        Write-Host '[NOT APPLICABLE] Git Schema SQL: no domain schema changes'
+        Write-Host '[NOT APPLICABLE] Schema SQL: no local initial or Git-managed follow-up files'
     }
     foreach ($schemaFile in $schemaFiles) {
         $schemaSql = Get-Content -LiteralPath $schemaFile.FullName -Raw
@@ -132,7 +132,7 @@ function Invoke-InfrastructureVerification {
         }
     }
     if ($schemaFiles.Count -gt 0) {
-        Write-Host '[PASS] Git-managed Native MySQL Schema SQL structure'
+        Write-Host '[PASS] Native MySQL Schema SQL structure'
     }
 
     $composePath = Join-Path $repoRoot 'docker-compose.yml'

@@ -1,9 +1,10 @@
-<!-- GitHub 기반 Native MySQL Schema 변경 절차 -->
+<!-- Local 초기 SQL과 GitHub 후속 변경 절차 -->
 # Native MySQL Schema 변경 관리
 
 ## 관리 기준
 
-- 변경 이력의 Source of Truth: GitHub의 Version SQL, Commit, Pull Request
+- 초기 Schema 원본: Git에서 제외된 Local `V0001__create_initial_domain_schema.sql`
+- 초기 생성 이후 변경 이력의 Source of Truth: GitHub의 Version SQL, Commit, Pull Request
 - DB 내부 변경 이력 Table: 사용하지 않음
 - 자동 Migration Library: 현재 Flyway와 Liquibase Dependency 없음
 - 애플리케이션 자동 DDL: JPA `ddl-auto: validate` 유지
@@ -11,7 +12,9 @@
 
 ## 현재 Schema
 
-최초 업무 Schema는 `infra/mysql/schema/V0001__create_initial_domain_schema.sql`에 정의한다. 요구사항 분석, 관계, 컬럼, 인덱스와 삭제 정책은 `docs/architecture/DATABASE_DESIGN.md`를 기준으로 검토한다.
+최초 업무 Schema는 Git에서 제외된 `infra/mysql/schema/V0001__create_initial_domain_schema.sql`에 정의한다. 요구사항 분석, 관계, 컬럼, 인덱스와 삭제 정책은 Git에서 관리하는 `docs/architecture/DATABASE_DESIGN.md`를 기준으로 검토한다.
+
+Clean Clone에는 초기 SQL이 포함되지 않으므로 Local 또는 배포 환경에 별도로 보관한 파일 없이는 빈 Database를 재생성할 수 없다.
 
 Database와 Local 애플리케이션 계정 생성은 `scripts/agent/setup-local-mysql.ps1`의 Local 설정 절차이며 Schema 변경 이력에 포함하지 않는다.
 
@@ -21,8 +24,9 @@ Database와 Local 애플리케이션 계정 생성은 `scripts/agent/setup-local
 infra/mysql/schema/V{4자리 순번}__{짧은_설명}.sql
 ```
 
-- 적용된 SQL 수정 금지
-- 실제 Schema 변경마다 새 Version SQL 추가
+- Local 초기 SQL의 Repository 추가 금지
+- 초기 Schema 적용 후 실제 변경마다 V0002부터 새 Version SQL 추가
+- GitHub에 적용된 후속 SQL 수정 금지
 - 파일 첫 부분에 역할, 이유, 내용, 호환성, Rollback 조건 기록
 - DB 내부 이력 Table 생성과 기록 SQL 금지
 - Secret, 실제 사용자 데이터, Database·계정 이름 기록 금지
@@ -42,7 +46,7 @@ Commit 또는 Pull Request에 다음 내용을 기록한다.
 
 1. 관련 Entity와 이전·신규 애플리케이션 Version 확인
 2. Table·Nullable Column·Index 추가 중심의 호환 SQL 작성
-3. 빈 Local Database에 Version 순서대로 적용
+3. 별도 보관한 초기 SQL과 GitHub 후속 Version SQL을 순서대로 빈 Local Database에 적용
 4. Backend `verify`와 애플리케이션 시작 검증
 5. SQL과 검증 결과를 동일 Pull Request에 포함
 6. 운영 적용 전 Backup과 복구 명령 확인
@@ -67,4 +71,4 @@ Script는 Database, 애플리케이션 계정과 DML 권한을 준비하고 실�
 - 사용 제외: Scoop 기본 Client MySQL 9.7.1
 - 배포 기준: Local과 동일한 Native MySQL 8.0.30
 
-배포 전 GitHub의 전체 Version SQL을 같은 MySQL Version의 빈 Database에 순서대로 적용해 검증한다.
+배포 전 별도 보관한 초기 SQL과 GitHub의 후속 Version SQL을 같은 MySQL Version의 빈 Database에 순서대로 적용해 검증한다.

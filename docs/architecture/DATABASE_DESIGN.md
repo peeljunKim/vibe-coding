@@ -5,7 +5,7 @@
 
 대상 DBMS: MySQL 8.0.30, InnoDB, `utf8mb4_0900_ai_ci`
 
-실행 DDL: `infra/mysql/schema/V0001__create_initial_domain_schema.sql`
+Local 전용 실행 DDL: `infra/mysql/schema/V0001__create_initial_domain_schema.sql` Git 제외
 
 상세 ERDCloud: `https://www.erdcloud.com/d/GtYigLShb3E3wDLpA` (Private, 로그인 필요)
 
@@ -395,13 +395,13 @@ PK와 UNIQUE 제약으로 생성되는 인덱스 외의 조회 인덱스만 정�
 
 ## 8. DDL
 
-실제 실행 가능한 전체 DDL은 다음 Version SQL이 원본이다.
+실제 실행 가능한 초기 DDL은 다음 Local 전용 SQL이 원본이다.
 
 ```text
 infra/mysql/schema/V0001__create_initial_domain_schema.sql
 ```
 
-DDL은 13개 `CREATE TABLE`, PK, FK 삭제 정책, UNIQUE, NOT NULL, DEFAULT, CHECK, 조회·만료 인덱스, 컬럼·테이블 COMMENT를 포함한다. DB 내부 스키마 이력 테이블은 만들지 않으며, MySQL 8.0.30 빈 DB에 파일 순서대로 적용한다.
+DDL은 13개 `CREATE TABLE`, PK, FK 삭제 정책, UNIQUE, NOT NULL, DEFAULT, CHECK, 조회·만료 인덱스, 컬럼·테이블 COMMENT를 포함한다. DB 내부 스키마 이력 테이블은 만들지 않는다. 초기 SQL은 Git에서 제외하며, 이 문서는 Git에서 관리하는 설계 검토 기준이다.
 
 ## 9. 설계 가정 및 확인 필요사항
 
