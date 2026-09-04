@@ -174,7 +174,9 @@ function Invoke-DocsVerification {
         '.ai\PLAN.md',
         'docs\agent\project-context.md',
         'docs\agent\workflow.md',
-        'docs\agent\verification.md'
+        'docs\agent\verification.md',
+        'docs\agent\code-review.md',
+        'docs\agent\backend-review.md'
     )
     foreach ($relativePath in $requiredFiles) {
         $path = Join-Path $repoRoot $relativePath
@@ -314,6 +316,16 @@ Invoke-CheckedCommand 'Git diff whitespace check' $repoRoot 'git' @(
     '-C',
     $repoRoot,
     'diff',
+    '--check'
+)
+
+Invoke-CheckedCommand 'Git staged diff whitespace check' $repoRoot 'git' @(
+    '-c',
+    "safe.directory=$($repoRoot.Replace('\', '/'))",
+    '-C',
+    $repoRoot,
+    'diff',
+    '--cached',
     '--check'
 )
 
