@@ -86,12 +86,15 @@ Frontend formatting은 `npm run format`으로 별도 확인한다. 현재 기준
 | 관련 Test | 변경 동작의 Test 결과 기록 |
 | 회귀 Test | 위험에 비례한 Module 또는 전체 검증 결과 기록 |
 | Test 보호 | 삭제, Skip, Assertion 약화 없음 |
-| Self Review | Correctness부터 Testability까지 검토 |
-| Diff Review | Secret, Debug, Noise, API 변경 검토 |
+| Self Review | `code-review.md` 필수 적용, Backend 변경은 `backend-review.md` 관련 절 검토 |
+| Diff Review | Staged·Unstaged·비무시 신규 파일의 의미 검토, 공백 검사와 구분 |
+| 리뷰 지적 | P0·P1 미해결 없음, P2는 해결 또는 사용자 명시적 보류, P3는 선택 사항 |
 | Local 설정 보호 | 추적 금지 파일명·보안값 후보 검사 성공과 `.gitignore` 유지 확인 |
 | 알려진 실패 | 기준선·환경·외부 의존 실패를 숨기지 않고 기록 |
 
 모든 항목에 `PASS / FAIL / NOT RUN / NOT APPLICABLE`을 붙인다. 필수 항목이 `FAIL`이면 완료하지 않고 수정 Loop로 돌아간다. 필수 검증이 `NOT RUN`이면 완료로 가장하지 않고 제약과 사용자에게 필요한 조치를 보고한다.
+
+자동 검증 성공은 리뷰 완료의 증거가 아니다. Self Review·Diff Review 결과를 별도로 기록하고, 보류된 지적은 PASS로 바꾸지 않는다. 승인된 P2 보류는 해당 지적에만 한정하며 필수 검증 실패를 면제하지 않는다. PR Review는 사용자 요청 시에만 수행한다.
 
 ## End-to-End Example
 

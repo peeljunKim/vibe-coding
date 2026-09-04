@@ -31,10 +31,12 @@ Repository 전체나 요구사항 전체를 매번 읽지 않는다. `rg`로 관
 4. 검증: 낮은 비용의 관련 검증부터 실행
 5. 평가: 첫 번째 의미 있는 실패와 원인 구분
 6. 수정: 원인과 직접 관련된 최소 변경 후 같은 검증 재실행
-7. 리뷰: 자동 검증 통과 후 Self Review와 Diff Review 수행
+7. 리뷰: 작업 완료 전 `docs/agent/code-review.md`에 따른 Self Review·Diff Review 필수 수행, Backend 변경에는 `docs/agent/backend-review.md`의 관련 절 적용
 8. 완료: Definition of Done을 `PASS / FAIL / NOT RUN / NOT APPLICABLE`로 보고
 
 같은 실패가 세 번 반복되면 추측성 수정을 중단하고 사실, 시도, 결과, 원인 후보와 필요한 정보를 보고한다.
+
+PR Review는 사용자 요청 시에만 수행하며, 리뷰 요청만으로 코드 수정·PR 생성·댓글 게시를 수행하지 않는다.
 
 상세 절차와 계획 템플릿은 `docs/agent/workflow.md`, 검증 명령과 완료 조건은 `docs/agent/verification.md`를 따른다. 프로젝트 구조와 위험 근거는 `docs/agent/project-context.md`를 참고한다.
 

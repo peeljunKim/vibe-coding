@@ -79,7 +79,7 @@ Harness는 모든 작업에 적용하고 Skill은 작업 조건이 맞을 때만
 
 ## Self Review Loop
 
-자동 검증 통과 후 다음 항목을 확인한다.
+작업 완료 전 `code-review.md`의 Self Review를 필수 수행한다. Backend 변경은 `backend-review.md`의 Spring·Redis 관련 절을 함께 적용한다. 아래는 공통 관점 요약이며 세부 절차와 심각도는 `code-review.md`가 기준이다.
 
 | 관점 | 질문 |
 | --- | --- |
@@ -97,7 +97,7 @@ Harness는 모든 작업에 적용하고 Skill은 작업 조건이 맞을 때만
 
 ## Diff Review Loop
 
-`git diff --check`와 전체 Diff에서 다음을 확인한다.
+완료 전 `code-review.md`에 따라 Staged·Unstaged Diff와 비무시 신규 파일을 필수 검토한다. `git diff --check`만으로 완료 처리하지 않는다. 전체 변경에서 다음을 확인한다.
 
 - 요청과 무관한 파일과 Formatting noise
 - Debug, Temporary, 주석 처리된 코드, 새 Dead code
@@ -107,6 +107,10 @@ Harness는 모든 작업에 적용하고 Skill은 작업 조건이 맞을 때만
 - Test 삭제, Skip, Assertion 약화
 
 문제가 발견되면 수정 → 검증 → Self Review → Diff Review 순서로 되돌아간다.
+
+## PR Review
+
+사용자 요청 시에만 `code-review.md`의 PR Review 절차를 적용한다. 리뷰 요청은 코드 수정·Commit·Push·PR 댓글 게시 권한을 포함하지 않는다.
 
 ## Token 절감 원칙
 

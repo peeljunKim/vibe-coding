@@ -174,7 +174,9 @@ function Invoke-DocsVerification {
         '.ai\PLAN.md',
         'docs\agent\project-context.md',
         'docs\agent\workflow.md',
-        'docs\agent\verification.md'
+        'docs\agent\verification.md',
+        'docs\agent\code-review.md',
+        'docs\agent\backend-review.md'
     )
     foreach ($relativePath in $requiredFiles) {
         $path = Join-Path $repoRoot $relativePath
