@@ -319,4 +319,14 @@ Invoke-CheckedCommand 'Git diff whitespace check' $repoRoot 'git' @(
     '--check'
 )
 
+Invoke-CheckedCommand 'Git staged diff whitespace check' $repoRoot 'git' @(
+    '-c',
+    "safe.directory=$($repoRoot.Replace('\', '/'))",
+    '-C',
+    $repoRoot,
+    'diff',
+    '--cached',
+    '--check'
+)
+
 Write-Host "[PASS] Verification scope: $($selectedScopes -join ', ')"

@@ -30,4 +30,6 @@
 
 ## Required Before Live OAuth
 
-[실제 Provider 연동 검증 전에 OAuth Client ID와 Client Secret의 Local `.env` 입력이 필요합니다.]
+[실제 Provider 연동 검증 전에 OAuth Client ID와 Client Secret의 Backend 전용 Local 환경 설정 입력이 필요합니다.]
+
+Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Client Secret 등 비밀값을 넣지 않는다.

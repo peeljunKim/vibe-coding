@@ -1,9 +1,11 @@
-# Harness 필수 문서 검증 회귀 테스트
+# Verification Harness의 Git·문서 검사 회귀 테스트
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$verifyScript = Join-Path $PSScriptRoot 'verify.ps1'
-$requiredHarnessFiles = @(
+$verificationScript = Join-Path $PSScriptRoot 'verify.ps1'
+$powerShell = (Get-Process -Id $PID).Path
+$testRoot = Join-Path ([IO.Path]::GetTempPath()) "news-verification-tests-$([guid]::NewGuid())"
+$requiredFiles = @(
     'AGENTS.md',
     '.ai/MEMORY.md',
     '.ai/RULES.md',
@@ -14,148 +16,114 @@ $requiredHarnessFiles = @(
     'docs/agent/code-review.md',
     'docs/agent/backend-review.md'
 )
-$tokens = $null
-$parseErrors = $null
-$verifyAst = [System.Management.Automation.Language.Parser]::ParseFile(
-    $verifyScript,
-    [ref]$tokens,
-    [ref]$parseErrors
-)
-if ($parseErrors.Count -gt 0) {
-    throw "verify.ps1 parsing failed: $($parseErrors[0].Message)"
-}
-$docsVerificationFunction = $verifyAst.Find({
-        param($node)
-        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-        $node.Name -eq 'Invoke-DocsVerification'
-    }, $true)
-if ($null -eq $docsVerificationFunction) {
-    throw 'Invoke-DocsVerification function not found'
-}
-Invoke-Expression $docsVerificationFunction.Extent.Text
+$failures = [System.Collections.Generic.List[string]]::new()
 
-function New-VerificationFixture {
-    param([string]$Name)
+function Invoke-Git {
+    param(
+        [string]$Repository,
+        [string[]]$Arguments
+    )
 
-    $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) "vibe-coding-$Name-$([guid]::NewGuid())"
-    foreach ($relativePath in $requiredHarnessFiles) {
-        $path = Join-Path $fixtureRoot $relativePath
-        New-Item -ItemType Directory -Path (Split-Path $path -Parent) -Force | Out-Null
-        Set-Content -LiteralPath $path -Value 'test fixture'
+    & git -C $Repository @Arguments *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Git command failed: git $($Arguments -join ' ')"
     }
-
-    return $fixtureRoot
 }
 
-function Invoke-DocsVerificationFixture {
-    param([string]$FixtureRoot)
+function New-VerificationRepository {
+    $repository = Join-Path $testRoot ([guid]::NewGuid().ToString())
+    $scriptDirectory = Join-Path $repository 'scripts/agent'
+    New-Item -ItemType Directory -Path $scriptDirectory -Force *> $null
+    Copy-Item -LiteralPath $verificationScript -Destination $scriptDirectory
 
-    $script:repoRoot = $FixtureRoot
-    try {
-        $output = Invoke-DocsVerification *>&1 | Out-String
-        return @{
-            Succeeded = $true
-            Output = $output
-            Error = ''
-        }
+    foreach ($relativePath in $requiredFiles) {
+        $path = Join-Path $repository $relativePath
+        New-Item -ItemType Directory -Path (Split-Path $path) -Force *> $null
+        Set-Content -LiteralPath $path -Value '<!-- test fixture -->' -NoNewline
     }
-    catch {
-        return @{
-            Succeeded = $false
-            Output = ''
-            Error = $_.Exception.Message
-        }
+    Set-Content -LiteralPath (Join-Path $repository 'README.md') -Value 'fixture' -NoNewline
+
+    Invoke-Git $repository @('init', '--quiet')
+    Invoke-Git $repository @('config', 'user.email', 'verification-tests@example.invalid')
+    Invoke-Git $repository @('config', 'user.name', 'Verification Tests')
+    Invoke-Git $repository @('add', '.')
+    Invoke-Git $repository @('commit', '--quiet', '-m', 'test fixture')
+    return $repository
+}
+
+function Invoke-Verification {
+    param([string]$Repository)
+
+    $script = Join-Path $Repository 'scripts/agent/verify.ps1'
+    $output = & $powerShell -NoProfile -File $script -Scope docs 2>&1 | Out-String
+    return @{
+        ExitCode = $LASTEXITCODE
+        Output = $output
     }
 }
 
 function Assert-Equal {
     param(
+        [string]$Name,
         [object]$Expected,
-        [object]$Actual,
-        [string]$Because
+        [object]$Actual
     )
 
-    if ($Actual -ne $Expected) {
-        throw "$Because (expected: $Expected, actual: $Actual)"
+    if ($Expected -ne $Actual) {
+        $failures.Add("$Name`: expected '$Expected', got '$Actual'")
     }
 }
 
-function Assert-Matches {
+function Assert-Contains {
     param(
-        [string]$Pattern,
+        [string]$Name,
         [string]$Actual,
-        [string]$Because
+        [string]$ExpectedText
     )
 
-    if ($Actual -notmatch $Pattern) {
-        throw "$Because`nOutput:`n$Actual"
+    if (-not $Actual.Contains($ExpectedText)) {
+        $failures.Add("$Name`: output did not contain '$ExpectedText'`n$Actual")
     }
 }
 
-$tests = @(
-    @{
-        Name = '모든 Harness 문서가 있으면 docs 검증에 성공한다'
-        Run = {
-            $fixtureRoot = New-VerificationFixture 'complete'
-            try {
-                $result = Invoke-DocsVerificationFixture $fixtureRoot
+try {
+    $repository = New-VerificationRepository
+    $result = Invoke-Verification $repository
+    Assert-Equal 'clean repository exits successfully' 0 $result.ExitCode
+    Assert-Contains 'clean repository checks required documents' $result.Output '[PASS] Harness file structure'
+    Assert-Contains 'clean repository checks staged whitespace' $result.Output '[PASS] Git staged diff whitespace check'
 
-                Assert-Equal $true $result.Succeeded "Complete Harness should pass docs verification`nError:`n$($result.Error)"
-                Assert-Matches '\[PASS\] Harness file structure' $result.Output 'Harness structure success should be reported'
-            }
-            finally {
-                Remove-Item -LiteralPath $fixtureRoot -Recurse -Force
-            }
-        }
-    },
-    @{
-        Name = '공통 코드 리뷰 문서가 없으면 해당 경로와 함께 실패한다'
-        Run = {
-            $fixtureRoot = New-VerificationFixture 'missing-code-review'
-            try {
-                Remove-Item -LiteralPath (Join-Path $fixtureRoot 'docs/agent/code-review.md')
-                $result = Invoke-DocsVerificationFixture $fixtureRoot
-
-                Assert-Equal $false $result.Succeeded 'Missing code review guidance should fail docs verification'
-                Assert-Matches 'Required Harness file missing: docs[\\/]agent[\\/]code-review\.md' $result.Error 'Failure should identify the missing code review guidance'
-            }
-            finally {
-                Remove-Item -LiteralPath $fixtureRoot -Recurse -Force
-            }
-        }
-    },
-    @{
-        Name = 'Backend 코드 리뷰 문서가 없으면 해당 경로와 함께 실패한다'
-        Run = {
-            $fixtureRoot = New-VerificationFixture 'missing-backend-review'
-            try {
-                Remove-Item -LiteralPath (Join-Path $fixtureRoot 'docs/agent/backend-review.md')
-                $result = Invoke-DocsVerificationFixture $fixtureRoot
-
-                Assert-Equal $false $result.Succeeded 'Missing backend review guidance should fail docs verification'
-                Assert-Matches 'Required Harness file missing: docs[\\/]agent[\\/]backend-review\.md' $result.Error 'Failure should identify the missing backend review guidance'
-            }
-            finally {
-                Remove-Item -LiteralPath $fixtureRoot -Recurse -Force
-            }
-        }
+    foreach ($reviewDocument in @('docs/agent/code-review.md', 'docs/agent/backend-review.md')) {
+        $repository = New-VerificationRepository
+        Remove-Item -LiteralPath (Join-Path $repository $reviewDocument)
+        $result = Invoke-Verification $repository
+        Assert-Equal "$reviewDocument is required" 1 $result.ExitCode
+        Assert-Contains "$reviewDocument failure identifies the missing file" $result.Output "Required Harness file missing: $($reviewDocument.Replace('/', '\'))"
     }
-)
 
-$failures = 0
-foreach ($test in $tests) {
-    try {
-        & $test.Run
-        Write-Host "[PASS] $($test.Name)"
-    }
-    catch {
-        $failures++
-        Write-Error "[FAIL] $($test.Name): $($_.Exception.Message)" -ErrorAction Continue
+    $repository = New-VerificationRepository
+    Add-Content -LiteralPath (Join-Path $repository 'README.md') -Value "`nunstaged trailing whitespace " -NoNewline
+    $result = Invoke-Verification $repository
+    Assert-Equal 'unstaged whitespace exits with failure' 1 $result.ExitCode
+    Assert-Contains 'unstaged whitespace fails the existing check' $result.Output 'Git diff whitespace check failed with exit code'
+
+    $repository = New-VerificationRepository
+    Add-Content -LiteralPath (Join-Path $repository 'README.md') -Value "`nstaged trailing whitespace " -NoNewline
+    Invoke-Git $repository @('add', 'README.md')
+    $result = Invoke-Verification $repository
+    Assert-Equal 'staged-only whitespace exits with failure' 1 $result.ExitCode
+    Assert-Contains 'staged-only whitespace reaches the staged check' $result.Output '[PASS] Git diff whitespace check'
+    Assert-Contains 'staged-only whitespace fails the staged check' $result.Output 'Git staged diff whitespace check failed with exit code'
+}
+finally {
+    if (Test-Path -LiteralPath $testRoot) {
+        Remove-Item -LiteralPath $testRoot -Recurse -Force
     }
 }
 
-if ($failures -gt 0) {
-    throw "$failures verification test(s) failed"
+if ($failures.Count -gt 0) {
+    $failures | ForEach-Object { Write-Error $_ }
+    exit 1
 }
 
-Write-Host "[PASS] $($tests.Count) verification tests"
+Write-Host '[PASS] Verification Harness regression tests'
