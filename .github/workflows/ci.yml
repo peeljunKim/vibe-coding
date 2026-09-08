@@ -47,4 +47,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: pwsh -NoProfile -File scripts/agent/verify.Tests.ps1
       - run: pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope docs
