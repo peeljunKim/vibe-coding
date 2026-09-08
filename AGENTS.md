@@ -12,6 +12,7 @@
 5. DB Schema 변경에는 `docs/architecture/DATABASE_SCHEMA.md` 확인
 6. Frontend UI·Figma·OAuth 버튼 작업에는 `docs/agent/frontend.md` 확인
 7. 도메인 정책 변경에만 `MVP_REQUIREMENTS.md`의 관련 절을 선택적으로 확인
+8. Backend 구현에는 `docs/agent/backend-development.md`, 모델 협업에는 `docs/agent/agent-collaboration.md` 확인
 
 Repository 전체나 요구사항 전체를 매번 읽지 않는다. `rg`로 관련 심볼과 정책을 먼저 찾고, 연결된 파일만 단계적으로 읽는다.
 
@@ -37,6 +38,8 @@ Repository 전체나 요구사항 전체를 매번 읽지 않는다. `rg`로 관
 같은 실패가 세 번 반복되면 추측성 수정을 중단하고 사실, 시도, 결과, 원인 후보와 필요한 정보를 보고한다.
 
 PR Review는 사용자 요청 시에만 수행하며, 리뷰 요청만으로 코드 수정·PR 생성·댓글 게시를 수행하지 않는다.
+
+Astra·Sol 협업은 독립적으로 분리 가능한 작업에만 적용한다. 계획·고위험 판단·최종 리뷰는 Astra, 범위가 정해진 구현·테스트는 Sol을 기본 역할로 하며 같은 파일의 동시 수정은 금지한다. 상세 역할·인계·단일 모델 예외는 협업 문서를 따른다.
 
 상세 절차와 계획 템플릿은 `docs/agent/workflow.md`, 검증 명령과 완료 조건은 `docs/agent/verification.md`를 따른다. 프로젝트 구조와 위험 근거는 `docs/agent/project-context.md`를 참고한다.
 

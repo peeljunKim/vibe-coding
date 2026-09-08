@@ -102,6 +102,9 @@ output/
 .agents/
 skills-lock.json
 
+# Local Codex 실행 설정
+.codex/
+
 # 생성된 검토 문서
 PLAN_REVIEW.html
 docs/architecture/images/database-erd.svg

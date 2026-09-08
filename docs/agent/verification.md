@@ -54,6 +54,10 @@ Frontend formatting은 `npm run format`으로 별도 확인한다. 현재 기준
 - CI 원칙: `.github/workflows/ci.yml`만 YAML 예외로 유지하고 Harness Job은 Git에 유지된 문서만 검사
 - 금지: 검증을 위한 `.gitignore` 일시 해제와 `git add -f`
 
+- API 상세 계약과 설계 결정은 `docs/api/`의 Local 전용 문서로 유지한다. Clean Clone CI 필수 입력에 추가하지 않는다.
+- Local API 문서 변경은 기존 도구로 JSON 파싱·내부 참조·계약 정합성을 별도 확인한다. Harness 성공만으로 무시된 파일의 검증을 대신하지 않는다.
+- Backend 개발·협업 표준은 `docs/agent/*.md` 추적 범위에 유지한다. Endpoint 목록·운영 Origin·예제 Payload는 여기에 복사하지 않는다.
+
 ## 전체 검증이 필요한 조건
 
 - Frontend와 Backend 계약을 함께 변경

@@ -47,6 +47,8 @@ Harness는 모든 작업에 적용하고 Skill은 작업 조건이 맞을 때만
 
 ## Implementation Loop
 
+Backend는 `backend-development.md`의 관련 절을 적용한다. Astra·Sol 역할 분담과 짧은 인계 형식은 `agent-collaboration.md`를 따른다. 단순 변경에는 협업을 강제하지 않는다.
+
 1. 실패를 재현하거나 기대 동작을 검증할 Test 또는 확인 기준 준비
 2. 한 책임을 해결하는 최소 변경 수행
 3. 가장 가까운 Test, Type check 또는 Compile 실행
