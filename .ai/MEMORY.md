@@ -25,6 +25,8 @@
 - 현재 구현: Frontend 초기 화면, Backend 부트스트랩과 기본 Security 설정, 각 모듈 단위 테스트 1개
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
 - 프로젝트 구조·위험: `docs/agent/project-context.md`
+- Backend 구현 표준: `docs/agent/backend-development.md` (채택 기준, 업무 기능 구현 완료 아님)
+- Astra·Sol 역할과 실행 설정: `docs/agent/agent-collaboration.md` (Local Custom Agent와 명시적 모델 위임)
 
 ## 현재 구현 경계
 

@@ -102,6 +102,9 @@ output/
 .agents/
 skills-lock.json
 
+# Local Codex 실행 설정
+.codex/
+
 # 생성된 검토 문서
 PLAN_REVIEW.html
 docs/architecture/images/database-erd.svg
@@ -118,6 +121,9 @@ docs/architecture/images/database-erd.svg
 !docs/agent/*.md
 !docs/architecture/
 !docs/architecture/*.md
+
+# Local API 계약 문서
+docs/api/
 
 # 활성 CI Workflow 외 GitHub Local 설정
 .github/*
