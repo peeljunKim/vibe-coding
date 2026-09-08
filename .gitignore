@@ -119,6 +119,9 @@ docs/architecture/images/database-erd.svg
 !docs/architecture/
 !docs/architecture/*.md
 
+# Local API 계약 문서
+docs/api/
+
 # 활성 CI Workflow 외 GitHub Local 설정
 .github/*
 !.github/workflows/
