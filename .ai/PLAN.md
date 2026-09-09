@@ -1,11 +1,15 @@
 <!-- 현재 Frontend 작업 대상과 진행 상태 -->
+
 # 현재 작업 계획
 
 ## Target
 
 - Figma file: `qo0ztGDqf3MrinTOyyySy9`
-- Figma node: `13:719`
-- URL: `https://www.figma.com/design/qo0ztGDqf3MrinTOyyySy9/기사체크-·-데스크톱-UX-UI?node-id=13-719`
+- Figma Section: `13:446`
+- 구현 확인 Node: `13:533`, `13:565`, `13:719`
+- PNG 기준 추가 화면: 건강 결과, 제목 결과, 저장 기록, 회원가입 3단계, 신고 관리자
+- 결과 화면 최신 Node: `15:114`
+- URL: `https://www.figma.com/design/qo0ztGDqf3MrinTOyyySy9/기사체크-·-데스크톱-UX-UI?node-id=13-446`
 - 화면 범위: Desktop 구현과 시각 비교
 
 ## Current Status
@@ -16,17 +20,34 @@
 - Node 22.18.0, npm 10.9.3과 Java 17.0.11: PASS
 - Clean Clone `npm ci`: PASS
 - 기존 Frontend Lint, 1개 Test와 Build: PASS
-- Figma 화면 구현: NOT RUN
-- OAuth Redirect와 Provider 연동: NOT RUN
-- Browser·E2E와 Figma 비교: NOT RUN
+- Figma Section의 제품 화면 목록 확인: PASS
+- 기능 선택 홈 `13:533` 구현과 1440×1024 시각 비교: PASS
+- 건강 기사 분석 중 `13:565` 구현과 1440×1024 시각 비교: PASS
+- 로그인 `13:719` 구현과 1440×1024 시각 비교: PASS
+- 홈 → 건강 기사 분석 중 → 취소 화면 전환: PASS
+- 사용자 제공 원본 PNG 7개 기준 추가 Frame 구현: PASS
+- 건강 결과, 제목 결과, 저장 기록과 신고 관리자 1440×1024 시각 비교: PASS
+- 회원가입 1·2·3단계 전환과 1440×1024 시각 비교: PASS
+- Figma Design Context 재조회: NOT RUN (Figma Starter MCP 호출 한도)
+- Provider 공식 OAuth 버튼 Asset과 Backend 로그인 시작 URL: PASS
+- OAuth Callback과 실제 Provider 연동: NOT RUN
+- 일반 로그인·도움말·계정 찾기·회원가입 Backend 연결: NOT RUN
+- Browser Runtime과 Console 오류 확인: PASS
+- Browser 회원가입 단계 전환: PASS
+- 실행 코드의 화면 더미 데이터 제거와 화면별 입력 모델 정의: PASS
+- 데이터 미제공·빈 목록 상태의 Desktop 레이아웃 유지: PASS
+- 1024·1280·1440px에서 8개 Route 가로 넘침 검사: PASS
+- Backend API 실제 데이터 연결: NOT RUN
+- Frontend Test 11개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
+- Native MySQL 8.0.30 서비스 실행과 초기 Schema 파일 13개 Table 정적 확인: PASS
+- 빈 Database에 초기 Schema 실제 적용과 `information_schema` 확인: NOT RUN
 
 ## Next Loop
 
-1. 대상 Node의 Frame 범위와 상태 확인
-2. 관련 Frontend 구조와 재사용 대상 확인
-3. `Confirmed / Inferred / Required`와 구현 계획 보고
-4. 사용자 승인 대상 확인 후 최소 단위 구현
-5. 관련 검증 → Browser 비교 → Self Review → Diff Review
+1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+2. Native MySQL 관리자 인증을 Git 비추적 Local 자격 증명으로 준비
+3. 빈 임시 Database에 초기 Schema 적용 후 `information_schema` 확인
+4. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 
 ## Backend 표준화 상태
 
@@ -43,3 +64,7 @@
 [실제 Provider 연동 검증 전에 OAuth Client ID와 Client Secret의 Backend 전용 Local 환경 설정 입력이 필요합니다.]
 
 Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Client Secret 등 비밀값을 넣지 않는다.
+
+## Required Before Native MySQL Application
+
+[초기 Schema를 빈 임시 Database에 적용하려면 MySQL 관리자 인증을 노출하지 않는 Local 로그인 경로 준비가 필요합니다.]
