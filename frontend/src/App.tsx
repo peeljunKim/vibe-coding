@@ -1,16 +1,62 @@
-// 초기 설정 상태 화면
+// 데스크톱 화면 흐름 구성
+import { Route, Routes, useNavigate } from 'react-router-dom'
+import AdminReportsPage from './pages/AdminReportsPage'
+import HealthAnalysisPage from './pages/HealthAnalysisPage'
+import HealthResultPage from './pages/HealthResultPage'
+import HomePage from './pages/HomePage'
+import LoginPage from './pages/LoginPage'
+import SavedRecordsPage from './pages/SavedRecordsPage'
+import SignupFlowPage from './pages/SignupFlowPage'
+import TitleResultPage from './pages/TitleResultPage'
+import './styles.css'
+
 function App() {
+  const navigate = useNavigate()
+  const goTo = (path: string) => {
+    void navigate(path)
+  }
+
   return (
-    <main className="setup-page">
-      <section className="setup-card" aria-labelledby="setup-title">
-        <p className="eyebrow">PRIVATE MVP</p>
-        <h1 id="setup-title">기사체크</h1>
-        <p>React 프로젝트 기반 설정이 준비되었습니다.</p>
-        <p className="setup-note">
-          서비스 기능은 요구사항에 따른 구현 단계에서 추가합니다.
-        </p>
-      </section>
-    </main>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <HomePage
+            onStartHealthAnalysis={() => goTo('/analysis/health')}
+            onOpenSavedRecords={() => goTo('/saved')}
+          />
+        }
+      />
+      <Route
+        path="/analysis/health"
+        element={<HealthAnalysisPage onCancel={() => goTo('/')} />}
+      />
+      <Route
+        path="/results/health"
+        element={<HealthResultPage onNewArticle={() => goTo('/')} />}
+      />
+      <Route path="/results/title" element={<TitleResultPage />} />
+      <Route
+        path="/saved"
+        element={
+          <SavedRecordsPage onReanalyze={() => goTo('/analysis/health')} />
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <LoginPage
+            onHome={() => goTo('/')}
+            onStartSignup={() => goTo('/signup')}
+          />
+        }
+      />
+      <Route
+        path="/signup"
+        element={<SignupFlowPage onLogin={() => goTo('/login')} />}
+      />
+      <Route path="/admin/reports" element={<AdminReportsPage />} />
+    </Routes>
   )
 }
 
