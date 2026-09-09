@@ -1983,7 +1983,7 @@ textarea:focus-visible {
   }
 
   .signup-form-grid {
-    gap-inline: 42px;
+    column-gap: 42px;
   }
 
   .verification-layout {
