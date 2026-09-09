@@ -144,15 +144,14 @@ else {
 }
 $defaultDatabaseName = if ($localValues.MYSQL_DATABASE) { $localValues.MYSQL_DATABASE } else { $defaultValues.MYSQL_DATABASE }
 $defaultAppUser = if ($localValues.MYSQL_USER) { $localValues.MYSQL_USER } else { $defaultValues.MYSQL_USER }
-$databaseInput = Read-Host "Application Database Name [$defaultDatabaseName]"
-$appUserInput = Read-Host "Application MySQL User [$defaultAppUser]"
-$databaseName = if ([string]::IsNullOrWhiteSpace($databaseInput)) { $defaultDatabaseName } else { $databaseInput }
-$appUser = if ([string]::IsNullOrWhiteSpace($appUserInput)) { $defaultAppUser } else { $appUserInput }
+$databaseName = $defaultDatabaseName
+$appUser = $defaultAppUser
 
 if ($databaseName -notmatch '^[A-Za-z0-9_]+$' -or $appUser -notmatch '^[A-Za-z0-9_]+$') {
     throw 'Database name and user may contain only letters, numbers, and underscores'
 }
 
+$secureRootPassword = Read-Host 'MySQL Root Password' -AsSecureString
 $secureAppPassword = $null
 $configuredAppPassword = $localValues.MYSQL_PASSWORD
 $usingConfiguredAppPassword = $configuredAppPassword -and $configuredAppPassword -notmatch '^replace-with-'
@@ -160,9 +159,8 @@ if ($usingConfiguredAppPassword) {
     $appPassword = $configuredAppPassword
 }
 else {
-    $secureAppPassword = Read-Host 'Application MySQL Password' -AsSecureString
+    $secureAppPassword = Read-Host "$appUser Password" -AsSecureString
 }
-$secureRootPassword = Read-Host 'MySQL Root Password' -AsSecureString
 $schemaSql = Get-Content -LiteralPath $schemaPath -Raw
 $expectedTables = @(
     [regex]::Matches($schemaSql, '(?im)^\s*CREATE\s+TABLE\s+`?([a-z0-9_]+)`?\s*\(') |
@@ -221,9 +219,7 @@ ORDER BY TABLE_NAME;
 
     $accountSql = @"
 CREATE USER IF NOT EXISTS '$appUser'@'localhost' IDENTIFIED BY '$sqlAppPassword';
-ALTER USER '$appUser'@'localhost' IDENTIFIED BY '$sqlAppPassword';
 CREATE USER IF NOT EXISTS '$appUser'@'127.0.0.1' IDENTIFIED BY '$sqlAppPassword';
-ALTER USER '$appUser'@'127.0.0.1' IDENTIFIED BY '$sqlAppPassword';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM '$appUser'@'localhost';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM '$appUser'@'127.0.0.1';
 GRANT SELECT, INSERT, UPDATE, DELETE ON $databaseName.* TO '$appUser'@'localhost';

@@ -22,13 +22,7 @@ pwsh -NoProfile -File scripts/agent/verify-native-mysql.ps1
 
 Script는 기존 Repository 도구만 사용한다. Frontend는 npm scripts, Backend는 Maven Wrapper launcher 또는 현재 Wrapper JAR, Infrastructure는 Native MySQL Schema 정적 검사와 Docker Compose를 사용한다. 새 Lint, Formatter, Test 도구를 설치하지 않는다.
 
-Native MySQL 검증 Script는 Git에서 제외된 `.env.example`의 Database·계정 기본값을 사용한다. `.env`에 애플리케이션 비밀번호가 있으면 프로세스 내부에서 자동 사용하고, 없으면 마스킹 입력 후 저장하지 않는다. Root 비밀번호도 마스킹 입력 후 저장하지 않는다. 대상 Database가 비어 있거나 현재 초기 Schema와 정확히 일치할 때만 진행하고, 애플리케이션 계정의 기존 권한을 회수한 뒤 DML 권한만 부여한다.
-
-Local MySQL 자격 증명이 노출된 경우 다음 Script로 Root와 애플리케이션 비밀번호를 함께 교체한다. 두 새 비밀번호는 서로 다른 12자 이상의 값을 마스킹 입력하고 Local 파일에 저장하지 않는다. 기존 애플리케이션 비밀번호는 `.env`에 있으면 자동 사용하며, 없으면 마스킹 입력한다.
-
-```powershell
-pwsh -NoProfile -File scripts/agent/rotate-local-mysql-credentials.ps1
-```
+Native MySQL 검증 Script는 Git에서 제외된 `.env` 또는 `.env.example`의 Database·계정 값을 사용하며 이름을 다시 입력받지 않는다. Root 비밀번호는 항상 마스킹 입력한다. `.env`에 애플리케이션 비밀번호가 있으면 프로세스 내부에서 자동 사용하고, 없으면 해당 계정 비밀번호를 마스킹 입력 후 저장하지 않는다. 기존 계정의 비밀번호를 변경하거나 두 계정의 비밀번호를 같게 강제하지 않는다. 애플리케이션 계정이 없을 때만 제공된 비밀번호로 생성한다. 대상 Database가 비어 있거나 현재 초기 Schema와 정확히 일치할 때만 진행하고, 애플리케이션 계정의 기존 권한을 회수한 뒤 DML 권한만 부여한다.
 
 모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 Key·Secret·Token·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder는 허용한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
 
