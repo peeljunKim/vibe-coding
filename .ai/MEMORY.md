@@ -22,7 +22,7 @@
 - Local OAuth Callback: Naver `/oauth/naver`, Naver 연결 끊기 `/oauth/naver/disconnect`, Kakao `/oauth/kakao`, Google `/oauth/google`
 - Secret 입력 책임: Gemini API Key, Gmail App Password, OAuth Client Key·Secret은 사용자가 Local `.env`에 직접 입력
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
-- 현재 구현: Frontend Desktop 화면, Backend 부트스트랩·기본 Security와 지원 언론사 공개 조회, 관련 단위·보안 Filter 테스트
+- 현재 구현: Frontend Desktop 화면, Backend 부트스트랩·기본 Security, 지원 언론사 공개 조회, 기사 URL 안전 검증·Mock 본문 추출, 관련 단위·보안 Filter 테스트
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
 - 프로젝트 구조·위험: `docs/agent/project-context.md`
 - Backend 구현 표준: `docs/agent/backend-development.md` (채택 기준, 업무 기능 구현 완료 아님)
@@ -41,6 +41,8 @@
 [실제 Gemini, OAuth, Gmail SMTP Secret은 Local 연동 시 사용자가 `.env`에 직접 입력해야 합니다.]
 
 [초기 언론사 후보의 실제 기사 추출 테스트 결과가 필요합니다.]
+
+[실제 기사 추출 시험에 적용할 원본 응답 크기·단일 요청 Timeout·Redirect 상한 정보가 필요합니다.]
 
 [Local 개발 완료 후 사용할 DuckDNS 서브도메인 이름이 필요합니다.]
 

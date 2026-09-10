@@ -52,12 +52,17 @@
 - 지원 언론사 Repository Native MySQL 통합 테스트 컴파일: PASS
 - 테스트 Database·제한 계정 실제 생성과 DML 허용·DDL 차단: PASS
 - 지원 언론사 Repository Native MySQL 통합 테스트 실행: PASS (1개, 실패·오류·Skip 0)
+- 기사 URL HTTPS·허용 Host·Port·DNS/IP·Redirect 재검증: PASS
+- Mock HTML 제목·게시일·본문 정제와 20,000자 제한: PASS
+- 기사 수집 Mock 테스트: PASS (11개, 실패·오류·Skip 0)
+- 초기 언론사 실제 추출 시험 실행기와 Local 보고서 경계: PASS
+- 초기 언론사 실제 외부 추출 시험: NOT RUN (응답 크기·Timeout·Redirect 상한 확정 전)
 
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
-3. 초기 언론사 후보의 실제 기사 추출 시험 후 지원 대상 확정
+3. 기사 응답 크기·Timeout·Redirect 상한 확정 후 초기 언론사 후보의 실제 추출 시험과 지원 대상 확정
 
 ## Backend 표준화 상태
 
