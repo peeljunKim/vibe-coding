@@ -40,14 +40,29 @@
 - Backend API 실제 데이터 연결: NOT RUN
 - Frontend Test 11개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
 - Native MySQL 8.0.30 서비스 실행과 초기 Schema 파일 13개 Table 정적 확인: PASS
-- 빈 Database에 초기 Schema 실제 적용과 `information_schema` 확인: NOT RUN
+- 빈 Local Database에 초기 Schema 실제 적용과 `information_schema` 확인: PASS
+- Local 애플리케이션 계정의 DML 전용 권한과 DDL 차단 확인: PASS
+- Spring JPA DataSource와 `ddl-auto: validate` 애플리케이션 기동: PASS
+- 지원 언론사 공개 조회 API와 후보 제외·상태 축약: PASS
+- `GET /api/publishers` 비로그인 접근과 다른 요청의 인증 유지: PASS
+- 지원 언론사 JPA Entity와 Repository 단위 검증: PASS
+- `V0002__add_publisher_category.sql` Local 적용과 컬럼 확인: PASS
+- 지원 언론사 Entity와 Native MySQL 실제 Mapping 검증: PASS
+- Native MySQL 테스트 Database·제한 계정 구성 Script: PASS
+- 지원 언론사 Repository Native MySQL 통합 테스트 컴파일: PASS
+- 테스트 Database·제한 계정 실제 생성과 DML 허용·DDL 차단: PASS
+- 지원 언론사 Repository Native MySQL 통합 테스트 실행: PASS (1개, 실패·오류·Skip 0)
+- 기사 URL HTTPS·허용 Host·Port·DNS/IP·Redirect 재검증: PASS
+- Mock HTML 제목·게시일·본문 정제와 20,000자 제한: PASS
+- 기사 수집 Mock 테스트: PASS (11개, 실패·오류·Skip 0)
+- 초기 언론사 실제 추출 시험 실행기와 Local 보고서 경계: PASS
+- 초기 언론사 실제 외부 추출 시험: NOT RUN (응답 크기·Timeout·Redirect 상한 확정 전)
 
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-2. Native MySQL 관리자 인증을 Git 비추적 Local 자격 증명으로 준비
-3. 빈 임시 Database에 초기 Schema 적용 후 `information_schema` 확인
-4. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
+2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
+3. 기사 응답 크기·Timeout·Redirect 상한 확정 후 초기 언론사 후보의 실제 추출 시험과 지원 대상 확정
 
 ## Backend 표준화 상태
 
@@ -65,6 +80,8 @@
 
 Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Client Secret 등 비밀값을 넣지 않는다.
 
-## Required Before Native MySQL Application
+## Native MySQL Application
 
-[초기 Schema를 빈 임시 Database에 적용하려면 MySQL 관리자 인증을 노출하지 않는 Local 로그인 경로 준비가 필요합니다.]
+- Local Database와 애플리케이션 계정 설정: Git에서 제외된 `.env`
+- Root 인증 저장: 사용하지 않음
+- 초기 Schema와 JPA 기동 재검증: `scripts/agent/verify-native-mysql.ps1`
