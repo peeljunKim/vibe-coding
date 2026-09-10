@@ -43,13 +43,21 @@
 - 빈 Local Database에 초기 Schema 실제 적용과 `information_schema` 확인: PASS
 - Local 애플리케이션 계정의 DML 전용 권한과 DDL 차단 확인: PASS
 - Spring JPA DataSource와 `ddl-auto: validate` 애플리케이션 기동: PASS
-- JPA Entity와 실제 Table Mapping 검증: NOT APPLICABLE (현재 Entity 없음)
+- 지원 언론사 공개 조회 API와 후보 제외·상태 축약: PASS
+- `GET /api/publishers` 비로그인 접근과 다른 요청의 인증 유지: PASS
+- 지원 언론사 JPA Entity와 Repository 단위 검증: PASS
+- `V0002__add_publisher_category.sql` Local 적용과 컬럼 확인: PASS
+- 지원 언론사 Entity와 Native MySQL 실제 Mapping 검증: PASS
+- Native MySQL 테스트 Database·제한 계정 구성 Script: PASS
+- 지원 언론사 Repository Native MySQL 통합 테스트 컴파일: PASS
+- 테스트 Database·제한 계정 실제 생성과 DML 허용·DDL 차단: PASS
+- 지원 언론사 Repository Native MySQL 통합 테스트 실행: PASS (1개, 실패·오류·Skip 0)
 
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
-3. 첫 JPA Entity 구현 시 실제 Table Mapping 검증 추가
+3. 초기 언론사 후보의 실제 기사 추출 시험 후 지원 대상 확정
 
 ## Backend 표준화 상태
 

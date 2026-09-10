@@ -8,7 +8,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
-$schemaPath = Join-Path $repoRoot 'infra\mysql\schema\V0001__create_initial_domain_schema.sql'
+$schemaDirectory = Join-Path $repoRoot 'infra\mysql\schema'
+$initialSchemaPath = Join-Path $schemaDirectory 'V0001__create_initial_domain_schema.sql'
 $environmentTemplatePath = Join-Path $repoRoot '.env.example'
 $environmentPath = Join-Path $repoRoot '.env'
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
@@ -23,7 +24,7 @@ $ddlProbeTable = "agent_ddl_probe_$PID"
 $stdoutPath = Join-Path ([IO.Path]::GetTempPath()) "news-verification-jpa-$PID.stdout.log"
 $stderrPath = Join-Path ([IO.Path]::GetTempPath()) "news-verification-jpa-$PID.stderr.log"
 
-foreach ($requiredPath in @($mysqlPath, $javaPath, $wrapperJar, $schemaPath, $environmentTemplatePath)) {
+foreach ($requiredPath in @($mysqlPath, $javaPath, $wrapperJar, $initialSchemaPath, $environmentTemplatePath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required verification file missing: $requiredPath"
     }
@@ -161,15 +162,20 @@ if ($usingConfiguredAppPassword) {
 else {
     $secureAppPassword = Read-Host "$appUser Password" -AsSecureString
 }
-$schemaSql = Get-Content -LiteralPath $schemaPath -Raw
+$initialSchemaSql = Get-Content -LiteralPath $initialSchemaPath -Raw
+$followupSchemaSql = @(Get-ChildItem -LiteralPath $schemaDirectory -Filter 'V????__*.sql' -File |
+        Where-Object { $_.FullName -ne $initialSchemaPath } |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })
+$schemaDefinitionSql = (@($initialSchemaSql) + $followupSchemaSql) -join "`n"
 $expectedTables = @(
-    [regex]::Matches($schemaSql, '(?im)^\s*CREATE\s+TABLE\s+`?([a-z0-9_]+)`?\s*\(') |
+    [regex]::Matches($schemaDefinitionSql, '(?im)^\s*CREATE\s+TABLE\s+`?([a-z0-9_]+)`?\s*\(') |
         ForEach-Object { $_.Groups[1].Value } |
         Sort-Object
 )
-$expectedForeignKeys = [regex]::Matches($schemaSql, '(?im)^\s*CONSTRAINT\s+\S+\s+FOREIGN\s+KEY').Count
-$expectedChecks = [regex]::Matches($schemaSql, '(?im)^\s*CONSTRAINT\s+\S+\s+CHECK').Count
-$expectedSecondaryIndexes = [regex]::Matches($schemaSql, '(?im)^\s*(?:UNIQUE\s+)?KEY\s+').Count
+$expectedForeignKeys = [regex]::Matches($schemaDefinitionSql, '(?im)^\s*CONSTRAINT\s+\S+\s+FOREIGN\s+KEY').Count
+$expectedChecks = [regex]::Matches($schemaDefinitionSql, '(?im)^\s*(?:ADD\s+)?CONSTRAINT\s+\S+\s+CHECK').Count
+$expectedSecondaryIndexes = [regex]::Matches($schemaDefinitionSql, '(?im)^\s*(?:UNIQUE\s+)?KEY\s+').Count
 
 try {
     if ($secureAppPassword) {
@@ -229,7 +235,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON $databaseName.* TO '$appUser'@'127.0.0.1
     Write-Host "[PASS] Application account prepared: $appUser"
 
     if (-not $schemaAlreadyApplied) {
-        [void] (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql $schemaSql)
+        [void] (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql $initialSchemaSql)
         Write-Host '[PASS] Initial schema applied'
     }
     else {
