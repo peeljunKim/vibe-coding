@@ -165,6 +165,7 @@ public record InviteProperties(String code) {}
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `id` | BIGINT UNSIGNED | Y | N | N | Y | AUTO_INCREMENT | 언론사 식별자 |
 | `name` | VARCHAR(100) | N | N | N | Y | - | 표시명 |
+| `category` | VARCHAR(30) | N | N | N | N | - | `NEWS_AGENCY`, `BROADCAST_NEWS`, `GENERAL_NEWSPAPER`, `BUSINESS_NEWSPAPER`, `HEALTH_MEDICAL` |
 | `status` | VARCHAR(30) | N | N | N | N | `CANDIDATE` | `CANDIDATE`, `ACTIVE`, `PAUSED_AUTO`, `PAUSED_MANUAL` |
 | `status_reason` | VARCHAR(255) | N | N | Y | N | - | 중단 사유 |
 | `auto_disabled_at` | TIMESTAMP(6) | N | N | Y | N | - | 자동 중단 일시 |
