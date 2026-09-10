@@ -115,6 +115,9 @@ function Invoke-BackendVerification {
 }
 
 function Invoke-InfrastructureVerification {
+    Invoke-CheckedCommand 'Native MySQL validation regression' $repoRoot 'pwsh' @(
+        '-NoProfile', '-File', (Join-Path $PSScriptRoot 'native-mysql-validation.Tests.ps1')
+    )
     $schemaDirectory = Join-Path $repoRoot 'infra\mysql\schema'
     $schemaFiles = @(Get-ChildItem -LiteralPath $schemaDirectory -Filter 'V????__*.sql' -File -ErrorAction SilentlyContinue)
     if ($schemaFiles.Count -eq 0) {

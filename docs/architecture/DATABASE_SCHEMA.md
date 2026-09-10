@@ -25,7 +25,8 @@ infra/mysql/schema/V{4자리 순번}__{짧은_설명}.sql
 ```
 
 - Local 초기 SQL의 Repository 추가 금지
-- 초기 Schema 적용 후 실제 변경마다 V0002부터 새 Version SQL 추가
+- 승인된 기준선 통합으로 V0002는 폐기하며 초기 Schema 적용 후 실제 변경마다 V0003부터 새 Version SQL 추가
+- 폐기한 Version 번호 재사용 금지
 - GitHub에 적용된 후속 SQL 수정 금지
 - 파일 첫 부분에 역할, 이유, 내용, 호환성, Rollback 조건 기록
 - DB 내부 이력 Table 생성과 기록 SQL 금지
@@ -46,7 +47,7 @@ Commit 또는 Pull Request에 다음 내용을 기록한다.
 
 1. 관련 Entity와 이전·신규 애플리케이션 Version 확인
 2. Table·Nullable Column·Index 추가 중심의 호환 SQL 작성
-3. 별도 보관한 초기 SQL과 GitHub 후속 Version SQL을 순서대로 빈 Local Database에 적용
+3. 별도 보관한 초기 SQL과 GitHub 후속 Version SQL을 파일 Version 순서대로 빈 Local Database에 적용
 4. Backend `verify`와 애플리케이션 시작 검증
 5. SQL과 검증 결과를 동일 Pull Request에 포함
 6. 운영 적용 전 Backup과 복구 명령 확인
@@ -72,3 +73,5 @@ Script는 Database, 애플리케이션 계정과 DML 권한을 준비하고 실�
 - 배포 기준: Local과 동일한 Native MySQL 8.0.30
 
 배포 전 별도 보관한 초기 SQL과 GitHub의 후속 Version SQL을 같은 MySQL Version의 빈 Database에 순서대로 적용해 검증한다.
+
+V0002의 지원 언론사 분류 변경은 실제 배포 전 사용자 승인에 따라 Local 초기 SQL V0001에 통합했다. 이 일회성 기준선 예외의 원래 변경은 PR 16과 Git 이력에서 복구할 수 있으며 Git 이력을 재작성하지 않는다. 이미 V0002를 적용한 Database에는 V0001을 재실행하지 않으며 현재 `category` 컬럼의 `NOT NULL`, 길이와 CHECK 제약의 활성화 및 허용값을 검증한다. 다음 후속 변경은 V0003 이상을 사용한다.

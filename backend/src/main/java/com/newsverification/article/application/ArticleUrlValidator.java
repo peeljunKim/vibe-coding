@@ -22,7 +22,7 @@ public final class ArticleUrlValidator {
     }
 
     /** 허용 언론사와 공개 IP URL 검증 */
-    public URI validate(String rawUrl, Set<String> allowedHosts) {
+    public ResolvedArticleUrl validate(String rawUrl, Set<String> allowedHosts) {
         URI uri = parse(rawUrl);
         if (!"https".equalsIgnoreCase(uri.getScheme())) {
             throw new ArticleProcessingException(ArticleProcessingError.UNSUPPORTED_SCHEME);
@@ -47,12 +47,14 @@ public final class ArticleUrlValidator {
             if (addresses.isEmpty() || addresses.stream().anyMatch(ArticleUrlValidator::isUnsafeAddress)) {
                 throw new ArticleProcessingException(ArticleProcessingError.UNSAFE_ADDRESS);
             }
+            URI normalized = URI.create("https://" + hostname
+                    + (uri.getRawPath().isEmpty() ? "/" : uri.getRawPath())
+                    + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery()));
+            return new ResolvedArticleUrl(normalized, hostname, addresses);
         }
         catch (UnknownHostException exception) {
             throw new ArticleProcessingException(ArticleProcessingError.DNS_LOOKUP_FAILED, exception);
         }
-
-        return uri;
     }
 
     /** URL 문법 확인 */

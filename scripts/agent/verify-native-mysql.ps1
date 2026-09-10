@@ -10,6 +10,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $schemaDirectory = Join-Path $repoRoot 'infra\mysql\schema'
 $initialSchemaPath = Join-Path $schemaDirectory 'V0001__create_initial_domain_schema.sql'
+$validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
 $environmentTemplatePath = Join-Path $repoRoot '.env.example'
 $environmentPath = Join-Path $repoRoot '.env'
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
@@ -24,11 +25,13 @@ $ddlProbeTable = "agent_ddl_probe_$PID"
 $stdoutPath = Join-Path ([IO.Path]::GetTempPath()) "news-verification-jpa-$PID.stdout.log"
 $stderrPath = Join-Path ([IO.Path]::GetTempPath()) "news-verification-jpa-$PID.stderr.log"
 
-foreach ($requiredPath in @($mysqlPath, $javaPath, $wrapperJar, $initialSchemaPath, $environmentTemplatePath)) {
+foreach ($requiredPath in @($mysqlPath, $javaPath, $wrapperJar, $initialSchemaPath, $validationPath, $environmentTemplatePath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required verification file missing: $requiredPath"
     }
 }
+
+. $validationPath
 
 function Read-EnvironmentValues {
     param(
@@ -162,12 +165,10 @@ if ($usingConfiguredAppPassword) {
 else {
     $secureAppPassword = Read-Host "$appUser Password" -AsSecureString
 }
-$initialSchemaSql = Get-Content -LiteralPath $initialSchemaPath -Raw
-$followupSchemaSql = @(Get-ChildItem -LiteralPath $schemaDirectory -Filter 'V????__*.sql' -File |
-        Where-Object { $_.FullName -ne $initialSchemaPath } |
-        Sort-Object Name |
-        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })
-$schemaDefinitionSql = (@($initialSchemaSql) + $followupSchemaSql) -join "`n"
+$schemaFiles = @(Get-NativeMySqlSchemaFiles -SchemaDirectory $schemaDirectory -InitialSchemaPath $initialSchemaPath)
+$schemaSql = @($schemaFiles | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })
+$schemaDefinitionSql = $schemaSql -join "`n"
+Assert-PublisherCategorySchemaDefinition -SchemaSql $schemaDefinitionSql
 $expectedTables = @(
     [regex]::Matches($schemaDefinitionSql, '(?im)^\s*CREATE\s+TABLE\s+`?([a-z0-9_]+)`?\s*\(') |
         ForEach-Object { $_.Groups[1].Value } |
@@ -223,6 +224,44 @@ ORDER BY TABLE_NAME;
         Assert-Equal -Name 'Pre-application table count' -Actual $existingTables.Count -Expected 0
     }
 
+    if (-not $schemaAlreadyApplied) {
+        foreach ($sql in $schemaSql) {
+            [void] (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql $sql)
+        }
+        Write-Host '[PASS] Schema versions applied in order'
+    }
+    else {
+        Write-Host '[PASS] Existing database left unchanged for schema validation'
+    }
+
+    $publisherCategoryColumn = (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql @"
+SELECT DATA_TYPE,
+       COLUMN_TYPE,
+       IS_NULLABLE,
+       CHARACTER_MAXIMUM_LENGTH,
+       IF(COLUMN_DEFAULT IS NULL, 'NULL', COLUMN_DEFAULT),
+       ORDINAL_POSITION
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'news_publishers'
+  AND COLUMN_NAME = 'category';
+"@).Output
+    $publisherCategoryConstraint = (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql @"
+SELECT tc.CONSTRAINT_NAME, tc.ENFORCED, cc.CHECK_CLAUSE
+FROM information_schema.TABLE_CONSTRAINTS tc
+JOIN information_schema.CHECK_CONSTRAINTS cc
+  ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+ AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+WHERE tc.CONSTRAINT_SCHEMA = DATABASE()
+  AND tc.TABLE_NAME = 'news_publishers'
+  AND tc.CONSTRAINT_NAME = 'ck_news_publishers_category'
+  AND tc.CONSTRAINT_TYPE = 'CHECK';
+"@).Output
+    Assert-PublisherCategoryMetadata `
+        -ColumnMetadata $publisherCategoryColumn `
+        -ConstraintMetadata $publisherCategoryConstraint
+    Write-Host '[PASS] Publisher category schema metadata'
+
     $accountSql = @"
 CREATE USER IF NOT EXISTS '$appUser'@'localhost' IDENTIFIED BY '$sqlAppPassword';
 CREATE USER IF NOT EXISTS '$appUser'@'127.0.0.1' IDENTIFIED BY '$sqlAppPassword';
@@ -233,14 +272,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON $databaseName.* TO '$appUser'@'127.0.0.1
 "@
     [void] (Invoke-MySql -Password $rootPassword -User 'root' -Sql $accountSql)
     Write-Host "[PASS] Application account prepared: $appUser"
-
-    if (-not $schemaAlreadyApplied) {
-        [void] (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql $initialSchemaSql)
-        Write-Host '[PASS] Initial schema applied'
-    }
-    else {
-        Write-Host '[PASS] Initial schema application already completed'
-    }
 
     $actualTablesOutput = (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql @"
 SELECT TABLE_NAME

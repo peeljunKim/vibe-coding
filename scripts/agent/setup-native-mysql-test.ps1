@@ -6,15 +6,18 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $schemaDirectory = Join-Path $repoRoot 'infra\mysql\schema'
 $initialSchemaPath = Join-Path $schemaDirectory 'V0001__create_initial_domain_schema.sql'
+$validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
 $environmentPath = Join-Path $repoRoot '.env'
 $verificationPath = Join-Path $PSScriptRoot 'verify-publisher-native-mysql.ps1'
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
 
-foreach ($requiredPath in @($mysqlPath, $environmentPath, $initialSchemaPath, $verificationPath)) {
+foreach ($requiredPath in @($mysqlPath, $environmentPath, $initialSchemaPath, $validationPath, $verificationPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Native MySQL test setup file missing: $requiredPath"
     }
 }
+
+. $validationPath
 
 function Read-EnvironmentValues {
     param(
@@ -132,12 +135,13 @@ $testUser = Get-ConfiguredValue -Values $localValues -Name 'MYSQL_TEST_USER' -Fa
 $configuredTestPassword = Get-ConfiguredValue -Values $localValues -Name 'MYSQL_TEST_PASSWORD'
 $testDatabaseUrl = "jdbc:mysql://127.0.0.1:3306/$testDatabase`?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC"
 
-if ($testDatabase -notmatch '^[A-Za-z0-9_]+_test$' -or $testUser -notmatch '^[A-Za-z0-9_]+_test$') {
-    throw 'Test database and user names must end with _test'
-}
-if ($testDatabase -eq $developmentDatabase -or $testUser -eq $developmentUser) {
-    throw 'Native MySQL integration tests must not use the development database or account'
-}
+Assert-NativeMySqlTestConnection `
+    -DatabaseUrl $testDatabaseUrl `
+    -Username $testUser `
+    -ExpectedDatabase $testDatabase `
+    -ExpectedUsername $testUser `
+    -DevelopmentDatabase $developmentDatabase `
+    -DevelopmentUsername $developmentUser | Out-Null
 
 $secureRootPassword = Read-Host 'MySQL Root Password' -AsSecureString
 $secureTestPassword = $null
@@ -149,7 +153,15 @@ $testPasswordPointer = [IntPtr]::Zero
 $rootPassword = $null
 $testPassword = $configuredTestPassword
 $ddlProbeTable = "agent_test_ddl_probe_$PID"
-$processEnvironmentNames = @('TEST_DB_URL', 'TEST_DB_USERNAME', 'TEST_DB_PASSWORD')
+$processEnvironmentNames = @(
+    'TEST_DB_URL'
+    'TEST_DB_USERNAME'
+    'TEST_DB_PASSWORD'
+    'MYSQL_TEST_DATABASE'
+    'MYSQL_TEST_USER'
+    'MYSQL_DATABASE'
+    'MYSQL_USER'
+)
 $processEnvironmentBackup = @{}
 
 try {
@@ -183,11 +195,9 @@ ORDER BY TABLE_NAME;
 "@).Output
     $existingTables = @($existingTablesOutput -split "`r?`n" | Where-Object { $_ })
 
-    $schemaFiles = @(Get-ChildItem -LiteralPath $schemaDirectory -Filter 'V????__*.sql' -File | Sort-Object Name)
-    if ($schemaFiles.Count -eq 0 -or $schemaFiles[0].FullName -ne $initialSchemaPath) {
-        throw 'Initial Native MySQL schema file ordering is invalid'
-    }
-    $schemaSql = $schemaFiles | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }
+    $schemaFiles = @(Get-NativeMySqlSchemaFiles -SchemaDirectory $schemaDirectory -InitialSchemaPath $initialSchemaPath)
+    $schemaSql = @($schemaFiles | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })
+    Assert-PublisherCategorySchemaDefinition -SchemaSql ($schemaSql -join "`n")
     $expectedTables = @(
         [regex]::Matches(($schemaSql -join "`n"), '(?im)^\s*CREATE\s+TABLE\s+`?([a-z0-9_]+)`?\s*\(') |
             ForEach-Object { $_.Groups[1].Value } |
@@ -198,25 +208,43 @@ ORDER BY TABLE_NAME;
         foreach ($sql in $schemaSql) {
             [void](Invoke-MySql -Password $rootPassword -User 'root' -Database $testDatabase -Sql $sql)
         }
-        Write-Host '[PASS] Test database schema applied'
+        Write-Host '[PASS] Test database schema versions applied in order'
     }
     else {
         $tableDifference = @(Compare-Object -ReferenceObject $expectedTables -DifferenceObject $existingTables)
         if ($tableDifference.Count -ne 0) {
             throw 'Existing test database table set differs from the current schema'
         }
-        $categoryColumnCount = [int](Invoke-MySql -Password $rootPassword -User 'root' -Database $testDatabase -Sql @"
-SELECT COUNT(*)
+        Write-Host '[PASS] Existing test database left unchanged for schema validation'
+    }
+
+    $publisherCategoryColumn = (Invoke-MySql -Password $rootPassword -User 'root' -Database $testDatabase -Sql @"
+SELECT DATA_TYPE,
+       COLUMN_TYPE,
+       IS_NULLABLE,
+       CHARACTER_MAXIMUM_LENGTH,
+       IF(COLUMN_DEFAULT IS NULL, 'NULL', COLUMN_DEFAULT),
+       ORDINAL_POSITION
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'news_publishers'
   AND COLUMN_NAME = 'category';
 "@).Output
-        if ($categoryColumnCount -ne 1) {
-            throw 'Existing test database is missing the current publisher category schema'
-        }
-        Write-Host '[PASS] Existing test database schema verified'
-    }
+    $publisherCategoryConstraint = (Invoke-MySql -Password $rootPassword -User 'root' -Database $testDatabase -Sql @"
+SELECT tc.CONSTRAINT_NAME, tc.ENFORCED, cc.CHECK_CLAUSE
+FROM information_schema.TABLE_CONSTRAINTS tc
+JOIN information_schema.CHECK_CONSTRAINTS cc
+  ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+ AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+WHERE tc.CONSTRAINT_SCHEMA = DATABASE()
+  AND tc.TABLE_NAME = 'news_publishers'
+  AND tc.CONSTRAINT_NAME = 'ck_news_publishers_category'
+  AND tc.CONSTRAINT_TYPE = 'CHECK';
+"@).Output
+    Assert-PublisherCategoryMetadata `
+        -ColumnMetadata $publisherCategoryColumn `
+        -ConstraintMetadata $publisherCategoryConstraint
+    Write-Host '[PASS] Test publisher category schema metadata'
 
     $sqlTestPassword = $testPassword.Replace("'", "''")
     [void](Invoke-MySql -Password $rootPassword -User 'root' -Sql @"
@@ -255,6 +283,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON $testDatabase.* TO '$testUser'@'127.0.0.
     $env:TEST_DB_URL = $testDatabaseUrl
     $env:TEST_DB_USERNAME = $testUser
     $env:TEST_DB_PASSWORD = $testPassword
+    $env:MYSQL_TEST_DATABASE = $testDatabase
+    $env:MYSQL_TEST_USER = $testUser
+    $env:MYSQL_DATABASE = $developmentDatabase
+    $env:MYSQL_USER = $developmentUser
     & $verificationPath
     if ($LASTEXITCODE -ne 0) {
         throw "Publisher integration verification failed with exit code $LASTEXITCODE"

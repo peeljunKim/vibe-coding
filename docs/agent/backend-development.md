@@ -13,13 +13,13 @@
 | 저장·세션 | JPA, Redis, Spring Session Redis | `backend/pom.xml` |
 | MySQL | Native MySQL 8.0.30 기준 | `docs/architecture/DATABASE_SCHEMA.md` |
 | Redis | `redis:8.8-alpine` 설정, 실행 버전 미검증 | Local `docker-compose.yml` |
-| 외부 처리 | Jsoup 1.21.2, Spring Mail | `backend/pom.xml` |
+| 외부 처리 | Jsoup 1.21.2, Apache HttpClient 5 (Boot 관리), Spring Mail | `backend/pom.xml` |
 | 테스트 | Boot Test, Security Test, Testcontainers 2.0.5 의존성 | `backend/pom.xml` |
 | 관측 | Actuator, Prometheus registry | `backend/pom.xml` |
 
 Boot 관리 Dependency의 세부 버전은 실제 effective POM/dependency tree로 확인한다. JUnit Jupiter import만으로 JUnit 세대나 세부 버전을 추정하지 않는다. Java 17에서 지원하지 않는 Virtual Thread와 최신 버전 예제의 import를 그대로 사용하지 않는다. Wrapper launcher가 없을 때는 기존 `scripts/agent/verify.ps1`의 Wrapper JAR 경로를 사용한다.
 
-현재 코드는 Application, HTTP Basic·Cookie CSRF 설정, 클래스 존재 확인 테스트 수준이다. OAuth, 업무 Controller, Entity, Repository와 작업 실행기는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
+현재 코드는 Application, HTTP Basic·Cookie CSRF 설정, 지원 언론사 조회·JPA와 기사 URL 검증·본문 추출 범위다. OAuth와 그 밖의 업무 기능·작업 실행기는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
 
 ## 읽기와 계약 관리
 

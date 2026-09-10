@@ -40,8 +40,9 @@ public final class SafeArticleReader {
     public ExtractedArticle read(String rawUrl, Set<String> allowedHosts) {
         String currentUrl = rawUrl;
         for (int redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
-            URI currentUri = urlValidator.validate(currentUrl, allowedHosts);
-            ArticleHttpResponse response = request(currentUri);
+            ResolvedArticleUrl target = urlValidator.validate(currentUrl, allowedHosts);
+            URI currentUri = target.uri();
+            ArticleHttpResponse response = request(target);
 
             if (isRedirect(response.statusCode())) {
                 if (redirectCount == maxRedirects) {
@@ -66,9 +67,9 @@ public final class SafeArticleReader {
     }
 
     /** 외부 HTTP 실패 변환 */
-    private ArticleHttpResponse request(URI uri) {
+    private ArticleHttpResponse request(ResolvedArticleUrl target) {
         try {
-            return httpClient.get(uri, requestTimeout, maxResponseBytes);
+            return httpClient.get(target, requestTimeout, maxResponseBytes);
         }
         catch (IOException exception) {
             throw new ArticleProcessingException(ArticleProcessingError.DOWNLOAD_FAILED, exception);

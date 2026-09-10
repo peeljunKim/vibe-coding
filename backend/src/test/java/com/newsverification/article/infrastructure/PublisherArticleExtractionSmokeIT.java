@@ -43,7 +43,7 @@ class PublisherArticleExtractionSmokeIT {
         var reader = new SafeArticleReader(
                 new ArticleUrlValidator(new SystemHostResolver()),
                 new ArticleHtmlExtractor(),
-                new JsoupArticleHttpClient(),
+                new ApacheArticleHttpClient(),
                 timeout,
                 maxResponseBytes,
                 maxRedirects

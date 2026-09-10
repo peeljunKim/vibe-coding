@@ -25,6 +25,9 @@ pwsh -NoProfile -File scripts/agent/setup-native-mysql-test.ps1
 # 지원 언론사 Repository 실제 MySQL 통합 테스트 재실행
 pwsh -NoProfile -File scripts/agent/verify-publisher-native-mysql.ps1
 
+# Native MySQL Schema와 테스트 연결 회귀 검사
+pwsh -NoProfile -File scripts/agent/native-mysql-validation.Tests.ps1
+
 # 승인된 초기 언론사 실제 기사 추출 시험
 pwsh -NoProfile -File scripts/agent/verify-publisher-extraction.ps1 `
     -TimeoutSeconds <확정값> `
@@ -34,9 +37,9 @@ pwsh -NoProfile -File scripts/agent/verify-publisher-extraction.ps1 `
 
 Script는 기존 Repository 도구만 사용한다. Frontend는 npm scripts, Backend는 Maven Wrapper launcher 또는 현재 Wrapper JAR, Infrastructure는 Native MySQL Schema 정적 검사와 Docker Compose를 사용한다. 새 Lint, Formatter, Test 도구를 설치하지 않는다.
 
-Native MySQL 검증 Script는 Git에서 제외된 `.env` 또는 `.env.example`의 Database·계정 값을 사용하며 이름을 다시 입력받지 않는다. Root 비밀번호는 항상 마스킹 입력한다. `.env`에 애플리케이션 비밀번호가 있으면 프로세스 내부에서 자동 사용하고, 없으면 해당 계정 비밀번호를 마스킹 입력 후 저장하지 않는다. 기존 계정의 비밀번호를 변경하거나 두 계정의 비밀번호를 같게 강제하지 않는다. 애플리케이션 계정이 없을 때만 제공된 비밀번호로 생성한다. 대상 Database가 비어 있거나 현재 초기 Schema와 정확히 일치할 때만 진행하고, 애플리케이션 계정의 기존 권한을 회수한 뒤 DML 권한만 부여한다.
+Native MySQL 검증 Script는 Git에서 제외된 `.env` 또는 `.env.example`의 Database·계정 값을 사용하며 이름을 다시 입력받지 않는다. Root 비밀번호는 항상 마스킹 입력한다. `.env`에 애플리케이션 비밀번호가 있으면 프로세스 내부에서 자동 사용하고, 없으면 해당 계정 비밀번호를 마스킹 입력 후 저장하지 않는다. 기존 계정의 비밀번호를 변경하거나 두 계정의 비밀번호를 같게 강제하지 않는다. 애플리케이션 계정이 없을 때만 제공된 비밀번호로 생성한다. 빈 Database에는 Local V0001과 존재하는 V0003 이상 후속 SQL을 Version 순서대로 적용한다. 비어 있지 않은 Database에는 Schema SQL을 재실행하지 않고 Table 집합과 지원 언론사 분류 컬럼·활성 CHECK·정확한 허용값을 검증한다. 애플리케이션 계정의 기존 권한을 회수한 뒤 DML 권한만 부여한다.
 
-Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사를 붙인 별도 기본값을 사용한다. 최초 구성 Script는 Root와 테스트 계정 비밀번호를 마스킹 입력하고, 테스트 Database에 Local 초기 SQL과 Git 후속 Version SQL을 순서대로 적용한다. 테스트 계정에는 `SELECT`, `INSERT`, `UPDATE`, `DELETE`만 부여한다. 실제 비밀번호는 Process 또는 Git에서 제외된 `.env`의 `MYSQL_TEST_PASSWORD`로만 전달하며 로그와 Git 추적 파일에는 기록하지 않는다. 일반 Backend 검증은 통합 테스트를 자동 실행하지 않으며 전용 검증 Script만 `*IT`를 명시적으로 실행한다.
+Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사를 붙인 별도 기본값을 사용한다. 최초 구성 Script는 Root와 테스트 계정 비밀번호를 마스킹 입력하고, 빈 테스트 Database에 Local V0001과 존재하는 V0003 이상 후속 SQL을 Version 순서대로 적용한다. 테스트 계정에는 `SELECT`, `INSERT`, `UPDATE`, `DELETE`만 부여한다. 실제 JDBC URL은 `localhost` 또는 `127.0.0.1`의 3306 포트와 기대한 `_test` Database를 정확히 사용하고, 계정은 기대한 `_test` 제한 계정과 정확히 같아야 한다. 개발 Database·계정 또는 `root`는 거부하며 JDBC Query는 Unicode·문자 인코딩·UTC 설정만 허용한다. 이 검사는 전용 Script와 `*IT` 직접 실행 진입점에 모두 적용한다. 실제 비밀번호는 Process 또는 Git에서 제외된 `.env`의 `MYSQL_TEST_PASSWORD`로만 전달하며 로그와 Git 추적 파일에는 기록하지 않는다. 일반 Backend 검증은 통합 테스트를 자동 실행하지 않으며 전용 검증 Script만 `*IT`를 명시적으로 실행한다.
 
 초기 언론사 추출 시험은 Git에서 제외된 `output/publisher-extraction-input.tsv`를 입력으로 사용한다. 각 행은 `publisher`, `allowedHosts`, `articleUrl` 세 열이며 복수 허용 호스트는 `|`로 구분한다. 결과는 Git에서 제외된 `output/publisher-extraction-report.tsv`에 원본·최종 URL, 제목, 게시·수정일, 본문 앞뒤 미리보기, 글자 수, 혼입 탐지, 처리 시간과 오류 코드만 기록하고 기사 전문은 저장하지 않는다. Mock 검증 통과와 사용자 외부 요청 승인 후에만 실행하며 응답 크기·Timeout·Redirect 상한은 확정값을 명시적으로 전달한다. 실행 성공은 시험 Process 완료를 뜻하며 언론사별 추출 성공과 수동 혼입 검토를 대신하지 않는다.
 
@@ -71,7 +74,7 @@ Frontend formatting은 `npm run format`으로 별도 확인한다. 현재 기준
 ## Git 추적 경계
 
 - Git 제외: 실제 `.env`, 모든 `.env.example`, CI Workflow 외 YAML, 개인별 Local 설정, Credentials, 초기 Domain Schema `V0001__create_initial_domain_schema.sql`
-- Git 유지: `AGENTS.md`, `.ai/*.md`, `docs/agent/*.md`, `docs/architecture/*.md`, `MVP_REQUIREMENTS.md`, V0002 이후 후속 Schema 변경 SQL
+- Git 유지: `AGENTS.md`, `.ai/*.md`, `docs/agent/*.md`, `docs/architecture/*.md`, `MVP_REQUIREMENTS.md`, V0003 이상 후속 Schema 변경 SQL
 - CI 원칙: `.github/workflows/ci.yml`만 YAML 예외로 유지하고 Harness Job은 Git에 유지된 문서만 검사
 - 금지: 검증을 위한 `.gitignore` 일시 해제와 `git add -f`
 

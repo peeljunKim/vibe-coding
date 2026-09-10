@@ -32,7 +32,8 @@
 
 - 요구사항에 정의된 분석·회원·공유·신고 Domain 구현은 아직 없음
 - 지원 언론사 외 JPA Entity·Repository·API Controller와 외부 AI·검색 연동은 아직 없음
-- 지원 언론사 분류 후속 Schema는 Local 적용됨
+- 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
+- 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
 - `backend` 설명에 언급된 Worker 구현은 아직 없음
 

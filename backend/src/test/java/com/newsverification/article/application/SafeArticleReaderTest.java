@@ -93,6 +93,23 @@ class SafeArticleReaderTest {
                 .isEqualTo(ArticleProcessingError.RESPONSE_TOO_LARGE);
     }
 
+    /** 같은 호스트 Redirect에서도 변경된 내부 IP 차단 */
+    @Test
+    void rejectsReboundAddressOnSameHostRedirect() {
+        var lookups = new java.util.concurrent.atomic.AtomicInteger();
+        HostResolver resolver = hostname -> List.of(InetAddress.getByAddress(
+                lookups.getAndIncrement() == 0 ? new byte[]{1, 1, 1, 1} : new byte[]{10, 0, 0, 1}));
+        ArticleHttpClient client = (target, timeout, maxBytes) -> {
+            assertThat(target.addresses()).extracting(InetAddress::getHostAddress)
+                    .containsExactly("1.1.1.1");
+            return redirect("/next");
+        };
+        assertThatThrownBy(() -> reader(resolver, client).read("https://news.example/start", Set.of("news.example")))
+                .isInstanceOf(ArticleProcessingException.class)
+                .extracting(exception -> ((ArticleProcessingException) exception).error())
+                .isEqualTo(ArticleProcessingError.UNSAFE_ADDRESS);
+    }
+
     /** 테스트용 기사 Reader 구성 */
     private SafeArticleReader reader(HostResolver resolver, ArticleHttpClient httpClient) {
         return new SafeArticleReader(
@@ -107,10 +124,10 @@ class SafeArticleReaderTest {
 
     /** 고정 응답 HTTP 경계 */
     private ArticleHttpClient fakeClient(Map<URI, ArticleHttpResponse> responses) {
-        return (uri, timeout, maxResponseBytes) -> {
-            ArticleHttpResponse response = responses.get(uri);
+        return (target, timeout, maxResponseBytes) -> {
+            ArticleHttpResponse response = responses.get(target.uri());
             if (response == null) {
-                throw new AssertionError("Unexpected HTTP request: " + uri);
+                throw new AssertionError("Unexpected HTTP request: " + target.uri());
             }
             return response;
         };
