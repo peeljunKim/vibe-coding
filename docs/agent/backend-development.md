@@ -19,6 +19,13 @@
 
 Boot 관리 Dependency의 세부 버전은 실제 effective POM/dependency tree로 확인한다. JUnit Jupiter import만으로 JUnit 세대나 세부 버전을 추정하지 않는다. Java 17에서 지원하지 않는 Virtual Thread와 최신 버전 예제의 import를 그대로 사용하지 않는다. Wrapper launcher가 없을 때는 기존 `scripts/agent/verify.ps1`의 Wrapper JAR 경로를 사용한다.
 
+`backend/pom.xml`에서 Dependency를 추가·삭제하거나 버전을 변경할 때는 작업 전에 다음 내용을 사용자에게 보고하고 명시적 승인을 받는다. 승인 전에는 `pom.xml`을 수정하거나 Dependency를 내려받지 않는다.
+
+- 변경 이유
+- 기존 Dependency로 해결할 수 없는 이유
+- 영향 범위
+- 롤백 방법
+
 현재 코드는 Application, HTTP Basic·Cookie CSRF 설정, 지원 언론사 조회·JPA와 기사 URL 검증·본문 추출 범위다. OAuth와 그 밖의 업무 기능·작업 실행기는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
 
 ## 읽기와 계약 관리

@@ -114,6 +114,10 @@ Backend는 `backend-development.md`의 관련 절을 적용한다. Astra·Sol �
 
 사용자 요청 시에만 `code-review.md`의 PR Review 절차를 적용한다. 리뷰 요청은 코드 수정·Commit·Push·PR 댓글 게시 권한을 포함하지 않는다.
 
+## 완료 보고와 커밋 메시지 추천
+
+작업 완료 보고에는 변경 결과, 검증 결과, 남은 `Required` 항목과 함께 실제 Diff의 핵심 목적을 반영한 커밋 메시지 후보 1개를 포함한다. Repository에서 확인된 Commit 형식이 있으면 이를 따르고, 확인되지 않으면 임의의 Issue 번호나 범위를 만들지 않는다. 커밋 메시지 추천은 실제 Commit·Push 승인이 아니며, 해당 작업은 `.ai/RULES.md`에 따라 별도 사용자 승인을 받는다.
+
 ## Token 절감 원칙
 
 - 안정적인 사실은 `.ai/MEMORY.md`에서 1회 확인하고 반복 설명 생략
