@@ -1,0 +1,25 @@
+/* 기사 처리 실패 코드 */
+package com.newsverification.article.domain;
+
+/** 기사 검증과 추출 실패 분류 */
+public enum ArticleProcessingError {
+    INVALID_URL,
+    UNSUPPORTED_SCHEME,
+    USER_INFO_NOT_ALLOWED,
+    PORT_NOT_ALLOWED,
+    UNSUPPORTED_PUBLISHER,
+    DNS_LOOKUP_FAILED,
+    UNSAFE_ADDRESS,
+    MISSING_TITLE,
+    MISSING_BODY,
+    MISSING_PUBLISHED_AT,
+    INVALID_PUBLISHED_AT,
+    NON_KOREAN_ARTICLE,
+    ARTICLE_TOO_LONG,
+    DOWNLOAD_FAILED,
+    HTTP_ERROR,
+    UNSUPPORTED_CONTENT_TYPE,
+    RESPONSE_TOO_LARGE,
+    INVALID_REDIRECT,
+    TOO_MANY_REDIRECTS
+}
