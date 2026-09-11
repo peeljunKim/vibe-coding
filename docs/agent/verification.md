@@ -43,6 +43,10 @@ Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사�
 
 초기 언론사 추출 시험은 Git에서 제외된 `output/publisher-extraction-input.tsv`를 입력으로 사용한다. 각 행은 `publisher`, `allowedHosts`, `articleUrl` 세 열이며 복수 허용 호스트는 `|`로 구분한다. 결과는 Git에서 제외된 `output/publisher-extraction-report.tsv`에 원본·최종 URL, 제목, 게시·수정일, 본문 앞뒤 미리보기, 글자 수, 혼입 탐지, 처리 시간과 오류 코드만 기록하고 기사 전문은 저장하지 않는다. Mock 검증 통과와 사용자 외부 요청 승인 후에만 실행하며 응답 크기·Timeout·Redirect 상한은 확정값을 명시적으로 전달한다. 실행 성공은 시험 Process 완료를 뜻하며 언론사별 추출 성공과 수동 혼입 검토를 대신하지 않는다.
 
+언론사 추출 시험은 의료 전문 매체 여부를 판정하지 않는다. 언론사별 공개 기사 구조의 기술 호환성을 검증하며, 건강 분석 분야 판별을 검증할 때는 같은 지원 언론사의 건강 기사 Positive 사례와 일반 기사 Negative 사례를 별도로 사용한다. 제목 분석에는 기사 분야 거절이 적용되지 않는지 함께 확인한다.
+
+지원 언론사 웹 표시를 구현할 때는 공개 API와 화면에서 `지원 중`, `일시 지원 중단`, `현재 미지원`이 동일하게 구분되는지 검증한다. 현재 미지원 대상의 분석 요청은 AI 호출과 이용 횟수 차감 전에 차단하고, 추출 보강 대상은 Mock 회귀와 승인된 실제 기사 시험을 통과한 뒤에만 지원 중으로 변경한다.
+
 모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 Key·Secret·Token·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder는 허용한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
 
 ## 실제 검증 순서

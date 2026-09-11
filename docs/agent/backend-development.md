@@ -42,6 +42,10 @@ Boot 관리 Dependency의 세부 버전은 실제 effective POM/dependency tree�
 
 Root `com.newsverification`과 기존 `config`를 유지하고 기능 중심으로 Package를 추가한다. 기능 안에 필요한 `api`, `application`, `domain`, `infrastructure`만 만든다. 분석 두 기능은 정책과 데이터 책임을 분리한다. 실제 공통 책임이 생기기 전 `common`을 만들지 않는다.
 
+언론사 허용·URL 보안·본문 추출은 두 분석 기능의 공통 선행 책임이다. 언론사 `category`는 표시와 운영 관리에만 사용하고 건강 기사 판별값으로 사용하지 않는다. 추출된 개별 기사의 건강·의학·보건 관련성 판별은 건강 분석 Use Case에만 배치하며 제목 분석 Use Case는 모든 분야의 지원 기사에 이 판별을 적용하지 않는다.
+
+공개 언론사 조회는 관리 대상의 `지원 중`, `일시 지원 중단`, `현재 미지원` 상태를 Frontend가 구분할 수 있어야 한다. 한 번도 활성화되지 않은 시험·보강 대상과 기존 지원 후 장애로 중단된 대상을 같은 상태로 축약하지 않는다. 내부 추출 오류나 보안 차단 사유는 공개 응답에 포함하지 않는다. 현재 API에 없는 상태를 추가할 때는 기존 Client 영향과 호환성을 먼저 검토한다.
+
 | 계층 | 책임 | 경계 |
 | --- | --- | --- |
 | api | HTTP 변환, DTO 형식 검증, 인증 주체 전달 | Repository·외부 Client 직접 호출 금지 |
@@ -143,6 +147,10 @@ Session 인증과 OAuth Redirect를 목표로 유지한다. 현재 HTTP Basic을
 | MySQL | Native MySQL 8.0.30의 별도 테스트 DB·제한 계정, 실제 FK/UNIQUE/CHECK·트랜잭션·쿼리 검증 |
 | Redis | 앱과 분리된 동일 이미지의 테스트 전용 인스턴스, 실행별 Namespace, 실제 TTL·경쟁·장애 검증 |
 | 외부 연동 | 기본 Mock/Fixture, 실제 Provider 요청은 승인된 Smoke Test로 구분 |
+
+건강 분석은 같은 지원 언론사의 건강 기사 Positive 사례와 일반 기사 Negative 사례를 검증한다. 제목 분석은 두 사례 모두 분야 거절 없이 다음 단계로 진행하는지 검증한다. 언론사 분류값만으로 기사 분야를 결정하는 테스트 Fixture는 만들지 않는다.
+
+언론사 공개 조회 테스트는 지원·일시 중단·현재 미지원 상태의 변환과 후보 상태의 분석 차단을 함께 검증한다. 추출 보강 후에는 해당 언론사의 Mock 회귀 테스트와 승인된 실제 기사 Smoke Test를 통과하기 전 공개 지원 상태를 활성화하지 않는다.
 
 MySQL Docker 도입은 하지 않는다. 현재 Testcontainers 의존성은 사용 완료 증거가 아니며 자동으로 제거하거나 테스트 환경을 대체하지 않는다. H2를 MySQL 호환성 증거로 사용하지 않는다.
 

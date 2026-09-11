@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/** 공개 지원 언론사 조회 처리 */
+/** 분야와 무관한 공개 지원 언론사 조회 처리 */
 @Service
 public class PublisherService {
 
@@ -18,7 +18,7 @@ public class PublisherService {
         this.publisherRepository = publisherRepository;
     }
 
-    /** 후보 제외 지원 언론사 조회 */
+    /** 분류와 무관한 후보 제외 지원 언론사 조회 */
     @Transactional(readOnly = true)
     public List<SupportedPublisher> findSupportedPublishers() {
         return publisherRepository.findByStatusNotOrderByNameAsc(PublisherStatus.CANDIDATE).stream()
