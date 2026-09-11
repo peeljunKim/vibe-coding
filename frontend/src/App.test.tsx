@@ -36,6 +36,37 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
+  it('지원 언론사 목록을 펼치고 키보드로 다시 닫는다', () => {
+    renderApp()
+
+    const openButton = screen.getByRole('button', {
+      name: '지원 언론사 보기',
+    })
+    expect(openButton).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(openButton)
+
+    const closeButton = screen.getByRole('button', { name: '접기 ↑' })
+    expect(closeButton).toHaveAttribute('aria-expanded', 'true')
+    expect(
+      screen.getByRole('heading', { name: '지원 언론사' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('연합뉴스')).toBeInTheDocument()
+    expect(screen.getByText('메디칼타임즈')).toBeInTheDocument()
+
+    closeButton.focus()
+    fireEvent.keyDown(closeButton, { key: 'Escape' })
+
+    const reopenedButton = screen.getByRole('button', {
+      name: '지원 언론사 보기',
+    })
+    expect(reopenedButton).toHaveFocus()
+    expect(reopenedButton).toHaveAttribute('aria-expanded', 'false')
+    expect(
+      screen.queryByRole('heading', { name: '지원 언론사' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('건강 기사 확인을 시작하고 취소하면 홈으로 돌아온다', () => {
     renderApp()
 

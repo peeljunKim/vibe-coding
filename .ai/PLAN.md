@@ -6,7 +6,7 @@
 
 - Figma file: `qo0ztGDqf3MrinTOyyySy9`
 - Figma Section: `13:446`
-- 구현 확인 Node: `13:533`, `13:565`, `13:719`
+- 구현 확인 Node: `13:533`, `13:565`, `13:719`, `31:2`
 - PNG 기준 추가 화면: 건강 결과, 제목 결과, 저장 기록, 회원가입 3단계, 신고 관리자
 - 결과 화면 최신 Node: `15:114`
 - URL: `https://www.figma.com/design/qo0ztGDqf3MrinTOyyySy9/기사체크-·-데스크톱-UX-UI?node-id=13-446`
@@ -40,7 +40,7 @@
 - 데이터 미제공·빈 목록 상태의 Desktop 레이아웃 유지: PASS
 - 1024·1280·1440px에서 8개 Route 가로 넘침 검사: PASS
 - Backend API 실제 데이터 연결: NOT RUN
-- Frontend Test 11개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
+- Frontend Test 12개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
 - Native MySQL 8.0.30 서비스 실행과 초기 Schema 파일 13개 Table 정적 확인: PASS
 - 빈 Local Database에 초기 Schema 실제 적용과 `information_schema` 확인: PASS
 - Local 애플리케이션 계정의 DML 전용 권한과 DDL 차단 확인: PASS
@@ -66,7 +66,13 @@
 - 의료 전문 보완 후보 조사: PASS (8곳, 실제 추출 시험은 NOT RUN)
 - 건강·의학·보건 개별 기사 분야 판별 구현: NOT RUN (분석 API 미구현)
 - 지원·일시 중단·현재 미지원 언론사 웹 표시 정책: PASS
-- 미지원 언론사 공개 API와 Frontend 펼침 목록 구현: NOT RUN (API 상태와 Figma 펼침 화면 미구현)
+- 지원 언론사 펼침 Figma Frame: PASS (`31:2`, `01-1 · 기능 선택 홈 · 지원 언론사 펼침`, 1440×1240)
+- 지원 언론사 펼침 인터랙션 정의: PASS (동일 버튼 토글, `접기`와 `Escape` 닫기, 닫은 뒤 트리거로 Focus 복귀)
+- Figma Prototype 연결: NOT RUN (기존 Prototype 미설정, Starter MCP 호출 한도로 웹 편집 우회)
+- Frontend 지원 언론사 펼침 목록 구현: PASS (지원 9곳·일시 중단 0곳·현재 미지원 11곳, 동일 버튼 토글과 `Escape` Focus 복귀)
+- 지원 상태 공개 API 확장과 Frontend 동적 연결: NOT RUN (현재 공개 API는 지원·일시 중단만 제공)
+- 지원 언론사 펼침 Browser 검증: PASS (1440·1280px 가로 넘침 없음, Runtime·Console 오류 없음)
+- 1024px 펼침 화면 가로 넘침: FAIL (기존 전역 `body` 최소 폭 1024px와 세로 Scrollbar 조합으로 15px 발생, 이번 기능 외 전역 정책 변경 보류)
 - 실제 시험 입력·원시 보고서·판정표의 Git 추적 제외: PASS
 - 기사 전문·Secret 미저장: PASS (본문은 시작·끝 각 최대 160자 미리보기만 Local 보고서에 기록)
 - Backend Maven 검증: PASS (30개, 실패·오류·Skip 0)
@@ -77,7 +83,7 @@
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 4. 건강 분석 Vertical Slice에서만 개별 기사 분야 판별을 연결하고 일반 기사 Negative 사례와 건강 기사 Positive 사례 검증
-5. 지원 언론사 공개 상태 API를 확장하고 Figma 펼침 목록 확인 후 웹 표시 구현
+5. 지원 언론사 공개 상태 API를 확장한 뒤 Frontend의 확정 목록을 동적 데이터로 전환
 
 ## Backend 표준화 상태
 
