@@ -14,7 +14,13 @@
 - Monitoring: Spring Boot Actuator, Prometheus, Grafana 구성
 - AI: 비공개 Prototype에서 Gemini 3.7 Flash 무료 등급 사용
 - Evidence Search: PubMed NCBI E-utilities와 허용된 공식 기관 자료 사용
-- 초기 언론사: 통신·방송·종합·경제·건강 매체 20곳을 추출 시험 후보로 선정
+- 기사 외부 추출 제한: 압축 해제 후 원본 HTML 2 MiB, 단일 요청 Timeout 10초, Redirect 최대 3회
+- 초기 언론사 실제 추출 시험: 20곳 중 자동 추출 13곳, 본문 품질 수동 검토 통과 9곳
+- 언론사 지원 기준: 의료 전문 여부가 아닌 국내 이용 가능성·URL 안전성·공개 접근·추출 품질
+- 기사 분야 기준: `건강·의학 뉴스 확인`에서만 추출된 개별 기사의 건강·의학·보건 관련성 판별, `기사 제목 확인`은 모든 분야 허용
+- 언론사 공개 상태: 관리 중인 언론사를 `지원 중`, `일시 지원 중단`, `현재 미지원`으로 구분해 웹에 표시하며 실패 언론사는 추출 보강·재시험 후 활성화
+- 현재 기술 지원 후보: 연합뉴스, MBC, SBS, 중앙일보, 한겨레, 경향신문, 국민일보, 매일경제, 한국경제
+- 의료 전문 보완 후보: 청년의사, 의협신문, 데일리메디, 메디게이트뉴스, 라포르시안, 병원신문, 메디칼업저버, 의학신문
 - Deployment: AWS Free Plan의 단일 EC2, DuckDNS, Local과 동일한 Native MySQL 8.0.30과 동일 서버 Redis
 - Availability: EC2 장애 대응이 아닌 Blue/Green 애플리케이션 배포 중 무중단만 보장
 - E2E: Playwright, Vite Preview, PR Chromium, Release 전 Chrome·Edge 검증
@@ -32,7 +38,8 @@
 
 - 요구사항에 정의된 분석·회원·공유·신고 Domain 구현은 아직 없음
 - 지원 언론사 외 JPA Entity·Repository·API Controller와 외부 AI·검색 연동은 아직 없음
-- 지원 언론사 분류 후속 Schema는 Local 적용됨
+- 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
+- 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
 - `backend` 설명에 언급된 Worker 구현은 아직 없음
 
@@ -40,9 +47,13 @@
 
 [실제 Gemini, OAuth, Gmail SMTP Secret은 Local 연동 시 사용자가 `.env`에 직접 입력해야 합니다.]
 
-[초기 언론사 후보의 실제 기사 추출 테스트 결과가 필요합니다.]
+[현재 활성화 보류 11곳의 언론사별 추출 보완과 재시험이 필요합니다.]
 
-[실제 기사 추출 시험에 적용할 원본 응답 크기·단일 요청 Timeout·Redirect 상한 정보가 필요합니다.]
+[추가 일반 언론사 확대 우선순위를 정할 이용 빈도 또는 선정 기준이 필요합니다.]
+
+[의료 전문 추가 후보 8곳의 실제 기사 추출 시험이 필요합니다.]
+
+[지원 언론사 펼침 목록의 Figma 디자인과 인터랙션 정보가 필요합니다.]
 
 [Local 개발 완료 후 사용할 DuckDNS 서브도메인 이름이 필요합니다.]
 

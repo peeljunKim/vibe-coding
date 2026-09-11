@@ -78,13 +78,21 @@ Allowed:
 
 Require User Approval:
 
-- Dependency와 Lock 파일 변경
+- 모든 Dependency와 Lock 파일 변경
+- `backend/pom.xml`의 Dependency 추가·삭제·버전 변경
 - Table·Column 삭제·이름 변경·Type 축소, 대량 데이터 변환, Schema 관리 방식 변경
 - 기존 Public API 호환성을 깨는 변경과 인증·인가·Security 정책 변경
 - CI/CD, Docker, AWS Infrastructure 변경
 - 외부 서비스 실제 요청과 Network Download
 - 프로젝트 Local Skill 설치·삭제
 - Git Commit, Push, PR 생성, Staging 배포와 Rollback
+
+`backend/pom.xml` Dependency 변경 승인 요청은 다음 항목을 모두 포함한다.
+
+- 변경 이유
+- 기존 Dependency로 해결할 수 없는 이유
+- 영향 범위
+- 롤백 방법
 
 Do Not Perform Automatically:
 

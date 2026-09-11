@@ -2,7 +2,6 @@
 package com.newsverification.article.application;
 
 import java.io.IOException;
-import java.net.URI;
 import java.time.Duration;
 
 /** 외부 기사 응답 수신 경계 */
@@ -10,5 +9,5 @@ import java.time.Duration;
 public interface ArticleHttpClient {
 
     /** Redirect 미추적 단일 요청 */
-    ArticleHttpResponse get(URI uri, Duration timeout, int maxResponseBytes) throws IOException;
+    ArticleHttpResponse get(ResolvedArticleUrl target, Duration timeout, int maxResponseBytes) throws IOException;
 }

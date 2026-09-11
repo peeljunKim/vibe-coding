@@ -6,14 +6,17 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $environmentPath = Join-Path $repoRoot '.env'
+$validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
 $javaPath = 'C:\Program Files\Java\jdk-17\bin\java.exe'
 $wrapperJar = Join-Path $backendRoot '.mvn\wrapper\maven-wrapper.jar'
 
-foreach ($requiredPath in @($environmentPath, $javaPath, $wrapperJar)) {
+foreach ($requiredPath in @($environmentPath, $validationPath, $javaPath, $wrapperJar)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required integration test file missing: $requiredPath"
     }
 }
+
+. $validationPath
 
 function Read-EnvironmentValues {
     param(
@@ -61,15 +64,13 @@ $testDatabaseUrl = Get-ConfiguredValue -Values $localValues -Name 'TEST_DB_URL' 
 $testDatabaseUsername = Get-ConfiguredValue -Values $localValues -Name 'TEST_DB_USERNAME' -Fallback $testUser
 $configuredTestPassword = Get-ConfiguredValue -Values $localValues -Name 'MYSQL_TEST_PASSWORD'
 
-if ($testDatabase -notmatch '^[A-Za-z0-9_]+_test$' -or $testUser -notmatch '^[A-Za-z0-9_]+_test$') {
-    throw 'Test database and user names must end with _test'
-}
-if ($testDatabase -eq $developmentDatabase -or $testUser -eq $developmentUser) {
-    throw 'Native MySQL integration tests must not use the development database or account'
-}
-if ($testDatabaseUrl -notmatch "/$([regex]::Escape($testDatabase))(?:\?|$)") {
-    throw 'TEST_DB_URL does not match MYSQL_TEST_DATABASE'
-}
+Assert-NativeMySqlTestConnection `
+    -DatabaseUrl $testDatabaseUrl `
+    -Username $testDatabaseUsername `
+    -ExpectedDatabase $testDatabase `
+    -ExpectedUsername $testUser `
+    -DevelopmentDatabase $developmentDatabase `
+    -DevelopmentUsername $developmentUser | Out-Null
 
 $secureTestPassword = $null
 $testPasswordPointer = [IntPtr]::Zero
@@ -81,7 +82,15 @@ if (-not $testPassword) {
     $secureTestPassword = Read-Host "$testUser Password" -AsSecureString
 }
 
-$environmentNames = @('TEST_DB_URL', 'TEST_DB_USERNAME', 'TEST_DB_PASSWORD')
+$environmentNames = @(
+    'TEST_DB_URL'
+    'TEST_DB_USERNAME'
+    'TEST_DB_PASSWORD'
+    'MYSQL_TEST_DATABASE'
+    'MYSQL_TEST_USER'
+    'MYSQL_DATABASE'
+    'MYSQL_USER'
+)
 $environmentBackup = @{}
 foreach ($name in $environmentNames) {
     $environmentBackup[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -99,6 +108,10 @@ try {
     $env:TEST_DB_URL = $testDatabaseUrl
     $env:TEST_DB_USERNAME = $testDatabaseUsername
     $env:TEST_DB_PASSWORD = $testPassword
+    $env:MYSQL_TEST_DATABASE = $testDatabase
+    $env:MYSQL_TEST_USER = $testUser
+    $env:MYSQL_DATABASE = $developmentDatabase
+    $env:MYSQL_USER = $developmentUser
 
     Push-Location $backendRoot
     try {

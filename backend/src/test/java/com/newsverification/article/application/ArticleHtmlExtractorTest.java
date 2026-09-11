@@ -19,6 +19,21 @@ class ArticleHtmlExtractorTest {
 
     private final ArticleHtmlExtractor extractor = new ArticleHtmlExtractor();
 
+    /** 수정일 오류와 게시일 오류 구분 */
+    @Test
+    void reportsMalformedModifiedDateSeparately() {
+        String html = """
+                <meta property="og:title" content="건강 기사">
+                <meta property="article:published_time" content="2026-08-14T09:30:00+09:00">
+                <meta property="article:modified_time" content="invalid-date">
+                <article><p>건강 기사 본문입니다.</p></article>
+                """;
+        assertThatThrownBy(() -> extractor.extract(URI.create("https://news.example/article"), html))
+                .isInstanceOf(ArticleProcessingException.class)
+                .extracting(exception -> ((ArticleProcessingException) exception).error().name())
+                .isEqualTo("INVALID_MODIFIED_AT");
+    }
+
     /** 제목·날짜·정제 본문 추출 */
     @Test
     void extractsRequiredArticleContentFromMockHtml() throws IOException {

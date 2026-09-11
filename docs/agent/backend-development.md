@@ -13,13 +13,20 @@
 | 저장·세션 | JPA, Redis, Spring Session Redis | `backend/pom.xml` |
 | MySQL | Native MySQL 8.0.30 기준 | `docs/architecture/DATABASE_SCHEMA.md` |
 | Redis | `redis:8.8-alpine` 설정, 실행 버전 미검증 | Local `docker-compose.yml` |
-| 외부 처리 | Jsoup 1.21.2, Spring Mail | `backend/pom.xml` |
+| 외부 처리 | Jsoup 1.21.2, Apache HttpClient 5 (Boot 관리), Spring Mail | `backend/pom.xml` |
 | 테스트 | Boot Test, Security Test, Testcontainers 2.0.5 의존성 | `backend/pom.xml` |
 | 관측 | Actuator, Prometheus registry | `backend/pom.xml` |
 
 Boot 관리 Dependency의 세부 버전은 실제 effective POM/dependency tree로 확인한다. JUnit Jupiter import만으로 JUnit 세대나 세부 버전을 추정하지 않는다. Java 17에서 지원하지 않는 Virtual Thread와 최신 버전 예제의 import를 그대로 사용하지 않는다. Wrapper launcher가 없을 때는 기존 `scripts/agent/verify.ps1`의 Wrapper JAR 경로를 사용한다.
 
-현재 코드는 Application, HTTP Basic·Cookie CSRF 설정, 클래스 존재 확인 테스트 수준이다. OAuth, 업무 Controller, Entity, Repository와 작업 실행기는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
+`backend/pom.xml`에서 Dependency를 추가·삭제하거나 버전을 변경할 때는 작업 전에 다음 내용을 사용자에게 보고하고 명시적 승인을 받는다. 승인 전에는 `pom.xml`을 수정하거나 Dependency를 내려받지 않는다.
+
+- 변경 이유
+- 기존 Dependency로 해결할 수 없는 이유
+- 영향 범위
+- 롤백 방법
+
+현재 코드는 Application, HTTP Basic·Cookie CSRF 설정, 지원 언론사 조회·JPA와 기사 URL 검증·본문 추출 범위다. OAuth와 그 밖의 업무 기능·작업 실행기는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
 
 ## 읽기와 계약 관리
 
@@ -34,6 +41,10 @@ Boot 관리 Dependency의 세부 버전은 실제 effective POM/dependency tree�
 ## 채택 기준: 계층과 Java
 
 Root `com.newsverification`과 기존 `config`를 유지하고 기능 중심으로 Package를 추가한다. 기능 안에 필요한 `api`, `application`, `domain`, `infrastructure`만 만든다. 분석 두 기능은 정책과 데이터 책임을 분리한다. 실제 공통 책임이 생기기 전 `common`을 만들지 않는다.
+
+언론사 허용·URL 보안·본문 추출은 두 분석 기능의 공통 선행 책임이다. 언론사 `category`는 표시와 운영 관리에만 사용하고 건강 기사 판별값으로 사용하지 않는다. 추출된 개별 기사의 건강·의학·보건 관련성 판별은 건강 분석 Use Case에만 배치하며 제목 분석 Use Case는 모든 분야의 지원 기사에 이 판별을 적용하지 않는다.
+
+공개 언론사 조회는 관리 대상의 `지원 중`, `일시 지원 중단`, `현재 미지원` 상태를 Frontend가 구분할 수 있어야 한다. 한 번도 활성화되지 않은 시험·보강 대상과 기존 지원 후 장애로 중단된 대상을 같은 상태로 축약하지 않는다. 내부 추출 오류나 보안 차단 사유는 공개 응답에 포함하지 않는다. 현재 API에 없는 상태를 추가할 때는 기존 Client 영향과 호환성을 먼저 검토한다.
 
 | 계층 | 책임 | 경계 |
 | --- | --- | --- |
@@ -136,6 +147,10 @@ Session 인증과 OAuth Redirect를 목표로 유지한다. 현재 HTTP Basic을
 | MySQL | Native MySQL 8.0.30의 별도 테스트 DB·제한 계정, 실제 FK/UNIQUE/CHECK·트랜잭션·쿼리 검증 |
 | Redis | 앱과 분리된 동일 이미지의 테스트 전용 인스턴스, 실행별 Namespace, 실제 TTL·경쟁·장애 검증 |
 | 외부 연동 | 기본 Mock/Fixture, 실제 Provider 요청은 승인된 Smoke Test로 구분 |
+
+건강 분석은 같은 지원 언론사의 건강 기사 Positive 사례와 일반 기사 Negative 사례를 검증한다. 제목 분석은 두 사례 모두 분야 거절 없이 다음 단계로 진행하는지 검증한다. 언론사 분류값만으로 기사 분야를 결정하는 테스트 Fixture는 만들지 않는다.
+
+언론사 공개 조회 테스트는 지원·일시 중단·현재 미지원 상태의 변환과 후보 상태의 분석 차단을 함께 검증한다. 추출 보강 후에는 해당 언론사의 Mock 회귀 테스트와 승인된 실제 기사 Smoke Test를 통과하기 전 공개 지원 상태를 활성화하지 않는다.
 
 MySQL Docker 도입은 하지 않는다. 현재 Testcontainers 의존성은 사용 완료 증거가 아니며 자동으로 제거하거나 테스트 환경을 대체하지 않는다. H2를 MySQL 호환성 증거로 사용하지 않는다.
 

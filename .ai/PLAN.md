@@ -14,6 +14,8 @@
 
 ## Current Status
 
+아래는 기존 작업의 검증 이력이다. PR 16 보완과 통합 초기 SQL의 현재 검증은 마지막 절에서 별도로 기록한다.
+
 - Frontend 전용 Harness 문서와 `AGENTS.md` 연결: PASS
 - Docs/Harness, Secret와 Diff 검사: PASS
 - Figma Design Context와 Screenshot 접근: PASS
@@ -46,7 +48,7 @@
 - 지원 언론사 공개 조회 API와 후보 제외·상태 축약: PASS
 - `GET /api/publishers` 비로그인 접근과 다른 요청의 인증 유지: PASS
 - 지원 언론사 JPA Entity와 Repository 단위 검증: PASS
-- `V0002__add_publisher_category.sql` Local 적용과 컬럼 확인: PASS
+- 기존 `V0002__add_publisher_category.sql` Local 적용과 컬럼 확인: PASS (통합 전 이력, 현재 파일은 V0001에 통합)
 - 지원 언론사 Entity와 Native MySQL 실제 Mapping 검증: PASS
 - Native MySQL 테스트 Database·제한 계정 구성 Script: PASS
 - 지원 언론사 Repository Native MySQL 통합 테스트 컴파일: PASS
@@ -56,13 +58,26 @@
 - Mock HTML 제목·게시일·본문 정제와 20,000자 제한: PASS
 - 기사 수집 Mock 테스트: PASS (11개, 실패·오류·Skip 0)
 - 초기 언론사 실제 추출 시험 실행기와 Local 보고서 경계: PASS
-- 초기 언론사 실제 외부 추출 시험: NOT RUN (응답 크기·Timeout·Redirect 상한 확정 전)
+- 기사 외부 추출 제한 확정: PASS (압축 해제 후 원본 HTML 2 MiB, 단일 요청 Timeout 10초, Redirect 최대 3회)
+- 초기 언론사 실제 외부 추출 시험: PASS (20곳 처리, 자동 추출 13곳, 본문 품질 수동 검토 통과 9곳)
+- 현재 기술 지원 후보 정리: PASS (연합뉴스, MBC, SBS, 중앙일보, 한겨레, 경향신문, 국민일보, 매일경제, 한국경제)
+- 언론사 지원과 기사 분야 판별의 책임 분리: PASS (건강 분석에만 개별 기사 분야 판별)
+- 언론사 분류와 무관한 공개 조회 회귀 검증: PASS (통신·종합·경제·의료 분류 포함)
+- 의료 전문 보완 후보 조사: PASS (8곳, 실제 추출 시험은 NOT RUN)
+- 건강·의학·보건 개별 기사 분야 판별 구현: NOT RUN (분석 API 미구현)
+- 지원·일시 중단·현재 미지원 언론사 웹 표시 정책: PASS
+- 미지원 언론사 공개 API와 Frontend 펼침 목록 구현: NOT RUN (API 상태와 Figma 펼침 화면 미구현)
+- 실제 시험 입력·원시 보고서·판정표의 Git 추적 제외: PASS
+- 기사 전문·Secret 미저장: PASS (본문은 시작·끝 각 최대 160자 미리보기만 Local 보고서에 기록)
+- Backend Maven 검증: PASS (30개, 실패·오류·Skip 0)
 
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
-3. 기사 응답 크기·Timeout·Redirect 상한 확정 후 초기 언론사 후보의 실제 추출 시험과 지원 대상 확정
+3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+4. 건강 분석 Vertical Slice에서만 개별 기사 분야 판별을 연결하고 일반 기사 Negative 사례와 건강 기사 Positive 사례 검증
+5. 지원 언론사 공개 상태 API를 확장하고 Figma 펼침 목록 확인 후 웹 표시 구현
 
 ## Backend 표준화 상태
 
@@ -71,7 +86,7 @@
 - 명시적 Sol 모델 호출을 통한 교차 검토: PASS
 - Custom Agent 파일 자동 로딩·실행: NOT RUN (별도 CLI Sandbox의 인증·연결 환경 제약)
 - API 상세 계약·결정: Git 제외 Local 문서에서 관리
-- 실제 Backend 업무 구현·통합 테스트 환경 구성: NOT RUN
+- 지원 언론사 외 Backend 업무 구현·통합 테스트 환경 구성: NOT RUN (지원 언론사 Native MySQL 범위는 위 PASS 기록 참조)
 - 기존 Frontend Target과 Next Loop 유지; Backend 작업 시 개발 표준과 관련 Local 계약 우선 확인
 
 ## Required Before Live OAuth
@@ -85,3 +100,22 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Local Database와 애플리케이션 계정 설정: Git에서 제외된 `.env`
 - Root 인증 저장: 사용하지 않음
 - 초기 Schema와 JPA 기동 재검증: `scripts/agent/verify-native-mysql.ps1`
+
+## PR 16 보완 작업
+
+- Task Understanding: 리뷰 8건의 중복을 합친 7개 항목과 사용자 승인 초기 Schema 통합
+- Current Behavior (수정 전): DNS 검증 IP와 HTTP 연결 분리, DB 검증 경계 누락, 수정일 오류 코드 혼용
+- Expected Behavior: 검증 IP 고정과 TLS 검증 유지, 빈 DB 초기화와 기존 DB 검증 분리
+- Relevant Context: article 구현·테스트, Native MySQL Script, DATABASE_SCHEMA.md
+- Affected Files: 기사 HTTP 경계, 날짜 오류·테스트, 초기 SQL·DB Script·테스트와 관련 Harness
+- Risks: V0001은 Git 제외 Local 파일; 기존 DB DDL 재실행·Secret 변경·Git 이력 재작성 금지
+- Implementation Plan: 승인된 HttpClient 5 도입 → 보안·날짜 회귀 수정; Sol의 DB 보완과 통합
+- Verification Plan: 승인된 기사 수집·날짜·DB 초기화·연결 격리 경계에서 TDD → Backend/Harness → Self Review·Diff Review
+- Backend clean verify: PASS (30개, 실패·오류·Skip 0; 실제 MySQL IT 제외)
+- HTTP 회귀 검증: PASS (IP 고정·Host/SNI·TLS 거절·Redirect·압축 해제 크기·응답/전체 시간 제한)
+- Native MySQL 연결 격리·Schema 정적 회귀 검증: PASS (PowerShell과 Java Guard)
+- Frontend 회귀 검증: PASS (11개 Test, Lint, TypeScript와 Build)
+- Harness 회귀·Infra·Docs·Secret 후보 검사: PASS (Compose는 설정 검사만 수행, Docker 설정 접근 경고 발생)
+- Self Review·Diff Review·작업 트리/Stage 공백 검사: PASS
+- 실제 GitHub Actions 재실행: NOT RUN (CI YAML 변경 없음)
+- 실제 MySQL 재적용·외부 기사 추출: NOT RUN (이번 실행 대상 아님)

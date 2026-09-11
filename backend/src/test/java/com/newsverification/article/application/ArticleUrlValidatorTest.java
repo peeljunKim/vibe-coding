@@ -24,12 +24,13 @@ class ArticleUrlValidatorTest {
     void acceptsPublicHttpsUrlFromAllowedPublisher() {
         var validator = new ArticleUrlValidator(publicHostResolver);
 
-        URI result = validator.validate(
+        var result = validator.validate(
                 "https://news.example/article/123?source=home",
                 Set.of("news.example")
         );
 
-        assertThat(result).isEqualTo(URI.create("https://news.example/article/123?source=home"));
+        assertThat(result.uri()).isEqualTo(URI.create("https://news.example/article/123?source=home"));
+        assertThat(result.addresses()).extracting(InetAddress::getHostAddress).containsExactly("1.1.1.1");
     }
 
     /** 내부 주소로 해석되는 URL 차단 */

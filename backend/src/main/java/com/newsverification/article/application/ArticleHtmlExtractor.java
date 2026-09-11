@@ -117,7 +117,7 @@ public final class ArticleHtmlExtractor {
             return Optional.of(OffsetDateTime.parse(value.get()));
         }
         catch (DateTimeParseException exception) {
-            throw new ArticleProcessingException(ArticleProcessingError.INVALID_PUBLISHED_AT, exception);
+            throw new ArticleProcessingException(ArticleProcessingError.INVALID_MODIFIED_AT, exception);
         }
     }
 

@@ -33,7 +33,7 @@ Repository 전체나 요구사항 전체를 매번 읽지 않는다. `rg`로 관
 5. 평가: 첫 번째 의미 있는 실패와 원인 구분
 6. 수정: 원인과 직접 관련된 최소 변경 후 같은 검증 재실행
 7. 리뷰: 작업 완료 전 `docs/agent/code-review.md`에 따른 Self Review·Diff Review 필수 수행, Backend 변경에는 `docs/agent/backend-review.md`의 관련 절 적용
-8. 완료: Definition of Done을 `PASS / FAIL / NOT RUN / NOT APPLICABLE`로 보고
+8. 완료: Definition of Done을 `PASS / FAIL / NOT RUN / NOT APPLICABLE`로 보고하고 실제 변경 내용을 반영한 커밋 메시지 후보 1개 추천
 
 같은 실패가 세 번 반복되면 추측성 수정을 중단하고 사실, 시도, 결과, 원인 후보와 필요한 정보를 보고한다.
 
@@ -48,12 +48,15 @@ Astra·Sol 협업은 독립적으로 분리 가능한 작업에만 적용한다.
 - 요청과 직접 관련된 최소 범위만 수정
 - 기존 API·보안 검사·검증 규칙의 임의 완화 금지
 - 실패 해결을 위한 테스트 삭제, Skip, Assertion 완화 금지
-- Dependency, 파괴적 DB Schema, 인증·인가, CI, Infrastructure 변경은 영향과 롤백 방법을 먼저 제시
+- 모든 Dependency와 Lock 파일 변경은 사용자 승인 필수
+- `backend/pom.xml`의 Dependency 추가·삭제·버전 변경은 변경 이유, 기존 Dependency로 해결할 수 없는 이유, 영향 범위, 롤백 방법을 사용자에게 보고하고 명시적 승인을 받은 후 수행
+- 파괴적 DB Schema, 인증·인가, CI, Infrastructure 변경은 영향과 롤백 방법을 먼저 제시
 - Secret, 실제 `.env`, 운영 데이터, 운영 배포의 자동 변경 금지
 - Local 설정 사용을 위한 `.gitignore` 일시 해제와 `git add -f` 금지
 - 클래스 설명과 메서드 역할 주석은 필요한 경우에만 짧고 쉬운 한국어 명사형으로 작성하며 마침표 생략
 - `.env.example` 주석도 파일 역할과 설정 묶음을 설명하는 짧은 한국어 명사형으로 작성
 - 실행하지 않은 검증을 `PASS`로 표시 금지
+- 작업 완료 보고에 실제 Diff를 요약한 커밋 메시지 후보 1개 포함, 추천은 Commit 실행 승인으로 간주하지 않음
 
 ## 기본 검증
 

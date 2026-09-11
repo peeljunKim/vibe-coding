@@ -23,9 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Transactional
 class NewsPublisherRepositoryIT {
 
-    private static final String TEST_DATABASE_URL = requiredTestDatabaseUrl();
-    private static final String TEST_DATABASE_USERNAME = requiredEnvironment("TEST_DB_USERNAME");
-    private static final String TEST_DATABASE_PASSWORD = requiredEnvironment("TEST_DB_PASSWORD");
+    private static final NativeMySqlTestConnectionGuard.Settings TEST_CONNECTION =
+            NativeMySqlTestConnectionGuard.fromEnvironment();
 
     @Autowired
     private NewsPublisherRepository publisherRepository;
@@ -36,9 +35,9 @@ class NewsPublisherRepositoryIT {
     /** 테스트 전용 DataSource 설정 */
     @DynamicPropertySource
     static void configureTestDatabase(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", () -> TEST_DATABASE_URL);
-        registry.add("spring.datasource.username", () -> TEST_DATABASE_USERNAME);
-        registry.add("spring.datasource.password", () -> TEST_DATABASE_PASSWORD);
+        registry.add("spring.datasource.url", TEST_CONNECTION::databaseUrl);
+        registry.add("spring.datasource.username", TEST_CONNECTION::username);
+        registry.add("spring.datasource.password", TEST_CONNECTION::password);
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
     }
 
@@ -78,21 +77,4 @@ class NewsPublisherRepositoryIT {
         );
     }
 
-    /** 테스트 Database URL 확인 */
-    private static String requiredTestDatabaseUrl() {
-        String databaseUrl = requiredEnvironment("TEST_DB_URL");
-        if (!databaseUrl.matches("(?i)^jdbc:mysql://[^/]+/[A-Za-z0-9_]*_test(?:\\?.*)?$")) {
-            throw new IllegalStateException("TEST_DB_URL must target a database whose name ends with _test");
-        }
-        return databaseUrl;
-    }
-
-    /** 필수 테스트 환경 변수 확인 */
-    private static String requiredEnvironment(String name) {
-        String value = System.getenv(name);
-        if (value == null || value.isBlank()) {
-            throw new IllegalStateException(name + " is required for the Native MySQL integration test");
-        }
-        return value;
-    }
 }
