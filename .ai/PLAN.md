@@ -73,7 +73,7 @@
 - 지원 상태 공개 API 확장과 Frontend 동적 연결: PASS (응답 필드 유지, `UNSUPPORTED` 상태 추가, 정적 목록 제거)
 - 지원 언론사 펼침 Browser 검증: PASS (Mock API, 1440·1280px 가로 넘침 없음, Runtime·Console 오류 없음)
 - Local MySQL 실데이터 Backend 기동과 Browser E2E: FAIL (`.env`의 빈 `DB_PASSWORD`로 MySQL 인증 거부, Secret 저장·출력 없음)
-- 1024px 펼침 화면 가로 넘침: FAIL (기존 전역 `body` 최소 폭 1024px와 세로 Scrollbar 조합으로 15px 발생, 이번 기능 외 전역 정책 변경 보류)
+- 1024px 펼침 화면 가로 넘침: PASS (전역 `body` 최소 폭 제거 후 Headed Chrome의 1024·1280·1440px 전체 8개 Route와 펼침 상태 27건 재검증)
 - 실제 시험 입력·원시 보고서·판정표의 Git 추적 제외: PASS
 - 기사 전문·Secret 미저장: PASS (본문은 시작·끝 각 최대 160자 미리보기만 Local 보고서에 기록)
 - Backend Maven 검증: PASS (30개, 실패·오류·Skip 0)
