@@ -2,8 +2,8 @@
 package com.newsverification.publisher.api;
 
 import com.newsverification.config.SecurityConfig;
+import com.newsverification.publisher.application.PublisherDirectoryEntry;
 import com.newsverification.publisher.application.PublisherService;
-import com.newsverification.publisher.application.SupportedPublisher;
 import com.newsverification.publisher.domain.PublisherAvailability;
 import com.newsverification.publisher.domain.PublisherCategory;
 import jakarta.servlet.Filter;
@@ -53,11 +53,13 @@ class PublisherControllerTest {
                 .build();
     }
 
-    /** 비로그인 지원 언론사 조회 검증 */
+    /** 비로그인 공개 언론사 상태 조회 검증 */
     @Test
-    void getsSupportedPublishersWithoutAuthentication() throws Exception {
-        when(publisherService.findSupportedPublishers()).thenReturn(List.of(
-                new SupportedPublisher("연합뉴스", PublisherCategory.NEWS_AGENCY, PublisherAvailability.ACTIVE)
+    void getsPublisherDirectoryWithoutAuthentication() throws Exception {
+        when(publisherService.findPublisherDirectory()).thenReturn(List.of(
+                new PublisherDirectoryEntry("연합뉴스", PublisherCategory.NEWS_AGENCY, PublisherAvailability.ACTIVE),
+                new PublisherDirectoryEntry("헬스조선", PublisherCategory.HEALTH_MEDICAL, PublisherAvailability.TEMPORARILY_DISABLED),
+                new PublisherDirectoryEntry("뉴시스", PublisherCategory.NEWS_AGENCY, PublisherAvailability.UNSUPPORTED)
         ));
 
         mockMvc.perform(get("/api/publishers"))
@@ -65,13 +67,15 @@ class PublisherControllerTest {
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$[0].name").value("연합뉴스"))
                 .andExpect(jsonPath("$[0].category").value("NEWS_AGENCY"))
-                .andExpect(jsonPath("$[0].status").value("ACTIVE"));
+                .andExpect(jsonPath("$[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$[1].status").value("TEMPORARILY_DISABLED"))
+                .andExpect(jsonPath("$[2].status").value("UNSUPPORTED"));
     }
 
-    /** 지원 언론사 미등록 상태 응답 검증 */
+    /** 공개 언론사 미등록 상태 응답 검증 */
     @Test
     void returnsEmptyArrayWhenNoPublisherIsAvailable() throws Exception {
-        when(publisherService.findSupportedPublishers()).thenReturn(List.of());
+        when(publisherService.findPublisherDirectory()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/publishers"))
                 .andExpect(status().isOk())

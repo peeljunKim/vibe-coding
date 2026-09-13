@@ -2,33 +2,24 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
-import type { UsageViewData } from '../types/pageData'
+import type { PublisherViewData, UsageViewData } from '../types/pageData'
 
-const activePublishers = [
-  '연합뉴스',
-  'MBC',
-  'SBS',
-  '중앙일보',
-  '한겨레',
-  '경향신문',
-  '국민일보',
-  '매일경제',
-  '한국경제',
-]
+type PublisherLoadStatus = 'idle' | 'loading' | 'success' | 'error'
 
-const unsupportedPublishers = [
-  '뉴시스',
-  'KBS',
-  'YTN',
-  'JTBC',
-  '조선일보',
-  '동아일보',
-  '한국일보',
-  '서울신문',
-  '헬스조선',
-  '코메디닷컴',
-  '메디칼타임즈',
-]
+const publisherCategoryGroups = [
+  {
+    label: '통신·방송',
+    categories: ['NEWS_AGENCY', 'BROADCAST_NEWS'],
+  },
+  {
+    label: '신문·경제',
+    categories: ['GENERAL_NEWSPAPER', 'BUSINESS_NEWSPAPER'],
+  },
+  {
+    label: '건강·의료',
+    categories: ['HEALTH_MEDICAL'],
+  },
+] as const
 
 interface HomePageProps {
   onStartHealthAnalysis: () => void
@@ -42,11 +33,58 @@ function HomePage({
   usage,
 }: HomePageProps) {
   const [isPublisherDirectoryOpen, setPublisherDirectoryOpen] = useState(false)
+  const [publishers, setPublishers] = useState<PublisherViewData[]>([])
+  const [publisherLoadStatus, setPublisherLoadStatus] =
+    useState<PublisherLoadStatus>('idle')
   const publisherDirectoryButtonRef = useRef<HTMLButtonElement>(null)
+
+  const activePublishers = publishers.filter(
+    (publisher) => publisher.status === 'ACTIVE',
+  )
+  const pausedPublishers = publishers.filter(
+    (publisher) => publisher.status === 'TEMPORARILY_DISABLED',
+  )
+  const unsupportedPublishers = publishers.filter(
+    (publisher) => publisher.status === 'UNSUPPORTED',
+  )
+
+  const loadPublisherDirectory = async () => {
+    setPublisherLoadStatus('loading')
+
+    try {
+      const response = await fetch('/api/publishers')
+      if (!response.ok) {
+        throw new Error('Publisher directory request failed')
+      }
+
+      const responseBody: unknown = await response.json()
+      if (!Array.isArray(responseBody)) {
+        throw new Error('Publisher directory response is not an array')
+      }
+
+      setPublishers(responseBody as PublisherViewData[])
+      setPublisherLoadStatus('success')
+    } catch {
+      setPublishers([])
+      setPublisherLoadStatus('error')
+    }
+  }
 
   const closePublisherDirectory = () => {
     setPublisherDirectoryOpen(false)
     publisherDirectoryButtonRef.current?.focus()
+  }
+
+  const togglePublisherDirectory = () => {
+    if (isPublisherDirectoryOpen) {
+      closePublisherDirectory()
+      return
+    }
+
+    setPublisherDirectoryOpen(true)
+    if (publisherLoadStatus === 'idle' || publisherLoadStatus === 'error') {
+      void loadPublisherDirectory()
+    }
   }
 
   return (
@@ -149,63 +187,122 @@ function HomePage({
               type="button"
               aria-expanded={isPublisherDirectoryOpen}
               aria-controls="publisher-directory-content"
-              onClick={() =>
-                setPublisherDirectoryOpen((currentValue) => !currentValue)
-              }
+              onClick={togglePublisherDirectory}
             >
               {isPublisherDirectoryOpen ? '접기 ↑' : '지원 언론사 보기'}
             </button>
           </div>
 
-          {isPublisherDirectoryOpen && (
+          {isPublisherDirectoryOpen && publisherLoadStatus === 'loading' && (
             <div
               id="publisher-directory-content"
               className="publisher-directory__content"
             >
-              <article className="publisher-status-card publisher-status-card--active">
-                <h3>지원 중 · {activePublishers.length}</h3>
-                <div className="publisher-group">
-                  <strong>통신·방송</strong>
-                  <ul>
-                    {activePublishers.slice(0, 3).map((publisher) => (
-                      <li key={publisher}>{publisher}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="publisher-group">
-                  <strong>신문·경제</strong>
-                  <ul>
-                    {activePublishers.slice(3).map((publisher) => (
-                      <li key={publisher}>{publisher}</li>
-                    ))}
-                  </ul>
-                </div>
-              </article>
-
-              <article className="publisher-status-card publisher-status-card--paused">
-                <h3>일시 중단 · 0</h3>
-                <strong>현재 일시 중단된 언론사가 없습니다.</strong>
-                <p>
-                  추출 장애가 확인되면 상태와 함께 이 영역에 즉시 안내합니다.
-                </p>
-              </article>
-
-              <article className="publisher-status-card publisher-status-card--unsupported">
-                <h3>현재 미지원 · {unsupportedPublishers.length}</h3>
-                <ul>
-                  {unsupportedPublishers.map((publisher) => (
-                    <li key={publisher}>{publisher}</li>
-                  ))}
-                </ul>
-                <p>추출 보완과 재시험 후 지원 여부를 갱신합니다.</p>
-              </article>
-
-              <p className="publisher-directory__notice">
-                새 언론사는 지속적으로 보강하며, 지원 상태가 바뀌면 이 목록에
-                반영합니다.
+              <p
+                className="publisher-directory__state"
+                role="status"
+                aria-label="지원 언론사 정보를 불러오는 중입니다."
+              >
+                지원 언론사 정보를 불러오는 중입니다.
               </p>
             </div>
           )}
+
+          {isPublisherDirectoryOpen && publisherLoadStatus === 'error' && (
+            <div
+              id="publisher-directory-content"
+              className="publisher-directory__content"
+            >
+              <p
+                className="publisher-directory__state publisher-directory__state--error"
+                role="alert"
+                aria-label="지원 언론사 정보를 불러오지 못했습니다."
+              >
+                지원 언론사 정보를 불러오지 못했습니다. 잠시 후 다시 시도해
+                주세요.
+              </p>
+            </div>
+          )}
+
+          {isPublisherDirectoryOpen &&
+            publisherLoadStatus === 'success' &&
+            publishers.length === 0 && (
+              <div
+                id="publisher-directory-content"
+                className="publisher-directory__content"
+              >
+                <p className="publisher-directory__state">
+                  현재 등록된 언론사가 없습니다.
+                </p>
+              </div>
+            )}
+
+          {isPublisherDirectoryOpen &&
+            publisherLoadStatus === 'success' &&
+            publishers.length > 0 && (
+              <div
+                id="publisher-directory-content"
+                className="publisher-directory__content"
+              >
+                <article className="publisher-status-card publisher-status-card--active">
+                  <h3>지원 중 · {activePublishers.length}</h3>
+                  {activePublishers.length === 0 ? (
+                    <strong>현재 지원 중인 언론사가 없습니다.</strong>
+                  ) : (
+                    publisherCategoryGroups.map((group) => {
+                      const groupPublishers = activePublishers.filter(
+                        (publisher) =>
+                          group.categories.some(
+                            (category) => category === publisher.category,
+                          ),
+                      )
+
+                      return groupPublishers.length > 0 ? (
+                        <div className="publisher-group" key={group.label}>
+                          <strong>{group.label}</strong>
+                          <ul>
+                            {groupPublishers.map((publisher) => (
+                              <li key={publisher.name}>{publisher.name}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null
+                    })
+                  )}
+                </article>
+
+                <article className="publisher-status-card publisher-status-card--paused">
+                  <h3>일시 중단 · {pausedPublishers.length}</h3>
+                  {pausedPublishers.length === 0 ? (
+                    <strong>현재 일시 중단된 언론사가 없습니다.</strong>
+                  ) : (
+                    <ul>
+                      {pausedPublishers.map((publisher) => (
+                        <li key={publisher.name}>{publisher.name}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <p>
+                    추출 장애가 확인되면 상태와 함께 이 영역에 즉시 안내합니다.
+                  </p>
+                </article>
+
+                <article className="publisher-status-card publisher-status-card--unsupported">
+                  <h3>현재 미지원 · {unsupportedPublishers.length}</h3>
+                  <ul>
+                    {unsupportedPublishers.map((publisher) => (
+                      <li key={publisher.name}>{publisher.name}</li>
+                    ))}
+                  </ul>
+                  <p>추출 보완과 재시험 후 지원 여부를 갱신합니다.</p>
+                </article>
+
+                <p className="publisher-directory__notice">
+                  새 언론사는 지속적으로 보강하며, 지원 상태가 바뀌면 이 목록에
+                  반영합니다.
+                </p>
+              </div>
+            )}
         </section>
       </main>
     </div>

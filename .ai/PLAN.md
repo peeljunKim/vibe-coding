@@ -40,12 +40,12 @@
 - 데이터 미제공·빈 목록 상태의 Desktop 레이아웃 유지: PASS
 - 1024·1280·1440px에서 8개 Route 가로 넘침 검사: PASS
 - Backend API 실제 데이터 연결: NOT RUN
-- Frontend Test 12개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
+- Frontend Test 15개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
 - Native MySQL 8.0.30 서비스 실행과 초기 Schema 파일 13개 Table 정적 확인: PASS
 - 빈 Local Database에 초기 Schema 실제 적용과 `information_schema` 확인: PASS
 - Local 애플리케이션 계정의 DML 전용 권한과 DDL 차단 확인: PASS
 - Spring JPA DataSource와 `ddl-auto: validate` 애플리케이션 기동: PASS
-- 지원 언론사 공개 조회 API와 후보 제외·상태 축약: PASS
+- 지원 언론사 공개 조회 API의 지원·일시 중단·현재 미지원 상태 변환: PASS
 - `GET /api/publishers` 비로그인 접근과 다른 요청의 인증 유지: PASS
 - 지원 언론사 JPA Entity와 Repository 단위 검증: PASS
 - 기존 `V0002__add_publisher_category.sql` Local 적용과 컬럼 확인: PASS (통합 전 이력, 현재 파일은 V0001에 통합)
@@ -69,9 +69,10 @@
 - 지원 언론사 펼침 Figma Frame: PASS (`31:2`, `01-1 · 기능 선택 홈 · 지원 언론사 펼침`, 1440×1240)
 - 지원 언론사 펼침 인터랙션 정의: PASS (동일 버튼 토글, `접기`와 `Escape` 닫기, 닫은 뒤 트리거로 Focus 복귀)
 - Figma Prototype 연결: NOT RUN (기존 Prototype 미설정, Starter MCP 호출 한도로 웹 편집 우회)
-- Frontend 지원 언론사 펼침 목록 구현: PASS (지원 9곳·일시 중단 0곳·현재 미지원 11곳, 동일 버튼 토글과 `Escape` Focus 복귀)
-- 지원 상태 공개 API 확장과 Frontend 동적 연결: NOT RUN (현재 공개 API는 지원·일시 중단만 제공)
-- 지원 언론사 펼침 Browser 검증: PASS (1440·1280px 가로 넘침 없음, Runtime·Console 오류 없음)
+- Frontend 지원 언론사 펼침 목록 구현: PASS (Backend 상태별 분류, 동일 버튼 토글과 `Escape` Focus 복귀)
+- 지원 상태 공개 API 확장과 Frontend 동적 연결: PASS (응답 필드 유지, `UNSUPPORTED` 상태 추가, 정적 목록 제거)
+- 지원 언론사 펼침 Browser 검증: PASS (Mock API, 1440·1280px 가로 넘침 없음, Runtime·Console 오류 없음)
+- Local MySQL 실데이터 Backend 기동과 Browser E2E: FAIL (`.env`의 빈 `DB_PASSWORD`로 MySQL 인증 거부, Secret 저장·출력 없음)
 - 1024px 펼침 화면 가로 넘침: FAIL (기존 전역 `body` 최소 폭 1024px와 세로 Scrollbar 조합으로 15px 발생, 이번 기능 외 전역 정책 변경 보류)
 - 실제 시험 입력·원시 보고서·판정표의 Git 추적 제외: PASS
 - 기사 전문·Secret 미저장: PASS (본문은 시작·끝 각 최대 160자 미리보기만 Local 보고서에 기록)
@@ -83,7 +84,7 @@
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 4. 건강 분석 Vertical Slice에서만 개별 기사 분야 판별을 연결하고 일반 기사 Negative 사례와 건강 기사 Positive 사례 검증
-5. 지원 언론사 공개 상태 API를 확장한 뒤 Frontend의 확정 목록을 동적 데이터로 전환
+5. 애플리케이션 DB 비밀번호를 Process 환경에 입력한 뒤 지원 언론사 실데이터 Browser E2E 재검증
 
 ## Backend 표준화 상태
 

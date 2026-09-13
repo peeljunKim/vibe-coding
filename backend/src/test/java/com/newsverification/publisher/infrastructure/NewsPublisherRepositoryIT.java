@@ -51,11 +51,10 @@ class NewsPublisherRepositoryIT {
         insertPublisher("나중 후보", PublisherCategory.HEALTH_MEDICAL, PublisherStatus.CANDIDATE);
     }
 
-    /** 후보 제외와 표시명 오름차순 조회 검증 */
+    /** 공개 목록의 표시명 오름차순 조회 검증 */
     @Test
-    void findsSupportedPublishersFromNativeMySqlInNameOrder() {
-        List<NewsPublisher> publishers =
-                publisherRepository.findByStatusNotOrderByNameAsc(PublisherStatus.CANDIDATE);
+    void findsPublisherDirectoryFromNativeMySqlInNameOrder() {
+        List<NewsPublisher> publishers = publisherRepository.findAllByOrderByNameAsc();
 
         assertThat(publishers)
                 .extracting(NewsPublisher::name, NewsPublisher::category, NewsPublisher::status)
@@ -63,7 +62,9 @@ class NewsPublisherRepositoryIT {
                         org.assertj.core.groups.Tuple.tuple(
                                 "가나다 통신", PublisherCategory.NEWS_AGENCY, PublisherStatus.ACTIVE),
                         org.assertj.core.groups.Tuple.tuple(
-                                "다라마 신문", PublisherCategory.GENERAL_NEWSPAPER, PublisherStatus.PAUSED_MANUAL)
+                                "다라마 신문", PublisherCategory.GENERAL_NEWSPAPER, PublisherStatus.PAUSED_MANUAL),
+                        org.assertj.core.groups.Tuple.tuple(
+                                "나중 후보", PublisherCategory.HEALTH_MEDICAL, PublisherStatus.CANDIDATE)
                 );
     }
 
