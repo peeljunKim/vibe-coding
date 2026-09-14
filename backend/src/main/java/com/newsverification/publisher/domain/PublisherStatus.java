@@ -13,7 +13,7 @@ public enum PublisherStatus {
         return switch (this) {
             case ACTIVE -> PublisherAvailability.ACTIVE;
             case PAUSED_AUTO, PAUSED_MANUAL -> PublisherAvailability.TEMPORARILY_DISABLED;
-            case CANDIDATE -> throw new IllegalStateException("Candidate publisher is not publicly visible");
+            case CANDIDATE -> PublisherAvailability.UNSUPPORTED;
         };
     }
 }

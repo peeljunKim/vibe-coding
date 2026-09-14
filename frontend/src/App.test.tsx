@@ -1,7 +1,7 @@
 // 데스크톱 화면 전환 검증
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import AdminReportsPage from './pages/AdminReportsPage'
 import HealthResultPage from './pages/HealthResultPage'
@@ -10,7 +10,10 @@ import type {
   ReportSummaryViewData,
 } from './types/pageData'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 const renderApp = (path = '/') =>
   render(
@@ -33,6 +36,102 @@ describe('App', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: '복사한 기사 제목 확인하기' }),
+    ).toBeInTheDocument()
+  })
+
+  it('Backend 지원 상태를 펼치고 키보드로 다시 닫는다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([
+        { name: 'API 통신사', category: 'NEWS_AGENCY', status: 'ACTIVE' },
+        {
+          name: 'API 중단사',
+          category: 'HEALTH_MEDICAL',
+          status: 'TEMPORARILY_DISABLED',
+        },
+        {
+          name: 'API 후보사',
+          category: 'GENERAL_NEWSPAPER',
+          status: 'UNSUPPORTED',
+        },
+      ]),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderApp()
+
+    const openButton = screen.getByRole('button', {
+      name: '지원 언론사 보기',
+    })
+    expect(openButton).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(openButton)
+
+    const closeButton = screen.getByRole('button', { name: '접기 ↑' })
+    expect(closeButton).toHaveAttribute('aria-expanded', 'true')
+    expect(
+      screen.getByRole('heading', { name: '지원 언론사' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('API 통신사')).toBeInTheDocument()
+    expect(screen.getByText('API 중단사')).toBeInTheDocument()
+    expect(screen.getByText('API 후보사')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/publishers')
+
+    closeButton.focus()
+    fireEvent.keyDown(closeButton, { key: 'Escape' })
+
+    const reopenedButton = screen.getByRole('button', {
+      name: '지원 언론사 보기',
+    })
+    expect(reopenedButton).toHaveFocus()
+    expect(reopenedButton).toHaveAttribute('aria-expanded', 'false')
+    expect(
+      screen.queryByRole('heading', { name: '지원 언론사' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('지원 언론사 조회 중 상태를 표시한다', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => undefined)),
+    )
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '지원 언론사 보기' }))
+
+    expect(
+      screen.getByRole('status', {
+        name: '지원 언론사 정보를 불러오는 중입니다.',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('지원 언론사 조회 실패를 숨기지 않는다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')))
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '지원 언론사 보기' }))
+
+    expect(
+      await screen.findByRole('alert', {
+        name: '지원 언론사 정보를 불러오지 못했습니다.',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('지원 언론사 빈 목록 상태를 표시한다', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      }),
+    )
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '지원 언론사 보기' }))
+
+    expect(
+      await screen.findByText('현재 등록된 언론사가 없습니다.'),
     ).toBeInTheDocument()
   })
 

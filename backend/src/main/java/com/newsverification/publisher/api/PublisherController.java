@@ -19,10 +19,10 @@ public class PublisherController {
         this.publisherService = publisherService;
     }
 
-    /** 지원 언론사 목록 조회 */
+    /** 공개 언론사 상태 목록 조회 */
     @GetMapping
-    public List<PublisherResponse> getSupportedPublishers() {
-        return publisherService.findSupportedPublishers().stream()
+    public List<PublisherResponse> getPublisherDirectory() {
+        return publisherService.findPublisherDirectory().stream()
                 .map(PublisherResponse::from)
                 .toList();
     }

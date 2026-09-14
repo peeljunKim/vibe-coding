@@ -4,6 +4,22 @@ export interface UsageViewData {
   headlineRemaining: number
 }
 
+export type PublisherCategory =
+  | 'NEWS_AGENCY'
+  | 'BROADCAST_NEWS'
+  | 'GENERAL_NEWSPAPER'
+  | 'BUSINESS_NEWSPAPER'
+  | 'HEALTH_MEDICAL'
+
+export type PublisherAvailability =
+  'ACTIVE' | 'TEMPORARILY_DISABLED' | 'UNSUPPORTED'
+
+export interface PublisherViewData {
+  name: string
+  category: PublisherCategory
+  status: PublisherAvailability
+}
+
 export interface ArticleViewData {
   title: string
   publisher: string

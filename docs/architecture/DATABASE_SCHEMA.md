@@ -14,9 +14,13 @@
 
 최초 업무 Schema는 Git에서 제외된 `infra/mysql/schema/V0001__create_initial_domain_schema.sql`에 정의한다. 요구사항 분석, 관계, 컬럼, 인덱스와 삭제 정책은 Git에서 관리하는 `docs/architecture/DATABASE_DESIGN.md`를 기준으로 검토한다.
 
+초기 지원 언론사 기준 데이터는 Git에서 관리하는 `infra/mysql/seed/initial-news-publishers.sql`에 둔다. 이 파일은 Schema Version이 아니라 공개 언론사명·분류·허용 호스트와 초기 지원 상태를 재현하는 DML 기준선이다. 실제 기사 URL, 추출 보고서와 Secret은 포함하지 않는다. 추출 품질을 통과한 언론사만 `ACTIVE`, 한 번도 지원하지 않은 보강 대상은 `CANDIDATE`로 입력하며 실제 지원 이력이 없는 언론사를 표시 검증 목적으로 `PAUSED_*`에 넣지 않는다.
+
 Clean Clone에는 초기 SQL이 포함되지 않으므로 Local 또는 배포 환경에 별도로 보관한 파일 없이는 빈 Database를 재생성할 수 없다.
 
 Database와 Local 애플리케이션 계정 생성은 `scripts/agent/setup-local-mysql.ps1`의 Local 설정 절차이며 Schema 변경 이력에 포함하지 않는다.
+
+초기 지원 언론사 데이터는 `scripts/agent/seed-news-publishers.ps1`로 별도 적용한다. 두 대상 Table이 모두 비어 있을 때만 입력하며 기존 운영 상태를 갱신하거나 덮어쓰지 않는다.
 
 ## 파일 규칙
 

@@ -6,7 +6,7 @@
 
 - Figma file: `qo0ztGDqf3MrinTOyyySy9`
 - Figma Section: `13:446`
-- 구현 확인 Node: `13:533`, `13:565`, `13:719`
+- 구현 확인 Node: `13:533`, `13:565`, `13:719`, `31:2`
 - PNG 기준 추가 화면: 건강 결과, 제목 결과, 저장 기록, 회원가입 3단계, 신고 관리자
 - 결과 화면 최신 Node: `15:114`
 - URL: `https://www.figma.com/design/qo0ztGDqf3MrinTOyyySy9/기사체크-·-데스크톱-UX-UI?node-id=13-446`
@@ -40,12 +40,12 @@
 - 데이터 미제공·빈 목록 상태의 Desktop 레이아웃 유지: PASS
 - 1024·1280·1440px에서 8개 Route 가로 넘침 검사: PASS
 - Backend API 실제 데이터 연결: NOT RUN
-- Frontend Test 11개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
+- Frontend Test 15개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
 - Native MySQL 8.0.30 서비스 실행과 초기 Schema 파일 13개 Table 정적 확인: PASS
 - 빈 Local Database에 초기 Schema 실제 적용과 `information_schema` 확인: PASS
 - Local 애플리케이션 계정의 DML 전용 권한과 DDL 차단 확인: PASS
 - Spring JPA DataSource와 `ddl-auto: validate` 애플리케이션 기동: PASS
-- 지원 언론사 공개 조회 API와 후보 제외·상태 축약: PASS
+- 지원 언론사 공개 조회 API의 지원·일시 중단·현재 미지원 상태 변환: PASS
 - `GET /api/publishers` 비로그인 접근과 다른 요청의 인증 유지: PASS
 - 지원 언론사 JPA Entity와 Repository 단위 검증: PASS
 - 기존 `V0002__add_publisher_category.sql` Local 적용과 컬럼 확인: PASS (통합 전 이력, 현재 파일은 V0001에 통합)
@@ -66,7 +66,20 @@
 - 의료 전문 보완 후보 조사: PASS (8곳, 실제 추출 시험은 NOT RUN)
 - 건강·의학·보건 개별 기사 분야 판별 구현: NOT RUN (분석 API 미구현)
 - 지원·일시 중단·현재 미지원 언론사 웹 표시 정책: PASS
-- 미지원 언론사 공개 API와 Frontend 펼침 목록 구현: NOT RUN (API 상태와 Figma 펼침 화면 미구현)
+- 지원 언론사 펼침 Figma Frame: PASS (`31:2`, `01-1 · 기능 선택 홈 · 지원 언론사 펼침`, 1440×1240)
+- 지원 언론사 펼침 인터랙션 정의: PASS (동일 버튼 토글, `접기`와 `Escape` 닫기, 닫은 뒤 트리거로 Focus 복귀)
+- Figma Prototype 연결: NOT RUN (기존 Prototype 미설정, Starter MCP 호출 한도로 웹 편집 우회)
+- Frontend 지원 언론사 펼침 목록 구현: PASS (Backend 상태별 분류, 동일 버튼 토글과 `Escape` Focus 복귀)
+- 지원 상태 공개 API 확장과 Frontend 동적 연결: PASS (응답 필드 유지, `UNSUPPORTED` 상태 추가, 정적 목록 제거)
+- 지원 언론사 펼침 Browser 검증: PASS (Mock API, 1440·1280px 가로 넘침 없음, Runtime·Console 오류 없음)
+- Local MySQL 실데이터 Backend 기동과 Browser E2E: PASS (Process 환경 변수 인증, 비로그인 `GET /api/publishers` 200, 실제 빈 배열과 Frontend 빈 상태를 1024·1280·1440px Headed Chrome에서 확인)
+- 지원 언론사 초기 기준 데이터: PASS (추출 품질 통과 9곳 `ACTIVE`, 보완·재시험 대기 11곳 `CANDIDATE`, 허용 호스트 35건)
+- 지원 언론사 초기 데이터 적용 Script: PASS (개발·테스트 Database 빈 Table 선행 조건, Process·`.env`·마스킹 입력, 기존 상태 덮어쓰기 차단)
+- Native MySQL 개발·테스트 Database 초기 데이터 적용과 재검증: PASS (각 언론사 20건, 도메인 35건, `ACTIVE` 호스트 16건, `PAUSED` 호스트 19건)
+- Local MySQL 상태별 언론사 실데이터 표시: PASS (`GET /api/publishers` 20건, 지원 중 9곳, 일시 중단 0곳, 현재 미지원 11곳)
+- Native MySQL 일시 중단 실데이터 표시: PASS (테스트 Database의 `PAUSED_MANUAL` 1건으로 실제 API·Browser 확인 후 초기 상태 복원)
+- 지원 언론사 실데이터 Browser E2E: PASS (1024·1280·1440px, Runtime·Console 오류와 가로 넘침 없음, Browser `/api/publishers` 200)
+- 1024px 펼침 화면 가로 넘침: PASS (전역 `body` 최소 폭 제거 후 Headed Chrome의 1024·1280·1440px 전체 8개 Route와 펼침 상태 27건 재검증)
 - 실제 시험 입력·원시 보고서·판정표의 Git 추적 제외: PASS
 - 기사 전문·Secret 미저장: PASS (본문은 시작·끝 각 최대 160자 미리보기만 Local 보고서에 기록)
 - Backend Maven 검증: PASS (30개, 실패·오류·Skip 0)
@@ -77,7 +90,6 @@
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 4. 건강 분석 Vertical Slice에서만 개별 기사 분야 판별을 연결하고 일반 기사 Negative 사례와 건강 기사 Positive 사례 검증
-5. 지원 언론사 공개 상태 API를 확장하고 Figma 펼침 목록 확인 후 웹 표시 구현
 
 ## Backend 표준화 상태
 

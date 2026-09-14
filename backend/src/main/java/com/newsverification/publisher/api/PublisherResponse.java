@@ -1,11 +1,11 @@
-/* 지원 언론사 API 응답 */
+/* 공개 언론사 상태 API 응답 */
 package com.newsverification.publisher.api;
 
-import com.newsverification.publisher.application.SupportedPublisher;
+import com.newsverification.publisher.application.PublisherDirectoryEntry;
 import com.newsverification.publisher.domain.PublisherAvailability;
 import com.newsverification.publisher.domain.PublisherCategory;
 
-/** 지원 언론사 공개 응답 */
+/** 공개 언론사 상태 응답 */
 public record PublisherResponse(
         String name,
         PublisherCategory category,
@@ -13,7 +13,7 @@ public record PublisherResponse(
 ) {
 
     /** 조회 결과의 API 응답 변환 */
-    static PublisherResponse from(SupportedPublisher publisher) {
+    static PublisherResponse from(PublisherDirectoryEntry publisher) {
         return new PublisherResponse(publisher.name(), publisher.category(), publisher.status());
     }
 }
