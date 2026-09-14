@@ -62,9 +62,9 @@ class NewsPublisherRepositoryIT {
                         org.assertj.core.groups.Tuple.tuple(
                                 "가나다 통신", PublisherCategory.NEWS_AGENCY, PublisherStatus.ACTIVE),
                         org.assertj.core.groups.Tuple.tuple(
-                                "다라마 신문", PublisherCategory.GENERAL_NEWSPAPER, PublisherStatus.PAUSED_MANUAL),
+                                "나중 후보", PublisherCategory.HEALTH_MEDICAL, PublisherStatus.CANDIDATE),
                         org.assertj.core.groups.Tuple.tuple(
-                                "나중 후보", PublisherCategory.HEALTH_MEDICAL, PublisherStatus.CANDIDATE)
+                                "다라마 신문", PublisherCategory.GENERAL_NEWSPAPER, PublisherStatus.PAUSED_MANUAL)
                 );
     }
 

@@ -72,7 +72,13 @@
 - Frontend 지원 언론사 펼침 목록 구현: PASS (Backend 상태별 분류, 동일 버튼 토글과 `Escape` Focus 복귀)
 - 지원 상태 공개 API 확장과 Frontend 동적 연결: PASS (응답 필드 유지, `UNSUPPORTED` 상태 추가, 정적 목록 제거)
 - 지원 언론사 펼침 Browser 검증: PASS (Mock API, 1440·1280px 가로 넘침 없음, Runtime·Console 오류 없음)
-- Local MySQL 실데이터 Backend 기동과 Browser E2E: FAIL (`.env`의 빈 `DB_PASSWORD`로 MySQL 인증 거부, Secret 저장·출력 없음)
+- Local MySQL 실데이터 Backend 기동과 Browser E2E: PASS (Process 환경 변수 인증, 비로그인 `GET /api/publishers` 200, 실제 빈 배열과 Frontend 빈 상태를 1024·1280·1440px Headed Chrome에서 확인)
+- 지원 언론사 초기 기준 데이터: PASS (추출 품질 통과 9곳 `ACTIVE`, 보완·재시험 대기 11곳 `CANDIDATE`, 허용 호스트 35건)
+- 지원 언론사 초기 데이터 적용 Script: PASS (개발·테스트 Database 빈 Table 선행 조건, Process·`.env`·마스킹 입력, 기존 상태 덮어쓰기 차단)
+- Native MySQL 개발·테스트 Database 초기 데이터 적용과 재검증: PASS (각 언론사 20건, 도메인 35건, `ACTIVE` 호스트 16건, `PAUSED` 호스트 19건)
+- Local MySQL 상태별 언론사 실데이터 표시: PASS (`GET /api/publishers` 20건, 지원 중 9곳, 일시 중단 0곳, 현재 미지원 11곳)
+- Native MySQL 일시 중단 실데이터 표시: PASS (테스트 Database의 `PAUSED_MANUAL` 1건으로 실제 API·Browser 확인 후 초기 상태 복원)
+- 지원 언론사 실데이터 Browser E2E: PASS (1024·1280·1440px, Runtime·Console 오류와 가로 넘침 없음, Browser `/api/publishers` 200)
 - 1024px 펼침 화면 가로 넘침: PASS (전역 `body` 최소 폭 제거 후 Headed Chrome의 1024·1280·1440px 전체 8개 Route와 펼침 상태 27건 재검증)
 - 실제 시험 입력·원시 보고서·판정표의 Git 추적 제외: PASS
 - 기사 전문·Secret 미저장: PASS (본문은 시작·끝 각 최대 160자 미리보기만 Local 보고서에 기록)
@@ -84,7 +90,6 @@
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 4. 건강 분석 Vertical Slice에서만 개별 기사 분야 판별을 연결하고 일반 기사 Negative 사례와 건강 기사 Positive 사례 검증
-5. 애플리케이션 DB 비밀번호를 Process 환경에 입력한 뒤 지원 언론사 실데이터 Browser E2E 재검증
 
 ## Backend 표준화 상태
 
