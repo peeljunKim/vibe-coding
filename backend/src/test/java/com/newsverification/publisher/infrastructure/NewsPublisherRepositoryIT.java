@@ -4,6 +4,7 @@ package com.newsverification.publisher.infrastructure;
 import com.newsverification.NewsVerificationApplication;
 import com.newsverification.publisher.domain.NewsPublisher;
 import com.newsverification.publisher.domain.PublisherCategory;
+import com.newsverification.publisher.domain.PublisherDomainStatus;
 import com.newsverification.publisher.domain.PublisherStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,9 @@ class NewsPublisherRepositoryIT {
     private NewsPublisherRepository publisherRepository;
 
     @Autowired
+    private NewsPublisherDomainRepository domainRepository;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     /** 테스트 전용 DataSource 설정 */
@@ -49,6 +53,29 @@ class NewsPublisherRepositoryIT {
         insertPublisher("가나다 통신", PublisherCategory.NEWS_AGENCY, PublisherStatus.ACTIVE);
         insertPublisher("다라마 신문", PublisherCategory.GENERAL_NEWSPAPER, PublisherStatus.PAUSED_MANUAL);
         insertPublisher("나중 후보", PublisherCategory.HEALTH_MEDICAL, PublisherStatus.CANDIDATE);
+        insertDomain("가나다 통신", "news.example", PublisherDomainStatus.ACTIVE);
+        insertDomain("가나다 통신", "m.news.example", PublisherDomainStatus.ACTIVE);
+        insertDomain("가나다 통신", "old.news.example", PublisherDomainStatus.PAUSED);
+        insertDomain("다라마 신문", "paused.example", PublisherDomainStatus.ACTIVE);
+        insertDomain("나중 후보", "candidate.example", PublisherDomainStatus.PAUSED);
+    }
+
+    /** 실제 도메인과 언론사 상태 조인 조회 검증 */
+    @Test
+    void findsPublisherDomainAndActiveAliasesFromNativeMySql() {
+        var requested = domainRepository.findByHostname("news.example").orElseThrow();
+
+        assertThat(requested.publisher().name()).isEqualTo("가나다 통신");
+        assertThat(requested.availability()).isEqualTo(
+                com.newsverification.publisher.domain.PublisherAvailability.ACTIVE);
+        assertThat(domainRepository.findAllByPublisherAndStatusOrderByHostnameAsc(
+                requested.publisher(), PublisherDomainStatus.ACTIVE))
+                .extracting(com.newsverification.publisher.domain.NewsPublisherDomain::hostname)
+                .containsExactly("m.news.example", "news.example");
+        assertThat(domainRepository.findByHostname("paused.example").orElseThrow().availability())
+                .isEqualTo(com.newsverification.publisher.domain.PublisherAvailability.TEMPORARILY_DISABLED);
+        assertThat(domainRepository.findByHostname("candidate.example").orElseThrow().availability())
+                .isEqualTo(com.newsverification.publisher.domain.PublisherAvailability.UNSUPPORTED);
     }
 
     /** 공개 목록의 표시명 오름차순 조회 검증 */
@@ -76,6 +103,20 @@ class NewsPublisherRepositoryIT {
                 category.name(),
                 status.name()
         );
+    }
+
+    /** 테스트 Fixture 도메인 입력 */
+    private void insertDomain(String publisherName, String hostname, PublisherDomainStatus status) {
+        int updated = jdbcTemplate.update(
+                """
+                INSERT INTO news_publisher_domains (publisher_id, hostname, status)
+                SELECT id, ?, ? FROM news_publishers WHERE name = ?
+                """,
+                hostname,
+                status.name(),
+                publisherName
+        );
+        assertThat(updated).isEqualTo(1);
     }
 
 }

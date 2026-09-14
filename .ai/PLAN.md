@@ -83,13 +83,18 @@
 - 실제 시험 입력·원시 보고서·판정표의 Git 추적 제외: PASS
 - 기사 전문·Secret 미저장: PASS (본문은 시작·끝 각 최대 160자 미리보기만 Local 보고서에 기록)
 - Backend Maven 검증: PASS (30개, 실패·오류·Skip 0)
+- 기사 Host와 MySQL 언론사·도메인 상태 연결: PASS (활성 언론사의 활성 별칭만 추출 허용)
+- 후보·일시 중단·미등록 Host의 외부 HTTP 전 차단: PASS
+- 언론사 도메인 Repository Native MySQL 통합 검증: PASS (MySQL 8.0.30, 언론사 상태 조인과 활성 별칭 조회)
+- Backend Maven 재검증: PASS (36개, 실패·오류·Skip 0)
+- 분석 접수 API의 DB 상태 기반 기사 수집 진입점 호출: NOT RUN (건강·제목 분석 Use Case 미구현)
 
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-4. 건강 분석 Vertical Slice에서만 개별 기사 분야 판별을 연결하고 일반 기사 Negative 사례와 건강 기사 Positive 사례 검증
+4. 건강 분석 Vertical Slice에서 DB 상태 기반 기사 수집 진입점을 호출하고 개별 기사 분야 판별 연결
 
 ## Backend 표준화 상태
 

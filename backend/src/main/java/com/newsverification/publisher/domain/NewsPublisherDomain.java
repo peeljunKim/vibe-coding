@@ -35,4 +35,25 @@ public class NewsPublisherDomain {
 
     protected NewsPublisherDomain() {
     }
+
+    /** 소속 언론사 조회 */
+    public NewsPublisher publisher() {
+        return publisher;
+    }
+
+    /** 허용 호스트명 조회 */
+    public String hostname() {
+        return hostname;
+    }
+
+    /** 기사 추출 가능 상태 계산 */
+    public PublisherAvailability availability() {
+        PublisherAvailability publisherAvailability = publisher.status().toAvailability();
+        if (publisherAvailability != PublisherAvailability.ACTIVE) {
+            return publisherAvailability;
+        }
+        return status == PublisherDomainStatus.ACTIVE
+                ? PublisherAvailability.ACTIVE
+                : PublisherAvailability.TEMPORARILY_DISABLED;
+    }
 }
