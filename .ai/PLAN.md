@@ -64,7 +64,10 @@
 - 언론사 지원과 기사 분야 판별의 책임 분리: PASS (건강 분석에만 개별 기사 분야 판별)
 - 언론사 분류와 무관한 공개 조회 회귀 검증: PASS (통신·종합·경제·의료 분류 포함)
 - 의료 전문 보완 후보 조사: PASS (8곳, 실제 추출 시험은 NOT RUN)
-- 건강·의학·보건 개별 기사 분야 판별 구현: NOT RUN (분석 API 미구현)
+- 건강·의학·보건 개별 기사 분야 판별 경계: PASS (`PublisherArticleReader` 수집 후 교체 가능한 Port와 Mock Positive·Negative Fixture)
+- 건강 분석 Use Case 분야 분기: PASS (관련 기사만 후속 Mock Port 전달, 비관련·판단 어려움은 사용자 안내 후 중단)
+- 공통 비동기 분석 작업 상태 머신: PASS (90초 기한, 실행 중 5분·종료 상태 30분 만료, 늦은 결과·상태 역전 차단, 읽기 무변경 Mock 검증)
+- Redis 작업 저장 Adapter와 실제 TTL·조건부 전환 검증: PASS (Docker Redis 8.8, 통합 테스트 7개, TTL·Version 전환·완료/실패 경쟁·장애 차단)
 - 지원·일시 중단·현재 미지원 언론사 웹 표시 정책: PASS
 - 지원 언론사 펼침 Figma Frame: PASS (`31:2`, `01-1 · 기능 선택 홈 · 지원 언론사 펼침`, 1440×1240)
 - 지원 언론사 펼침 인터랙션 정의: PASS (동일 버튼 토글, `접기`와 `Escape` 닫기, 닫은 뒤 트리거로 Focus 복귀)
@@ -83,13 +86,18 @@
 - 실제 시험 입력·원시 보고서·판정표의 Git 추적 제외: PASS
 - 기사 전문·Secret 미저장: PASS (본문은 시작·끝 각 최대 160자 미리보기만 Local 보고서에 기록)
 - Backend Maven 검증: PASS (30개, 실패·오류·Skip 0)
+- 기사 Host와 MySQL 언론사·도메인 상태 연결: PASS (활성 언론사의 활성 별칭만 추출 허용)
+- 후보·일시 중단·미등록 Host의 외부 HTTP 전 차단: PASS
+- 언론사 도메인 Repository Native MySQL 통합 검증: PASS (MySQL 8.0.30, 언론사 상태 조인과 활성 별칭 조회)
+- Backend Maven 재검증: PASS (36개, 실패·오류·Skip 0)
+- 분석 접수 API의 DB 상태 기반 기사 수집 진입점 호출: NOT RUN (건강·제목 분석 Use Case 미구현)
 
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-4. 건강 분석 Vertical Slice에서만 개별 기사 분야 판별을 연결하고 일반 기사 Negative 사례와 건강 기사 Positive 사례 검증
+4. 분야 판별 실패 이용량 정책 구현
 
 ## Backend 표준화 상태
 

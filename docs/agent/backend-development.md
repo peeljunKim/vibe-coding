@@ -26,7 +26,7 @@ Boot 관리 Dependency의 세부 버전은 실제 effective POM/dependency tree�
 - 영향 범위
 - 롤백 방법
 
-현재 코드는 Application, HTTP Basic·Cookie CSRF 설정, 지원 언론사 조회·JPA와 기사 URL 검증·본문 추출 범위다. OAuth와 그 밖의 업무 기능·작업 실행기는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
+현재 코드는 Application, HTTP Basic·Cookie CSRF 설정, 지원 언론사 조회·JPA, DB 언론사·도메인 상태 기반 기사 수집 진입점과 URL 검증·본문 추출 범위다. OAuth와 그 밖의 업무 기능·작업 실행기는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
 
 ## 읽기와 계약 관리
 

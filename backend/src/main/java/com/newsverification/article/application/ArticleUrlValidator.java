@@ -23,17 +23,7 @@ public final class ArticleUrlValidator {
 
     /** 허용 언론사와 공개 IP URL 검증 */
     public ResolvedArticleUrl validate(String rawUrl, Set<String> allowedHosts) {
-        URI uri = parse(rawUrl);
-        if (!"https".equalsIgnoreCase(uri.getScheme())) {
-            throw new ArticleProcessingException(ArticleProcessingError.UNSUPPORTED_SCHEME);
-        }
-        if (uri.getRawUserInfo() != null) {
-            throw new ArticleProcessingException(ArticleProcessingError.USER_INFO_NOT_ALLOWED);
-        }
-        if (uri.getPort() != -1 && uri.getPort() != 443) {
-            throw new ArticleProcessingException(ArticleProcessingError.PORT_NOT_ALLOWED);
-        }
-
+        URI uri = requireValidTarget(rawUrl);
         String hostname = normalizeHostname(uri.getHost());
         boolean allowed = allowedHosts.stream()
                 .map(ArticleUrlValidator::normalizeHostname)
@@ -55,6 +45,26 @@ public final class ArticleUrlValidator {
         catch (UnknownHostException exception) {
             throw new ArticleProcessingException(ArticleProcessingError.DNS_LOOKUP_FAILED, exception);
         }
+    }
+
+    /** 언론사 조회용 검증된 호스트 추출 */
+    public String hostname(String rawUrl) {
+        return normalizeHostname(requireValidTarget(rawUrl).getHost());
+    }
+
+    /** 외부 요청 대상 기본 조건 확인 */
+    private static URI requireValidTarget(String rawUrl) {
+        URI uri = parse(rawUrl);
+        if (!"https".equalsIgnoreCase(uri.getScheme())) {
+            throw new ArticleProcessingException(ArticleProcessingError.UNSUPPORTED_SCHEME);
+        }
+        if (uri.getRawUserInfo() != null) {
+            throw new ArticleProcessingException(ArticleProcessingError.USER_INFO_NOT_ALLOWED);
+        }
+        if (uri.getPort() != -1 && uri.getPort() != 443) {
+            throw new ArticleProcessingException(ArticleProcessingError.PORT_NOT_ALLOWED);
+        }
+        return uri;
     }
 
     /** URL 문법 확인 */
