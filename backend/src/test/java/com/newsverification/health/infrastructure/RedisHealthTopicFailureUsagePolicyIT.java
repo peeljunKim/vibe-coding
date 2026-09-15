@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -130,6 +131,54 @@ class RedisHealthTopicFailureUsagePolicyIT {
 
         assertThat(result.charged()).isFalse();
         assertThat(result.usedCount()).isEqualTo(2);
+    }
+
+    /** 비회원 단일 신호 변경 이후 기존 이용량 승계 */
+    @Test
+    void preservesGuestUsageWhenOnlyOneIdentitySignalChanges() {
+        HealthAnalysisUsageSubject original = track(
+                HealthAnalysisUserType.GUEST,
+                List.of("cookie-a", "ip-a")
+        );
+        HealthAnalysisUsageSubject changedCookie = track(
+                HealthAnalysisUserType.GUEST,
+                List.of("cookie-b", "ip-a")
+        );
+        HealthAnalysisUsageSubject changedIp = track(
+                HealthAnalysisUserType.GUEST,
+                List.of("cookie-b", "ip-b")
+        );
+
+        assertThat(policy.recordFailure(original).charged()).isFalse();
+        assertThat(policy.recordFailure(changedCookie).usedCount()).isEqualTo(1);
+        assertThat(policy.recordFailure(changedIp).usedCount()).isEqualTo(2);
+        assertThatThrownBy(() -> policy.verifyCanStart(changedIp))
+                .isInstanceOf(HealthDailyUsageLimitExceededException.class);
+    }
+
+    /** 한도 도달 뒤 순차 신호 변경의 이용량 우회 차단 */
+    @Test
+    void blocksSequentialGuestSignalChangesAfterLimit() {
+        HealthAnalysisUsageSubject original = track(
+                HealthAnalysisUserType.GUEST,
+                List.of("cookie-a", "ip-a")
+        );
+        HealthAnalysisUsageSubject changedCookie = track(
+                HealthAnalysisUserType.GUEST,
+                List.of("cookie-b", "ip-a")
+        );
+        HealthAnalysisUsageSubject changedIpAfterRejection = track(
+                HealthAnalysisUserType.GUEST,
+                List.of("cookie-b", "ip-b")
+        );
+        policy.recordFailure(original);
+        policy.recordFailure(original);
+        policy.recordFailure(original);
+
+        assertThatThrownBy(() -> policy.verifyCanStart(changedCookie))
+                .isInstanceOf(HealthDailyUsageLimitExceededException.class);
+        assertThatThrownBy(() -> policy.verifyCanStart(changedIpAfterRejection))
+                .isInstanceOf(HealthDailyUsageLimitExceededException.class);
     }
 
     /** 동시 첫 실패의 단일 무료 처리 */
@@ -260,7 +309,14 @@ class RedisHealthTopicFailureUsagePolicyIT {
     /** 테스트 정리 대상 Key 등록 */
     private HealthAnalysisUsageSubject track(HealthAnalysisUserType type, String identifierKey) {
         HealthAnalysisUsageSubject subject = new HealthAnalysisUsageSubject(type, identifierKey);
-        createdKeys.add(policy.keyFor(subject));
+        createdKeys.addAll(policy.keysFor(subject));
+        return subject;
+    }
+
+    /** 복수 테스트 식별 Key 등록 */
+    private HealthAnalysisUsageSubject track(HealthAnalysisUserType type, List<String> identifierKeys) {
+        HealthAnalysisUsageSubject subject = new HealthAnalysisUsageSubject(type, identifierKeys);
+        createdKeys.addAll(policy.keysFor(subject));
         return subject;
     }
 

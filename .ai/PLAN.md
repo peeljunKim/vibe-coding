@@ -70,8 +70,9 @@
 - Redis 작업 저장 Adapter와 실제 TTL·조건부 전환 검증: PASS (Docker Redis 8.8, 통합 테스트 7개, TTL·Version 전환·완료/실패 경쟁·장애 차단)
 - 건강 분야 판별 실패 이용량 정책: PASS (회원 5회·비회원 2회, 첫 실패 무료, 이후 차감, 한국시간 자정 만료, 회원·비회원 Key 분리, Redis 원자 처리)
 - 건강 분석 Use Case 이용량 연결: PASS (접수 전 Redis 확인, 비관련·판단 어려움만 실패 기록, 관련 기사는 실패 횟수 미기록)
-- 건강 이용량 Backend 단위 회귀: PASS (54개, 실패·오류·Skip 0; Redis IT 제외)
-- 건강 이용량 Docker Redis 8.8 통합 검증: NOT RUN (`REDIS_PASSWORD` 마스킹 입력 필요, 검증 Script 연결 완료)
+- 건강 이용량 식별 경계: PASS (회원 ID 단일 Key, 비회원 Cookie·날짜별 IP 이중 Key, HMAC 비식별화, 한국시간 날짜 전환)
+- 건강 이용량 Backend 단위 회귀: PASS (60개, 실패·오류·Skip 0; Redis IT 제외)
+- 건강 이용량 Docker Redis 8.8 통합 검증: NOT RUN (`REDIS_PASSWORD` 마스킹 입력 필요, 작업 상태 7개·이용량 10개 통합 테스트 연결 완료)
 - 지원·일시 중단·현재 미지원 언론사 웹 표시 정책: PASS
 - 지원 언론사 펼침 Figma Frame: PASS (`31:2`, `01-1 · 기능 선택 홈 · 지원 언론사 펼침`, 1440×1240)
 - 지원 언론사 펼침 인터랙션 정의: PASS (동일 버튼 토글, `접기`와 `Escape` 닫기, 닫은 뒤 트리거로 Focus 복귀)
@@ -102,6 +103,7 @@
 2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 4. 건강 이용량 Docker Redis 8.8 통합 검증 실행
+5. 회원·비회원 식별 경계를 사용하는 건강 분석 접수 HTTP API 구현
 
 ## Backend 표준화 상태
 

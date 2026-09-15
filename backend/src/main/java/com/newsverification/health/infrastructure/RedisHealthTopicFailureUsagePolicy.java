@@ -28,11 +28,47 @@ import java.util.Objects;
 @Repository
 public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsagePolicy {
 
-    private static final String USED_COUNT = "usedCount";
+    private static final RedisScript<Long> VERIFY_USAGE_SCRIPT = new DefaultRedisScript<>("""
+            local usedCount = 0
+            local failureCount = 0
+            local existingKeyCount = 0
+            for _, key in ipairs(KEYS) do
+                if redis.call('EXISTS', key) == 1 then
+                    existingKeyCount = existingKeyCount + 1
+                end
+                local current = tonumber(redis.call('HGET', key, 'usedCount') or '0')
+                local currentFailure = tonumber(redis.call('HGET', key, 'topicFailureCount') or '0')
+                if current > usedCount then
+                    usedCount = current
+                end
+                if currentFailure > failureCount then
+                    failureCount = currentFailure
+                end
+            end
+            if existingKeyCount > 0 then
+                for _, key in ipairs(KEYS) do
+                    redis.call('HSET', key,
+                        'usedCount', usedCount,
+                        'topicFailureCount', failureCount)
+                    redis.call('PEXPIREAT', key, ARGV[1])
+                end
+            end
+            return usedCount
+            """, Long.class);
 
     private static final RedisScript<Long> RECORD_FAILURE_SCRIPT = new DefaultRedisScript<>("""
-            local usedCount = tonumber(redis.call('HGET', KEYS[1], 'usedCount') or '0')
-            local failureCount = tonumber(redis.call('HGET', KEYS[1], 'topicFailureCount') or '0')
+            local usedCount = 0
+            local failureCount = 0
+            for _, key in ipairs(KEYS) do
+                local currentUsed = tonumber(redis.call('HGET', key, 'usedCount') or '0')
+                local currentFailure = tonumber(redis.call('HGET', key, 'topicFailureCount') or '0')
+                if currentUsed > usedCount then
+                    usedCount = currentUsed
+                end
+                if currentFailure > failureCount then
+                    failureCount = currentFailure
+                end
+            end
             local dailyLimit = tonumber(ARGV[1])
             if usedCount >= dailyLimit then
                 return -(usedCount + 1)
@@ -43,10 +79,12 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
                 charged = 1
             end
             failureCount = failureCount + 1
-            redis.call('HSET', KEYS[1],
-                'usedCount', usedCount,
-                'topicFailureCount', failureCount)
-            redis.call('PEXPIREAT', KEYS[1], ARGV[2])
+            for _, key in ipairs(KEYS) do
+                redis.call('HSET', key,
+                    'usedCount', usedCount,
+                    'topicFailureCount', failureCount)
+                redis.call('PEXPIREAT', key, ARGV[2])
+            end
             return usedCount * 2 + charged
             """, Long.class);
 
@@ -85,8 +123,15 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
     @Override
     public void verifyCanStart(HealthAnalysisUsageSubject subject) {
         Objects.requireNonNull(subject);
-        Object storedCount = redisTemplate.opsForHash().get(keyFor(subject), USED_COUNT);
-        int usedCount = storedCount == null ? 0 : Integer.parseInt(storedCount.toString());
+        Long storedCount = redisTemplate.execute(
+                VERIFY_USAGE_SCRIPT,
+                keysFor(subject),
+                Long.toString(nextResetAt().toEpochMilli())
+        );
+        if (storedCount == null) {
+            throw new IllegalStateException("Redis health usage result is missing");
+        }
+        int usedCount = Math.toIntExact(storedCount);
         rejectExceeded(subject, usedCount);
     }
 
@@ -97,7 +142,7 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
         int dailyLimit = subject.userType().dailyLimit();
         Long result = redisTemplate.execute(
                 RECORD_FAILURE_SCRIPT,
-                List.of(keyFor(subject)),
+                keysFor(subject),
                 Integer.toString(dailyLimit),
                 Long.toString(nextResetAt().toEpochMilli())
         );
@@ -114,12 +159,20 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
 
     /** 이용자 유형과 일자 및 비식별 식별값 기반 Key */
     String keyFor(HealthAnalysisUsageSubject subject) {
+        return keysFor(subject).get(0);
+    }
+
+    /** 복수 식별 신호의 Redis Key 변환 */
+    List<String> keysFor(HealthAnalysisUsageSubject subject) {
         Objects.requireNonNull(subject);
         LocalDate usageDate = clock.instant().atZone(resetZone).toLocalDate();
-        return keyPrefix
+        String subjectPrefix = keyPrefix
                 + subject.userType().name().toLowerCase(Locale.ROOT)
-                + ":" + usageDate
-                + ":" + hash(subject.identifierKey());
+                + ":" + usageDate + ":";
+        return subject.identifierKeys().stream()
+                .map(identifierKey -> subjectPrefix + hash(identifierKey))
+                .distinct()
+                .toList();
     }
 
     /** 다음 한국시간 자정의 절대 만료 시각 */
