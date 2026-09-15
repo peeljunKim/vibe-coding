@@ -3,10 +3,39 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+
+# Java 17 실행 파일 탐색
+function Resolve-Java17Path {
+    $candidates = [Collections.Generic.List[string]]::new()
+    if ($env:JAVA_HOME) {
+        $candidates.Add((Join-Path $env:JAVA_HOME 'bin\java.exe'))
+    }
+
+    $pathJavaCommands = Get-Command 'java.exe' -All -ErrorAction SilentlyContinue
+    foreach ($pathJava in $pathJavaCommands) {
+        $candidates.Add($pathJava.Source)
+    }
+
+    $candidates.Add('C:\Program Files\Java\jdk-17\bin\java.exe')
+    $candidates.Add('C:\Users\82109\scoop\apps\openjdk17\current\bin\java.exe')
+
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            continue
+        }
+        $versionOutput = & $candidate -version 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0 -and $versionOutput -match 'version "17(?:[.\-"]|$)') {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+
+    throw 'Java 17 executable not found in JAVA_HOME, PATH, or known Local paths'
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $environmentPath = Join-Path $repoRoot '.env'
-$javaPath = 'C:\Program Files\Java\jdk-17\bin\java.exe'
+$javaPath = Resolve-Java17Path
 $wrapperJar = Join-Path $backendRoot '.mvn\wrapper\maven-wrapper.jar'
 $containerName = "news-verification-redis-test-$([Guid]::NewGuid().ToString('N'))"
 $containerStarted = $false
@@ -76,6 +105,8 @@ try {
     if (-not $redisPassword) {
         throw 'Redis test password is required'
     }
+
+    Write-Host '[PASS] Java version: 17'
 
     $env:REDIS_PASSWORD = $redisPassword
     $env:REDIS_IT_ENABLED = 'true'

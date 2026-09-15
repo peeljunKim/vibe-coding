@@ -90,7 +90,7 @@
 - 후보·일시 중단·미등록 Host의 외부 HTTP 전 차단: PASS
 - 언론사 도메인 Repository Native MySQL 통합 검증: PASS (MySQL 8.0.30, 언론사 상태 조인과 활성 별칭 조회)
 - Backend Maven 재검증: PASS (36개, 실패·오류·Skip 0)
-- 분석 접수 API의 DB 상태 기반 기사 수집 진입점 호출: NOT RUN (건강·제목 분석 Use Case 미구현)
+- 분석 접수 API의 DB 상태 기반 기사 수집 진입점 호출: NOT RUN (분석 접수 HTTP API와 기사 제목 분석 Use Case 미구현, 건강 분석은 분야 분기까지만 구현)
 
 ## Next Loop
 

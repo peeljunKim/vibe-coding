@@ -19,6 +19,13 @@ public record AnalysisJob(
     private static final Duration PROCESSING_RETENTION = Duration.ofMinutes(5);
     private static final Duration TERMINAL_RETENTION = Duration.ofMinutes(30);
 
+    /** 작업 상태와 단계 조합 불변식 */
+    public AnalysisJob {
+        if (!isValidState(status, stage)) {
+            throw new IllegalArgumentException("Invalid analysis job status and stage");
+        }
+    }
+
     /** 대기열 접수 작업 생성 */
     public static AnalysisJob queued(String id, Instant acceptedAt) {
         return new AnalysisJob(
@@ -83,6 +90,21 @@ public record AnalysisJob(
                     || nextStage == AnalysisJobStage.GENERATING_RESULT;
             case SEARCHING_EVIDENCE -> nextStage == AnalysisJobStage.GENERATING_RESULT;
             case GENERATING_RESULT, COMPLETED, FAILED -> false;
+        };
+    }
+
+    /** 상태별 허용 단계 확인 */
+    private static boolean isValidState(AnalysisJobStatus status, AnalysisJobStage stage) {
+        if (status == null || stage == null) {
+            return false;
+        }
+        return switch (status) {
+            case PROCESSING -> stage == AnalysisJobStage.QUEUED
+                    || stage == AnalysisJobStage.CHECKING_ARTICLE
+                    || stage == AnalysisJobStage.SEARCHING_EVIDENCE
+                    || stage == AnalysisJobStage.GENERATING_RESULT;
+            case COMPLETED -> stage == AnalysisJobStage.COMPLETED;
+            case FAILED -> stage == AnalysisJobStage.FAILED;
         };
     }
 
