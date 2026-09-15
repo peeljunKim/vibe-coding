@@ -1,4 +1,4 @@
-# Docker Redis 분석 작업 저장소 통합 검증
+# Docker Redis 분석 작업과 건강 이용량 통합 검증
 [CmdletBinding()]
 param()
 
@@ -157,16 +157,17 @@ try {
     Push-Location $backendRoot
     try {
         & $javaPath "-Dmaven.multiModuleProjectDirectory=$backendRoot" '-classpath' $wrapperJar `
-            'org.apache.maven.wrapper.MavenWrapperMain' '-q' '-Dtest=RedisAnalysisJobStoreIT' 'test'
+            'org.apache.maven.wrapper.MavenWrapperMain' '-q' `
+            '-Dtest=RedisAnalysisJobStoreIT,RedisHealthTopicFailureUsagePolicyIT' 'test'
         if ($LASTEXITCODE -ne 0) {
-            throw "Redis analysis job integration test failed with exit code $LASTEXITCODE"
+            throw "Redis integration test failed with exit code $LASTEXITCODE"
         }
     }
     finally {
         Pop-Location
     }
 
-    Write-Host '[PASS] Redis AnalysisJobStore integration test'
+    Write-Host '[PASS] Redis analysis job and health usage integration tests'
 }
 finally {
     if ($containerStarted) {
