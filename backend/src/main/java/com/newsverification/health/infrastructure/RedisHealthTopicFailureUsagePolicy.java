@@ -87,6 +87,32 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
             end
             return usedCount * 2 + charged
             """, Long.class);
+    private static final RedisScript<Long> RECORD_ANALYSIS_START_SCRIPT = new DefaultRedisScript<>("""
+            local usedCount = 0
+            local failureCount = 0
+            for _, key in ipairs(KEYS) do
+                local currentUsed = tonumber(redis.call('HGET', key, 'usedCount') or '0')
+                local currentFailure = tonumber(redis.call('HGET', key, 'topicFailureCount') or '0')
+                if currentUsed > usedCount then
+                    usedCount = currentUsed
+                end
+                if currentFailure > failureCount then
+                    failureCount = currentFailure
+                end
+            end
+            local dailyLimit = tonumber(ARGV[1])
+            if usedCount >= dailyLimit then
+                return -(usedCount + 1)
+            end
+            usedCount = usedCount + 1
+            for _, key in ipairs(KEYS) do
+                redis.call('HSET', key,
+                    'usedCount', usedCount,
+                    'topicFailureCount', failureCount)
+                redis.call('PEXPIREAT', key, ARGV[2])
+            end
+            return usedCount
+            """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
     private final String keyPrefix;
@@ -155,6 +181,26 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
         boolean charged = result % 2 == 1;
         int usedCount = Math.toIntExact(result / 2);
         return new HealthTopicFailureUsageResult(charged, usedCount, dailyLimit);
+    }
+
+    /** 실제 분석 시작 시 한도 검사와 이용 횟수 원자 증가 */
+    @Override
+    public HealthTopicFailureUsageResult recordAnalysisStart(HealthAnalysisUsageSubject subject) {
+        Objects.requireNonNull(subject);
+        int dailyLimit = subject.userType().dailyLimit();
+        Long result = redisTemplate.execute(
+                RECORD_ANALYSIS_START_SCRIPT,
+                keysFor(subject),
+                Integer.toString(dailyLimit),
+                Long.toString(nextResetAt().toEpochMilli())
+        );
+        if (result == null) {
+            throw new IllegalStateException("Redis health usage result is missing");
+        }
+        if (result < 0) {
+            throw new HealthDailyUsageLimitExceededException(Math.toIntExact(-result - 1), dailyLimit);
+        }
+        return new HealthTopicFailureUsageResult(true, Math.toIntExact(result), dailyLimit);
     }
 
     /** 이용자 유형과 일자 및 비식별 식별값 기반 Key */

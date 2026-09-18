@@ -14,6 +14,8 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -34,6 +36,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RedisHealthTopicFailureUsagePolicyIT {
 
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
+    private static final RedisScript<Long> REDIS_TIME_SCRIPT = new DefaultRedisScript<>("""
+            local currentTime = redis.call('TIME')
+            return currentTime[1] * 1000 + math.floor(currentTime[2] / 1000)
+            """, Long.class);
 
     private LettuceConnectionFactory connectionFactory;
     private StringRedisTemplate redisTemplate;
@@ -119,6 +125,23 @@ class RedisHealthTopicFailureUsagePolicyIT {
                 .contains(":member:")
                 .doesNotContain("shared-key");
         assertThat(policy.keyFor(guest)).contains(":guest:");
+    }
+
+    /** 실제 분석 시작 시 이용 횟수 원자 차감 */
+    @Test
+    void chargesWhenAnalysisActuallyStarts() {
+        HealthAnalysisUsageSubject subject = track(
+                HealthAnalysisUserType.MEMBER,
+                "analysis-start-key"
+        );
+
+        HealthTopicFailureUsageResult first = policy.recordAnalysisStart(subject);
+        HealthTopicFailureUsageResult second = policy.recordAnalysisStart(subject);
+
+        assertThat(first.charged()).isTrue();
+        assertThat(first.usedCount()).isEqualTo(1);
+        assertThat(second.usedCount()).isEqualTo(2);
+        assertThat(second.dailyLimit()).isEqualTo(5);
     }
 
     /** 기존 정상 이용량과 무관한 첫 분야 실패 무료 처리 */
@@ -234,23 +257,26 @@ class RedisHealthTopicFailureUsagePolicyIT {
     @Test
     void expiresAtNextKoreaMidnightWithoutAvailabilityExtension() {
         HealthAnalysisUsageSubject subject = track(HealthAnalysisUserType.MEMBER, "ttl-key");
-        policy.recordFailure(subject);
-        String key = policy.keyFor(subject);
-        Long ttlBeforeRead = redisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
-
-        policy.verifyCanStart(subject);
-        Long ttlAfterRead = redisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
-
         Instant expectedExpiry = Instant.now()
                 .atZone(KOREA_ZONE)
                 .toLocalDate()
                 .plusDays(1)
                 .atStartOfDay(KOREA_ZONE)
                 .toInstant();
-        long expectedTtl = Duration.between(Instant.now(), expectedExpiry).toMillis();
+        policy.recordFailure(subject);
+        String key = policy.keyFor(subject);
+        Long ttlBeforeRead = redisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
+
+        policy.verifyCanStart(subject);
+        Long redisTimeMillis = redisTemplate.execute(REDIS_TIME_SCRIPT, List.of());
+        Long ttlAfterRead = redisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
+
+        assertThat(redisTimeMillis).isNotNull();
+        assertThat(ttlAfterRead).isNotNull();
+        long expectedTtl = expectedExpiry.toEpochMilli() - redisTimeMillis;
         assertThat(ttlBeforeRead).isPositive();
         assertThat(ttlAfterRead).isLessThanOrEqualTo(ttlBeforeRead);
-        assertThat(ttlAfterRead).isBetween(expectedTtl - 500L, expectedTtl + 50L);
+        assertThat(ttlAfterRead).isBetween(expectedTtl - 250L, expectedTtl + 50L);
     }
 
     /** Redis 장애 시 신규 건강 분석 접수 차단 */

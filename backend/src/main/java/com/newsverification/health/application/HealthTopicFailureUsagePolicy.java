@@ -9,4 +9,7 @@ public interface HealthTopicFailureUsagePolicy {
 
     /** 분야 판별 실패의 무료 처리 또는 횟수 차감 */
     HealthTopicFailureUsageResult recordFailure(HealthAnalysisUsageSubject subject);
+
+    /** 실제 후속 분석 시작의 이용 횟수 차감 */
+    HealthTopicFailureUsageResult recordAnalysisStart(HealthAnalysisUsageSubject subject);
 }

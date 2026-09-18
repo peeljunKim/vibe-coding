@@ -158,7 +158,7 @@ try {
     try {
         & $javaPath "-Dmaven.multiModuleProjectDirectory=$backendRoot" '-classpath' $wrapperJar `
             'org.apache.maven.wrapper.MavenWrapperMain' '-q' `
-            '-Dtest=RedisAnalysisJobStoreIT,RedisHealthTopicFailureUsagePolicyIT' 'test'
+            '-Dtest=RedisAnalysisJobStoreIT,RedisHealthAnalysisQueueIT,RedisHealthTopicFailureUsagePolicyIT' 'test'
         if ($LASTEXITCODE -ne 0) {
             throw "Redis integration test failed with exit code $LASTEXITCODE"
         }
@@ -167,7 +167,7 @@ try {
         Pop-Location
     }
 
-    Write-Host '[PASS] Redis analysis job and health usage integration tests'
+    Write-Host '[PASS] Redis analysis job, queue, and health usage integration tests'
 }
 finally {
     if ($containerStarted) {

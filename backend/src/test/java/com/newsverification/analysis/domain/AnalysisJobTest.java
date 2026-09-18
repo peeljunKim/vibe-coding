@@ -11,12 +11,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AnalysisJobTest {
 
     private static final Instant ACCEPTED_AT = Instant.parse("2026-09-15T03:00:00Z");
+    private static final AnalysisJobOwner OWNER = new AnalysisJobOwner(
+            AnalysisJobOwnerType.MEMBER,
+            "member-owner-key"
+    );
 
     /** 완료 상태와 처리 단계의 잘못된 조합 거절 */
     @Test
     void rejectsCompletedStatusWithQueuedStage() {
         assertThatThrownBy(() -> new AnalysisJob(
                 "analysis-1",
+                OWNER,
                 AnalysisJobStatus.COMPLETED,
                 AnalysisJobStage.QUEUED,
                 ACCEPTED_AT,
@@ -31,6 +36,7 @@ class AnalysisJobTest {
     void rejectsProcessingStatusWithCompletedStage() {
         assertThatThrownBy(() -> new AnalysisJob(
                 "analysis-1",
+                OWNER,
                 AnalysisJobStatus.PROCESSING,
                 AnalysisJobStage.COMPLETED,
                 ACCEPTED_AT,
@@ -45,6 +51,7 @@ class AnalysisJobTest {
     void rejectsFailedStatusWithQueuedStage() {
         assertThatThrownBy(() -> new AnalysisJob(
                 "analysis-1",
+                OWNER,
                 AnalysisJobStatus.FAILED,
                 AnalysisJobStage.QUEUED,
                 ACCEPTED_AT,

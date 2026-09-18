@@ -7,6 +7,7 @@ import java.time.Instant;
 /** 분석 종류와 무관한 작업 수명 정보 */
 public record AnalysisJob(
         String id,
+        AnalysisJobOwner owner,
         AnalysisJobStatus status,
         AnalysisJobStage stage,
         Instant acceptedAt,
@@ -21,15 +22,22 @@ public record AnalysisJob(
 
     /** 작업 상태와 단계 조합 불변식 */
     public AnalysisJob {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Analysis job id is required");
+        }
+        if (owner == null) {
+            throw new IllegalArgumentException("Analysis job owner is required");
+        }
         if (!isValidState(status, stage)) {
             throw new IllegalArgumentException("Invalid analysis job status and stage");
         }
     }
 
     /** 대기열 접수 작업 생성 */
-    public static AnalysisJob queued(String id, Instant acceptedAt) {
+    public static AnalysisJob queued(String id, AnalysisJobOwner owner, Instant acceptedAt) {
         return new AnalysisJob(
                 id,
+                owner,
                 AnalysisJobStatus.PROCESSING,
                 AnalysisJobStage.QUEUED,
                 acceptedAt,
@@ -121,6 +129,7 @@ public record AnalysisJob(
     ) {
         return new AnalysisJob(
                 id,
+                owner,
                 nextStatus,
                 nextStage,
                 acceptedAt,

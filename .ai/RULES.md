@@ -66,6 +66,20 @@
 - OAuth 공급자 Console의 Callback URL과 Backend 처리 경로를 구현·테스트에서 동일하게 유지
 - Google Identity Services의 Client Callback 방식과 Spring Security OAuth2 Redirect 방식을 한 흐름에 혼합 금지
 
+## 외부 API와 MCP 호출
+
+- Repository 코드·설정·테스트·Local 명령으로 확인 가능한 정보에는 외부 API·MCP 호출 금지
+- 현재 Task에서 이미 받은 동일 결과는 외부 상태가 바뀌지 않았다면 재호출하지 않고 근거 경로와 결과 요약 재사용
+- 호출 전 필요한 대상 ID, URL, Query, Frame 범위를 Local Context에서 확정하고 탐색성 호출 최소화
+- 같은 서비스의 독립 Query는 도구가 지원하면 한 번의 Batch 호출로 묶고 필요한 응답 범위만 요청
+- 하나의 외부 사실을 확인하기 위한 Web API와 MCP의 중복 호출 금지
+- 프로젝트 내부 HTTP API 구현·Localhost 호출·Mock·자동 테스트는 외부 호출 최소화 대상에서 제외하고 관련 검증 계획에 따라 수행
+- Figma는 대상 Node·Frame을 먼저 확정하고 구현 전 Context 확인과 구현 후 시각 검증에 필요한 호출만 수행
+- Rate Limit·Quota 오류에서 자동 반복 호출 금지; 확인된 결과, 미확인 범위와 Screenshot·Export 등 대체 입력 방법 보고
+- 외부 상태 Polling은 상태 변경을 기다릴 필요가 있을 때만 Backoff를 적용하고 동일 상태를 사용자에게 반복 보고하지 않음
+- Secret·기사 전문·개인정보를 호출량 절감을 위한 Cache나 인계 Context에 저장 금지
+- 실제 외부 서비스 요청과 Network Download의 사용자 승인 규칙 유지
+
 ## Permission
 
 Allowed:

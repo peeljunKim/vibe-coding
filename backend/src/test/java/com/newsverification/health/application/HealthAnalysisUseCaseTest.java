@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -52,6 +53,7 @@ class HealthAnalysisUseCaseTest {
 
         assertThat(result.status()).isEqualTo(HealthAnalysisRoutingStatus.ANALYSIS_STARTED);
         assertThat(result.userMessage()).isEmpty();
+        assertThat(result.result()).isPresent();
         assertThat(analysisPort.receivedArticles())
                 .extracting(ExtractedArticle::title)
                 .containsExactly("독감 예방접종 대상과 시기 안내");
@@ -115,6 +117,11 @@ class HealthAnalysisUseCaseTest {
             @Override
             public HealthTopicFailureUsageResult recordFailure(HealthAnalysisUsageSubject subject) {
                 throw new AssertionError("Failure must not be recorded");
+            }
+
+            @Override
+            public HealthTopicFailureUsageResult recordAnalysisStart(HealthAnalysisUsageSubject subject) {
+                throw new AssertionError("Analysis must not start");
             }
         };
         HealthAnalysisUseCase useCase = new HealthAnalysisUseCase(
@@ -192,13 +199,44 @@ class HealthAnalysisUseCaseTest {
 
         /** 정제 기사 분석 시작 기록 */
         @Override
-        public void start(ExtractedArticle article) {
+        public HealthAnalysisResult analyze(ExtractedArticle article, Instant deadlineAt) {
             receivedArticles.add(article);
+            return MockHealthAnalysisPortFixtures.result(article);
         }
 
         /** 전달된 정제 기사 목록 */
         private List<ExtractedArticle> receivedArticles() {
             return List.copyOf(receivedArticles);
+        }
+    }
+
+    /** Mock 분석 결과 Fixture */
+    private static final class MockHealthAnalysisPortFixtures {
+
+        private static HealthAnalysisResult result(ExtractedArticle article) {
+            return new HealthAnalysisResult(
+                    new HealthAnalysisResult.ArticleSummary(
+                            article.sourceUrl(),
+                            article.title(),
+                            article.sourceUrl().getHost(),
+                            article.publishedAt(),
+                            article.modifiedAt().orElse(null)
+                    ),
+                    Instant.parse("2026-09-18T01:00:00Z"),
+                    HealthAnalysisResult.OverallStatus.CAUTION,
+                    java.math.BigDecimal.ZERO.setScale(2),
+                    0,
+                    1,
+                    List.of(new HealthAnalysisResult.Claim(
+                            1,
+                            article.title(),
+                            HealthAnalysisResult.ClaimStatus.INSUFFICIENT,
+                            "Mock 분석에서는 근거 검색을 수행하지 않습니다.",
+                            List.of()
+                    )),
+                    HealthAnalysisResult.ExpertReviewStatus.NOT_REVIEWED,
+                    false
+            );
         }
     }
 
@@ -219,6 +257,12 @@ class HealthAnalysisUseCaseTest {
         public HealthTopicFailureUsageResult recordFailure(HealthAnalysisUsageSubject subject) {
             failureCount++;
             return new HealthTopicFailureUsageResult(failureCount > 1, Math.max(0, failureCount - 1), 5);
+        }
+
+        /** 후속 분석 시작 이용량 기록 */
+        @Override
+        public HealthTopicFailureUsageResult recordAnalysisStart(HealthAnalysisUsageSubject subject) {
+            return new HealthTopicFailureUsageResult(true, 1, subject.userType().dailyLimit());
         }
 
         /** 접수 확인 횟수 */
