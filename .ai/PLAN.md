@@ -103,16 +103,18 @@
 - 언론사 도메인 Repository Native MySQL 통합 검증: PASS (MySQL 8.0.30, 언론사 상태 조인과 활성 별칭 조회)
 - Backend Maven 재검증: PASS (36개, 실패·오류·Skip 0)
 - 건강 분석 접수 API의 DB 상태 기반 기사 수집 진입점 호출: PASS (Worker에서 활성 언론사·URL 안전 검증·본문 추출·기사 분야 판별 연결)
-- 기사 제목 분석 접수 API와 Use Case: NOT RUN
-- 건강 분석 Local Full-stack HTTP E2E: NOT RUN (`LOOKUP_HMAC_KEY` 입력과 Local MySQL·Redis 동시 기동 필요)
+- 기사 제목 분석 접수 API와 Use Case: PASS (비회원·회원 소유권, 독립 5·10회 한도, 안전 기사 수집, 건강 분야 판별·근거 검색 생략, Mock 결과 Polling)
+- 기사 제목 분석 Redis Queue·이용량 통합 검증: PASS (전용 Namespace, 최대 20개, 단일 소비·무재시도, 한국시간 자정 만료)
+- 기사 제목 분석 Backend 전체 회귀: PASS (Maven 97개, 실패·오류·Skip 0)
+- 건강 분석 Local Full-stack HTTP E2E: PASS (Native MySQL 8.0.30, Docker Redis 8.8, Mock 분석, 비회원 CSRF·소유권, 완료·실패 Polling, Redis 장애 `503`)
+- Local Redis 실행 경계: PASS (Windows Native Redis `6379`와 Docker Redis `6380` 분리, `.env` 기준 Backend 연결, 무인증 거부·인증 성공·Actuator `UP` 확인)
 
 ## Next Loop
 
-1. `LOOKUP_HMAC_KEY` 준비 후 Local MySQL·Docker Redis 기반 건강 분석 HTTP Full-stack E2E 검증
-2. 기사 제목 분석의 독립 접수·결과 Use Case 구현
-3. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-4. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
-5. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+1. 기사 제목 분석 Local Full-stack HTTP E2E와 Frontend 실제 API 연결
+2. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+3. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
+4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 
 ## Backend 표준화 상태
 

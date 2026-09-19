@@ -78,7 +78,7 @@ if (-not $redisPassword -or $redisPassword -match '^replace-with-') {
 
 $redisTestPort = $localValues['REDIS_TEST_PORT']
 if (-not $redisTestPort) {
-    $redisTestPort = '6380'
+    $redisTestPort = '6381'
 }
 if ($redisTestPort -notmatch '^\d+$') {
     throw 'REDIS_TEST_PORT must be a number'
@@ -158,7 +158,7 @@ try {
     try {
         & $javaPath "-Dmaven.multiModuleProjectDirectory=$backendRoot" '-classpath' $wrapperJar `
             'org.apache.maven.wrapper.MavenWrapperMain' '-q' `
-            '-Dtest=RedisAnalysisJobStoreIT,RedisHealthAnalysisQueueIT,RedisHealthTopicFailureUsagePolicyIT' 'test'
+            '-Dtest=RedisAnalysisJobStoreIT,RedisHealthAnalysisQueueIT,RedisHealthTopicFailureUsagePolicyIT,RedisHeadlineAnalysisInfrastructureIT' 'test'
         if ($LASTEXITCODE -ne 0) {
             throw "Redis integration test failed with exit code $LASTEXITCODE"
         }
@@ -167,7 +167,7 @@ try {
         Pop-Location
     }
 
-    Write-Host '[PASS] Redis analysis job, queue, and health usage integration tests'
+    Write-Host '[PASS] Redis analysis job, health/headline queue, and usage integration tests'
 }
 finally {
     if ($containerStarted) {
