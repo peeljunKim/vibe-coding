@@ -2,6 +2,8 @@
 package com.newsverification.analysis.application;
 
 import com.newsverification.analysis.domain.AnalysisJob;
+import com.newsverification.analysis.domain.AnalysisJobOwner;
+import com.newsverification.analysis.domain.AnalysisJobOwnerType;
 import com.newsverification.analysis.domain.AnalysisJobStage;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AnalysisJobLifecycleServiceTest {
 
     private static final Instant ACCEPTED_AT = Instant.parse("2026-09-14T03:00:00Z");
+    private static final AnalysisJobOwner MEMBER_OWNER = new AnalysisJobOwner(
+            AnalysisJobOwnerType.MEMBER,
+            "member-owner-key"
+    );
 
     /** 대기열 접수 시 기한과 실행 중 안전 만료 설정 */
     @Test
@@ -28,7 +34,7 @@ class AnalysisJobLifecycleServiceTest {
         var store = new InMemoryAnalysisJobStore();
         var service = service(store, ACCEPTED_AT);
 
-        AnalysisJob job = service.accept("analysis-1");
+        AnalysisJob job = service.accept("analysis-1", MEMBER_OWNER);
 
         assertThat(job.status()).isEqualTo(AnalysisJobStatus.PROCESSING);
         assertThat(job.stage()).isEqualTo(AnalysisJobStage.QUEUED);
@@ -42,7 +48,7 @@ class AnalysisJobLifecycleServiceTest {
     @Test
     void advancesHealthJobAndCompletesWithTerminalExpiry() {
         var store = new InMemoryAnalysisJobStore();
-        service(store, ACCEPTED_AT).accept("analysis-1");
+        service(store, ACCEPTED_AT).accept("analysis-1", MEMBER_OWNER);
 
         service(store, ACCEPTED_AT.plusSeconds(1))
                 .advance("analysis-1", AnalysisJobStage.CHECKING_ARTICLE);
@@ -65,7 +71,7 @@ class AnalysisJobLifecycleServiceTest {
     @Test
     void keepsFailedJobTerminalWhenLaterCompletionArrives() {
         var store = new InMemoryAnalysisJobStore();
-        service(store, ACCEPTED_AT).accept("analysis-1");
+        service(store, ACCEPTED_AT).accept("analysis-1", MEMBER_OWNER);
         service(store, ACCEPTED_AT.plusSeconds(1))
                 .advance("analysis-1", AnalysisJobStage.CHECKING_ARTICLE);
 
@@ -89,7 +95,7 @@ class AnalysisJobLifecycleServiceTest {
     @Test
     void discardsCompletionAtDeadline() {
         var store = new InMemoryAnalysisJobStore();
-        service(store, ACCEPTED_AT).accept("analysis-1");
+        service(store, ACCEPTED_AT).accept("analysis-1", MEMBER_OWNER);
         service(store, ACCEPTED_AT.plusSeconds(1))
                 .advance("analysis-1", AnalysisJobStage.CHECKING_ARTICLE);
         service(store, ACCEPTED_AT.plusSeconds(2))
@@ -109,7 +115,7 @@ class AnalysisJobLifecycleServiceTest {
     @Test
     void keepsCompletedJobUnchangedOnDuplicateCompletion() {
         var store = new InMemoryAnalysisJobStore();
-        service(store, ACCEPTED_AT).accept("analysis-1");
+        service(store, ACCEPTED_AT).accept("analysis-1", MEMBER_OWNER);
         service(store, ACCEPTED_AT.plusSeconds(1))
                 .advance("analysis-1", AnalysisJobStage.CHECKING_ARTICLE);
         service(store, ACCEPTED_AT.plusSeconds(2))
@@ -130,7 +136,7 @@ class AnalysisJobLifecycleServiceTest {
     @Test
     void expiresJobsAtConfiguredRetentionBoundary() {
         var store = new InMemoryAnalysisJobStore();
-        AnalysisJob queued = service(store, ACCEPTED_AT).accept("analysis-1");
+        AnalysisJob queued = service(store, ACCEPTED_AT).accept("analysis-1", MEMBER_OWNER);
 
         assertThat(queued.isExpiredAt(ACCEPTED_AT.plus(Duration.ofMinutes(5)).minusMillis(1)))
                 .isFalse();
@@ -154,26 +160,41 @@ class AnalysisJobLifecycleServiceTest {
     @Test
     void pollsWithoutChangingJobOrExtendingExpiry() {
         var store = new InMemoryAnalysisJobStore();
-        AnalysisJob accepted = service(store, ACCEPTED_AT).accept("analysis-1");
+        AnalysisJob accepted = service(store, ACCEPTED_AT).accept("analysis-1", MEMBER_OWNER);
         int writesAfterAccept = store.writeCount();
 
         Optional<AnalysisJob> polled = service(store, ACCEPTED_AT.plusSeconds(30))
-                .poll("analysis-1");
+                .poll("analysis-1", MEMBER_OWNER);
         Optional<AnalysisJob> expired = service(
                 store,
                 ACCEPTED_AT.plus(Duration.ofMinutes(5))
-        ).poll("analysis-1");
+        ).poll("analysis-1", MEMBER_OWNER);
 
         assertThat(polled).contains(accepted);
         assertThat(expired).isEmpty();
         assertThat(store.writeCount()).isEqualTo(writesAfterAccept);
     }
 
+    /** 다른 소유자의 작업 Polling 차단 */
+    @Test
+    void hidesJobFromDifferentOwner() {
+        var store = new InMemoryAnalysisJobStore();
+        var service = service(store, ACCEPTED_AT);
+        service.accept("analysis-1", MEMBER_OWNER);
+        AnalysisJobOwner differentOwner = new AnalysisJobOwner(
+                AnalysisJobOwnerType.MEMBER,
+                "different-member-owner-key"
+        );
+
+        assertThat(service.poll("analysis-1", MEMBER_OWNER)).isPresent();
+        assertThat(service.poll("analysis-1", differentOwner)).isEmpty();
+    }
+
     /** 제목 분석의 근거 검색 단계 생략 허용 */
     @Test
     void allowsHeadlineFlowToSkipEvidenceStage() {
         var store = new InMemoryAnalysisJobStore();
-        service(store, ACCEPTED_AT).accept("analysis-1");
+        service(store, ACCEPTED_AT).accept("analysis-1", MEMBER_OWNER);
         service(store, ACCEPTED_AT.plusSeconds(1))
                 .advance("analysis-1", AnalysisJobStage.CHECKING_ARTICLE);
 
@@ -188,12 +209,12 @@ class AnalysisJobLifecycleServiceTest {
     @Test
     void rejectsInvalidStageTransition() {
         var store = new InMemoryAnalysisJobStore();
-        AnalysisJob queued = service(store, ACCEPTED_AT).accept("analysis-1");
+        AnalysisJob queued = service(store, ACCEPTED_AT).accept("analysis-1", MEMBER_OWNER);
 
         assertThatThrownBy(() -> service(store, ACCEPTED_AT.plusSeconds(1))
                 .advance("analysis-1", AnalysisJobStage.GENERATING_RESULT))
                 .isInstanceOf(IllegalStateException.class);
-        assertThat(service(store, ACCEPTED_AT.plusSeconds(2)).poll("analysis-1"))
+        assertThat(service(store, ACCEPTED_AT.plusSeconds(2)).poll("analysis-1", MEMBER_OWNER))
                 .contains(queued);
     }
 

@@ -1,12 +1,41 @@
-# Docker Redis 분석 작업 저장소 통합 검증
+# Docker Redis 분석 작업과 건강 이용량 통합 검증
 [CmdletBinding()]
 param()
 
 $ErrorActionPreference = 'Stop'
+
+# Java 17 실행 파일 탐색
+function Resolve-Java17Path {
+    $candidates = [Collections.Generic.List[string]]::new()
+    if ($env:JAVA_HOME) {
+        $candidates.Add((Join-Path $env:JAVA_HOME 'bin\java.exe'))
+    }
+
+    $pathJavaCommands = Get-Command 'java.exe' -All -ErrorAction SilentlyContinue
+    foreach ($pathJava in $pathJavaCommands) {
+        $candidates.Add($pathJava.Source)
+    }
+
+    $candidates.Add('C:\Program Files\Java\jdk-17\bin\java.exe')
+    $candidates.Add('C:\Users\82109\scoop\apps\openjdk17\current\bin\java.exe')
+
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            continue
+        }
+        $versionOutput = & $candidate -version 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0 -and $versionOutput -match 'version "17(?:[.\-"]|$)') {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+
+    throw 'Java 17 executable not found in JAVA_HOME, PATH, or known Local paths'
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $environmentPath = Join-Path $repoRoot '.env'
-$javaPath = 'C:\Program Files\Java\jdk-17\bin\java.exe'
+$javaPath = Resolve-Java17Path
 $wrapperJar = Join-Path $backendRoot '.mvn\wrapper\maven-wrapper.jar'
 $containerName = "news-verification-redis-test-$([Guid]::NewGuid().ToString('N'))"
 $containerStarted = $false
@@ -49,7 +78,7 @@ if (-not $redisPassword -or $redisPassword -match '^replace-with-') {
 
 $redisTestPort = $localValues['REDIS_TEST_PORT']
 if (-not $redisTestPort) {
-    $redisTestPort = '6380'
+    $redisTestPort = '6381'
 }
 if ($redisTestPort -notmatch '^\d+$') {
     throw 'REDIS_TEST_PORT must be a number'
@@ -76,6 +105,8 @@ try {
     if (-not $redisPassword) {
         throw 'Redis test password is required'
     }
+
+    Write-Host '[PASS] Java version: 17'
 
     $env:REDIS_PASSWORD = $redisPassword
     $env:REDIS_IT_ENABLED = 'true'
@@ -126,16 +157,17 @@ try {
     Push-Location $backendRoot
     try {
         & $javaPath "-Dmaven.multiModuleProjectDirectory=$backendRoot" '-classpath' $wrapperJar `
-            'org.apache.maven.wrapper.MavenWrapperMain' '-q' '-Dtest=RedisAnalysisJobStoreIT' 'test'
+            'org.apache.maven.wrapper.MavenWrapperMain' '-q' `
+            '-Dtest=RedisAnalysisJobStoreIT,RedisHealthAnalysisQueueIT,RedisHealthTopicFailureUsagePolicyIT,RedisHeadlineAnalysisInfrastructureIT' 'test'
         if ($LASTEXITCODE -ne 0) {
-            throw "Redis analysis job integration test failed with exit code $LASTEXITCODE"
+            throw "Redis integration test failed with exit code $LASTEXITCODE"
         }
     }
     finally {
         Pop-Location
     }
 
-    Write-Host '[PASS] Redis AnalysisJobStore integration test'
+    Write-Host '[PASS] Redis analysis job, health/headline queue, and usage integration tests'
 }
 finally {
     if ($containerStarted) {

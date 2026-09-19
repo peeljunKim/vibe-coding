@@ -2,7 +2,10 @@
 package com.newsverification.analysis.infrastructure;
 
 import com.newsverification.analysis.application.AnalysisJobLifecycleService;
+import com.newsverification.analysis.application.AnalysisJobOutcome;
 import com.newsverification.analysis.domain.AnalysisJob;
+import com.newsverification.analysis.domain.AnalysisJobOwner;
+import com.newsverification.analysis.domain.AnalysisJobOwnerType;
 import com.newsverification.analysis.domain.AnalysisJobStage;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +43,10 @@ class RedisAnalysisJobStoreIT {
             local currentTime = redis.call('TIME')
             return currentTime[1] * 1000 + math.floor(currentTime[2] / 1000)
             """, Long.class);
+    private static final AnalysisJobOwner MEMBER_OWNER = new AnalysisJobOwner(
+            AnalysisJobOwnerType.MEMBER,
+            "member-owner-key"
+    );
 
     private LettuceConnectionFactory connectionFactory;
     private StringRedisTemplate redisTemplate;
@@ -81,7 +88,7 @@ class RedisAnalysisJobStoreIT {
     @Test
     void storesProcessingJobWithFiveMinuteTtl() {
         String jobId = track("processing-job");
-        AnalysisJob job = AnalysisJob.queued(jobId, Instant.now());
+        AnalysisJob job = AnalysisJob.queued(jobId, MEMBER_OWNER, Instant.now());
 
         assertThat(store.create(job)).isTrue();
 
@@ -98,14 +105,14 @@ class RedisAnalysisJobStoreIT {
         String jobId = track("terminal-job");
         MutableClock clock = new MutableClock(Instant.now());
         AnalysisJobLifecycleService service = new AnalysisJobLifecycleService(store, clock);
-        service.accept(jobId);
+        service.accept(jobId, MEMBER_OWNER);
         service.advance(jobId, AnalysisJobStage.CHECKING_ARTICLE);
         service.advance(jobId, AnalysisJobStage.SEARCHING_EVIDENCE);
         service.advance(jobId, AnalysisJobStage.GENERATING_RESULT);
 
         AnalysisJob completed = service.complete(jobId);
         Long ttlBeforeRead = redisTemplate.getExpire(store.keyFor(jobId), TimeUnit.MILLISECONDS);
-        AnalysisJob polled = service.poll(jobId).orElseThrow();
+        AnalysisJob polled = service.poll(jobId, MEMBER_OWNER).orElseThrow();
         Long ttlAfterRead = redisTemplate.getExpire(store.keyFor(jobId), TimeUnit.MILLISECONDS);
 
         assertThat(completed.status()).isEqualTo(AnalysisJobStatus.COMPLETED);
@@ -120,7 +127,7 @@ class RedisAnalysisJobStoreIT {
     @Test
     void rejectsStaleVersionReplacement() {
         String jobId = track("stale-version-job");
-        AnalysisJob queued = AnalysisJob.queued(jobId, Instant.now());
+        AnalysisJob queued = AnalysisJob.queued(jobId, MEMBER_OWNER, Instant.now());
         AnalysisJob checking = queued.advanceTo(AnalysisJobStage.CHECKING_ARTICLE, Instant.now());
 
         assertThat(store.create(queued)).isTrue();
@@ -129,12 +136,29 @@ class RedisAnalysisJobStoreIT {
         assertThat(store.findById(jobId)).contains(checking);
     }
 
+    /** Redis 상태 교체를 통한 작업 소유권 변경 차단 */
+    @Test
+    void rejectsOwnerChangeDuringStateReplacement() {
+        String jobId = track("owner-change-job");
+        Instant acceptedAt = Instant.now();
+        AnalysisJob original = AnalysisJob.queued(jobId, MEMBER_OWNER, acceptedAt);
+        AnalysisJob differentOwner = AnalysisJob.queued(
+                jobId,
+                new AnalysisJobOwner(AnalysisJobOwnerType.GUEST, "guest-owner-key"),
+                acceptedAt
+        );
+
+        assertThat(store.create(original)).isTrue();
+        assertThat(store.replace(jobId, original.version(), differentOwner)).isFalse();
+        assertThat(store.findById(jobId)).contains(original);
+    }
+
     /** 동시 완료와 실패 중 단일 종료 전환 */
     @Test
     void allowsOnlyOneConcurrentTerminalTransition() throws Exception {
         String jobId = track("concurrent-terminal-job");
         Instant now = Instant.now();
-        AnalysisJob generating = AnalysisJob.queued(jobId, now)
+        AnalysisJob generating = AnalysisJob.queued(jobId, MEMBER_OWNER, now)
                 .advanceTo(AnalysisJobStage.CHECKING_ARTICLE, now)
                 .advanceTo(AnalysisJobStage.SEARCHING_EVIDENCE, now)
                 .advanceTo(AnalysisJobStage.GENERATING_RESULT, now);
@@ -160,6 +184,69 @@ class RedisAnalysisJobStoreIT {
         }
     }
 
+    /** 결과와 종료 상태의 단일 원자 전환 */
+    @Test
+    void storesCompletedOutcomeWithTerminalTransition() {
+        String jobId = track("completed-outcome-job");
+        Instant now = Instant.now();
+        AnalysisJob generating = AnalysisJob.queued(jobId, MEMBER_OWNER, now)
+                .advanceTo(AnalysisJobStage.CHECKING_ARTICLE, now)
+                .advanceTo(AnalysisJobStage.SEARCHING_EVIDENCE, now)
+                .advanceTo(AnalysisJobStage.GENERATING_RESULT, now);
+        AnalysisJob completed = generating.complete(now.plusSeconds(1));
+        AnalysisJobOutcome outcome = AnalysisJobOutcome.completed(
+                "{\"overallStatus\":\"CAUTION\"}",
+                "{\"limit\":5,\"used\":1,\"remaining\":4,\"charged\":true}"
+        );
+        assertThat(store.create(generating)).isTrue();
+
+        assertThat(store.replaceWithOutcome(
+                jobId,
+                generating.version(),
+                completed,
+                outcome
+        )).isTrue();
+
+        assertThat(store.findById(jobId)).contains(completed);
+        assertThat(store.findOutcome(jobId)).contains(outcome);
+        assertPhysicalExpiryMatches(completed);
+    }
+
+    /** 종료 이후 늦은 실패 결과 덮어쓰기 차단 */
+    @Test
+    void rejectsStaleFailureOutcomeAfterCompletion() {
+        String jobId = track("stale-outcome-job");
+        Instant now = Instant.now();
+        AnalysisJob generating = AnalysisJob.queued(jobId, MEMBER_OWNER, now)
+                .advanceTo(AnalysisJobStage.CHECKING_ARTICLE, now)
+                .advanceTo(AnalysisJobStage.SEARCHING_EVIDENCE, now)
+                .advanceTo(AnalysisJobStage.GENERATING_RESULT, now);
+        AnalysisJob completed = generating.complete(now.plusSeconds(1));
+        AnalysisJob failed = generating.fail(now.plusSeconds(1));
+        AnalysisJobOutcome completedOutcome = AnalysisJobOutcome.completed("{}", "{}");
+        AnalysisJobOutcome failedOutcome = AnalysisJobOutcome.failed(
+                "ANALYSIS_FAILED",
+                "분석하지 못했습니다.",
+                null
+        );
+        assertThat(store.create(generating)).isTrue();
+        assertThat(store.replaceWithOutcome(
+                jobId,
+                generating.version(),
+                completed,
+                completedOutcome
+        )).isTrue();
+
+        assertThat(store.replaceWithOutcome(
+                jobId,
+                generating.version(),
+                failed,
+                failedOutcome
+        )).isFalse();
+        assertThat(store.findById(jobId)).contains(completed);
+        assertThat(store.findOutcome(jobId)).contains(completedOutcome);
+    }
+
     /** 90초 경계 이후 완료 결과 폐기 */
     @Test
     void discardsCompletionAtDeadline() {
@@ -167,7 +254,7 @@ class RedisAnalysisJobStoreIT {
         Instant acceptedAt = Instant.now();
         MutableClock clock = new MutableClock(acceptedAt);
         AnalysisJobLifecycleService service = new AnalysisJobLifecycleService(store, clock);
-        service.accept(jobId);
+        service.accept(jobId, MEMBER_OWNER);
         service.advance(jobId, AnalysisJobStage.CHECKING_ARTICLE);
         service.advance(jobId, AnalysisJobStage.SEARCHING_EVIDENCE);
         AnalysisJob generating = service.advance(jobId, AnalysisJobStage.GENERATING_RESULT);
@@ -183,9 +270,12 @@ class RedisAnalysisJobStoreIT {
     @Test
     void removesJobAtPhysicalExpiry() throws Exception {
         String jobId = track("expiring-job");
-        Instant now = Instant.now();
+        Long redisTimeMillis = redisTemplate.execute(REDIS_TIME_SCRIPT, List.of());
+        assertThat(redisTimeMillis).isNotNull();
+        Instant now = Instant.ofEpochMilli(redisTimeMillis);
         AnalysisJob expiring = new AnalysisJob(
                 jobId,
+                MEMBER_OWNER,
                 AnalysisJobStatus.PROCESSING,
                 AnalysisJobStage.QUEUED,
                 now,
@@ -219,7 +309,7 @@ class RedisAnalysisJobStoreIT {
         );
 
         try {
-            assertThatThrownBy(() -> unavailableService.accept("blocked-job"))
+            assertThatThrownBy(() -> unavailableService.accept("blocked-job", MEMBER_OWNER))
                     .isInstanceOf(RuntimeException.class);
         } finally {
             unavailableFactory.destroy();
