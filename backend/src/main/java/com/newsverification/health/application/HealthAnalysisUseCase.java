@@ -27,11 +27,11 @@ public class HealthAnalysisUseCase {
             String rawUrl,
             HealthAnalysisUsageSubject usageSubject
     ) {
-        return continueAfterScreening(
-                screen(rawUrl, usageSubject),
-                usageSubject,
-                Instant.MAX
-        );
+        HealthArticleScreeningResult screeningResult = screen(rawUrl, usageSubject);
+        if (screeningResult.decision() == HealthArticleTopicDecision.HEALTH_RELATED) {
+            usagePolicy.recordAnalysisStart(usageSubject);
+        }
+        return continueAfterScreening(screeningResult, usageSubject, Instant.MAX);
     }
 
     /** 접수 한도 확인과 기사 안전 수집·분야 판별 */

@@ -58,6 +58,7 @@ class HealthAnalysisUseCaseTest {
                 .extracting(ExtractedArticle::title)
                 .containsExactly("독감 예방접종 대상과 시기 안내");
         assertThat(usagePolicy.verificationCount()).isEqualTo(1);
+        assertThat(usagePolicy.analysisStartCount()).isEqualTo(1);
         assertThat(usagePolicy.failureCount()).isZero();
     }
 
@@ -109,6 +110,11 @@ class HealthAnalysisUseCaseTest {
         HealthArticleScreeningService screeningService = mock(HealthArticleScreeningService.class);
         HealthAnalysisPort analysisPort = mock(HealthAnalysisPort.class);
         HealthTopicFailureUsagePolicy usagePolicy = new HealthTopicFailureUsagePolicy() {
+            @Override
+            public HealthTopicFailureUsageResult currentUsage(HealthAnalysisUsageSubject subject) {
+                throw new AssertionError("Usage must not be read");
+            }
+
             @Override
             public void verifyCanStart(HealthAnalysisUsageSubject subject) {
                 throw new IllegalStateException("Redis unavailable");
@@ -245,6 +251,13 @@ class HealthAnalysisUseCaseTest {
 
         private int verificationCount;
         private int failureCount;
+        private int analysisStartCount;
+
+        /** 현재 이용량 조회 */
+        @Override
+        public HealthTopicFailureUsageResult currentUsage(HealthAnalysisUsageSubject subject) {
+            return new HealthTopicFailureUsageResult(false, 0, subject.userType().dailyLimit());
+        }
 
         /** 신규 건강 분석 접수 확인 기록 */
         @Override
@@ -262,6 +275,7 @@ class HealthAnalysisUseCaseTest {
         /** 후속 분석 시작 이용량 기록 */
         @Override
         public HealthTopicFailureUsageResult recordAnalysisStart(HealthAnalysisUsageSubject subject) {
+            analysisStartCount++;
             return new HealthTopicFailureUsageResult(true, 1, subject.userType().dailyLimit());
         }
 
@@ -273,6 +287,11 @@ class HealthAnalysisUseCaseTest {
         /** 분야 실패 기록 횟수 */
         private int failureCount() {
             return failureCount;
+        }
+
+        /** 실제 분석 시작 기록 횟수 */
+        private int analysisStartCount() {
+            return analysisStartCount;
         }
     }
 }

@@ -21,6 +21,7 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
     private final AnalysisJobOutcomeStore outcomeStore;
     private final HeadlineAnalysisQueue queue;
     private final HeadlineAnalysisJobIdentityService identityService;
+    private final HeadlineAnalysisUsagePolicy usagePolicy;
     private final ObjectMapper objectMapper;
 
     /** 작업 수명·종료 결과·Queue·소유권 구성 */
@@ -29,12 +30,14 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
             AnalysisJobOutcomeStore outcomeStore,
             HeadlineAnalysisQueue queue,
             HeadlineAnalysisJobIdentityService identityService,
+            HeadlineAnalysisUsagePolicy usagePolicy,
             ObjectMapper objectMapper
     ) {
         this.lifecycleService = lifecycleService;
         this.outcomeStore = outcomeStore;
         this.queue = queue;
         this.identityService = identityService;
+        this.usagePolicy = usagePolicy;
         this.objectMapper = objectMapper;
     }
 
@@ -42,8 +45,10 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
     @Override
     public Acceptance accept(String articleUrl, Requester requester) {
         HeadlineAnalysisJobIdentityService.PreparedIdentity identity = identityService.prepare(requester);
-        AnalysisJob job;
+        HeadlineAnalysisUsageResult currentUsage;
+        AnalysisJob job = null;
         try {
+            currentUsage = usagePolicy.currentUsage(identity.usageSubject());
             job = lifecycleService.accept(UUID.randomUUID().toString(), identity.owner());
             boolean enqueued = queue.enqueue(new HeadlineAnalysisTask(
                     job.id(),
@@ -52,19 +57,23 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
                     identity.usageSubject().identifierKeys()
             ));
             if (!enqueued) {
-                rejectAcceptedJob(job.id());
                 throw new HeadlineAnalysisServiceUnavailableException();
             }
-        } catch (HeadlineAnalysisServiceUnavailableException exception) {
-            throw exception;
         } catch (RuntimeException exception) {
+            if (job != null) {
+                rejectAcceptedJob(job.id());
+            }
+            if (exception instanceof HeadlineAnalysisServiceUnavailableException unavailable) {
+                throw unavailable;
+            }
             throw new HeadlineAnalysisServiceUnavailableException(exception);
         }
 
-        int limit = identity.usageSubject().userType().dailyLimit();
+        int limit = currentUsage.dailyLimit();
+        int used = currentUsage.usedCount();
         return new Acceptance(
                 job.id(), job.status(), job.stage(),
-                new Usage(limit, 0, limit, false),
+                new Usage(limit, used, Math.max(0, limit - used), false),
                 job.acceptedAt(), job.deadlineAt(),
                 identity.guestAccessToken(), identity.guestBrowserCookie()
         );
@@ -74,8 +83,10 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
     @Override
     public Optional<Progress> find(String analysisId, Requester requester) {
         try {
-            return identityService.resolve(requester)
-                    .flatMap(owner -> lifecycleService.poll(analysisId, owner))
+            return identityService.resolveCandidates(requester).stream()
+                    .map(owner -> lifecycleService.poll(analysisId, owner))
+                    .flatMap(Optional::stream)
+                    .findFirst()
                     .map(this::toProgress);
         } catch (RuntimeException exception) {
             throw new HeadlineAnalysisServiceUnavailableException(exception);

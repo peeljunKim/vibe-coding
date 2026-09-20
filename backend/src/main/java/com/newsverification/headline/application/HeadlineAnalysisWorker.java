@@ -117,6 +117,7 @@ public class HeadlineAnalysisWorker {
             return;
         }
 
+        HeadlineAnalysisJobService.Usage chargedUsage = null;
         try {
             usagePolicy.verifyCanStart(task.usageSubject());
             AnalysisJob checkingJob = lifecycleService.advance(
@@ -135,6 +136,7 @@ public class HeadlineAnalysisWorker {
                     charged.dailyLimit(), charged.usedCount(),
                     Math.max(0, charged.dailyLimit() - charged.usedCount()), true
             );
+            chargedUsage = usage;
             HeadlineAnalysisResult result = useCase.analyze(article, checkingJob.deadlineAt());
             complete(task.analysisId(), result, usage);
         } catch (ArticleProcessingException exception) {
@@ -149,7 +151,13 @@ public class HeadlineAnalysisWorker {
                     )
             );
         } catch (RuntimeException exception) {
-            fail(task.analysisId(), "ANALYSIS_FAILED", "분석하지 못했습니다. 잠시 후 다시 시도해 주세요.", null);
+            LOGGER.error("Headline analysis failed. analysisId={}", task.analysisId(), exception);
+            fail(
+                    task.analysisId(),
+                    "ANALYSIS_FAILED",
+                    "분석하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+                    chargedUsage
+            );
         }
     }
 

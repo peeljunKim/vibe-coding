@@ -142,6 +142,8 @@ class RedisHealthTopicFailureUsagePolicyIT {
         assertThat(first.usedCount()).isEqualTo(1);
         assertThat(second.usedCount()).isEqualTo(2);
         assertThat(second.dailyLimit()).isEqualTo(5);
+        assertThat(policy.currentUsage(subject))
+                .isEqualTo(new HealthTopicFailureUsageResult(false, 2, 5));
     }
 
     /** 기존 정상 이용량과 무관한 첫 분야 실패 무료 처리 */
@@ -268,15 +270,18 @@ class RedisHealthTopicFailureUsagePolicyIT {
         Long ttlBeforeRead = redisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
 
         policy.verifyCanStart(subject);
-        Long redisTimeMillis = redisTemplate.execute(REDIS_TIME_SCRIPT, List.of());
+        Long redisTimeBeforeTtl = redisTemplate.execute(REDIS_TIME_SCRIPT, List.of());
         Long ttlAfterRead = redisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
+        Long redisTimeAfterTtl = redisTemplate.execute(REDIS_TIME_SCRIPT, List.of());
 
-        assertThat(redisTimeMillis).isNotNull();
+        assertThat(redisTimeBeforeTtl).isNotNull();
+        assertThat(redisTimeAfterTtl).isNotNull();
         assertThat(ttlAfterRead).isNotNull();
-        long expectedTtl = expectedExpiry.toEpochMilli() - redisTimeMillis;
+        long maximumExpectedTtl = expectedExpiry.toEpochMilli() - redisTimeBeforeTtl;
+        long minimumExpectedTtl = expectedExpiry.toEpochMilli() - redisTimeAfterTtl;
         assertThat(ttlBeforeRead).isPositive();
         assertThat(ttlAfterRead).isLessThanOrEqualTo(ttlBeforeRead);
-        assertThat(ttlAfterRead).isBetween(expectedTtl - 250L, expectedTtl + 50L);
+        assertThat(ttlAfterRead).isBetween(minimumExpectedTtl - 250L, maximumExpectedTtl + 50L);
     }
 
     /** Redis 장애 시 신규 건강 분석 접수 차단 */

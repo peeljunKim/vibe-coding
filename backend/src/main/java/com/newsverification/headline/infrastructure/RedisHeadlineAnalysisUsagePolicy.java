@@ -93,7 +93,7 @@ public class RedisHeadlineAnalysisUsagePolicy implements HeadlineAnalysisUsagePo
 
     /** TTL 변경 없는 제목 분석 한도 확인 */
     @Override
-    public void verifyCanStart(HeadlineAnalysisUsageSubject subject) {
+    public HeadlineAnalysisUsageResult currentUsage(HeadlineAnalysisUsageSubject subject) {
         Long result = redisTemplate.execute(
                 VERIFY_SCRIPT,
                 keysFor(subject),
@@ -102,7 +102,17 @@ public class RedisHeadlineAnalysisUsagePolicy implements HeadlineAnalysisUsagePo
         if (result == null) {
             throw new IllegalStateException("Redis headline usage result is missing");
         }
-        rejectExceeded(subject, Math.toIntExact(result));
+        return new HeadlineAnalysisUsageResult(
+                Math.toIntExact(result),
+                subject.userType().dailyLimit()
+        );
+    }
+
+    /** TTL 변경 없는 제목 분석 한도 확인 */
+    @Override
+    public void verifyCanStart(HeadlineAnalysisUsageSubject subject) {
+        HeadlineAnalysisUsageResult usage = currentUsage(subject);
+        rejectExceeded(subject, usage.usedCount());
     }
 
     /** 실제 분석 시작 시 일일 횟수 원자 증가 */

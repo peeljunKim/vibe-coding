@@ -125,6 +125,54 @@ class HeadlineAnalysisWorkerTest {
         verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
     }
 
+    /** 이용량 차감 후 분석 실패의 차감 결과 보존 */
+    @Test
+    void preservesChargedUsageWhenAnalysisFailsAfterCharge() throws Exception {
+        InMemoryStore store = new InMemoryStore();
+        AnalysisJob job = AnalysisJob.queued(
+                "headline-failed-after-charge",
+                new AnalysisJobOwner(AnalysisJobOwnerType.MEMBER, "owner-hash"),
+                NOW
+        );
+        store.create(job);
+        HeadlineAnalysisTask task = new HeadlineAnalysisTask(
+                job.id(),
+                "https://news.example/general",
+                HeadlineAnalysisUserType.MEMBER,
+                List.of("member-key")
+        );
+        HeadlineAnalysisUseCase useCase = mock(HeadlineAnalysisUseCase.class);
+        HeadlineAnalysisUsagePolicy usagePolicy = mock(HeadlineAnalysisUsagePolicy.class);
+        ExtractedArticle article = article();
+        when(useCase.read(task.articleUrl())).thenReturn(article);
+        when(usagePolicy.recordAnalysisStart(task.usageSubject()))
+                .thenReturn(new HeadlineAnalysisUsageResult(2, 10));
+        when(useCase.analyze(article, job.deadlineAt()))
+                .thenThrow(new IllegalStateException("analysis failed"));
+        Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
+        HeadlineAnalysisWorker worker = new HeadlineAnalysisWorker(
+                new RecordingQueue(task),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                new ObjectMapper(),
+                clock,
+                "worker-1"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        AnalysisJobOutcome outcome = store.findOutcome(job.id()).orElseThrow();
+        HeadlineAnalysisJobService.Usage usage = new ObjectMapper().readValue(
+                outcome.usageJson(),
+                HeadlineAnalysisJobService.Usage.class
+        );
+        assertThat(outcome.errorCode()).isEqualTo("ANALYSIS_FAILED");
+        assertThat(usage).isEqualTo(new HeadlineAnalysisJobService.Usage(10, 2, 8, true));
+    }
+
     /** 정제 기사 Fixture */
     private ExtractedArticle article() {
         return new ExtractedArticle(

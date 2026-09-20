@@ -109,6 +109,38 @@ class HealthAnalysisWorkerTest {
         assertThat(queue.deliveryCount).isEqualTo(1);
     }
 
+    /** 이용량 차감 후 분석 실패의 차감 결과 보존 */
+    @Test
+    void preservesChargedUsageWhenAnalysisFailsAfterCharge() throws Exception {
+        var store = new InMemoryJobStore();
+        AnalysisJob accepted = lifecycle(store, NOW).accept("analysis-1", OWNER);
+        HealthAnalysisTask task = task(accepted.id());
+        HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthArticleScreeningResult screening = screeningResult();
+        when(useCase.screen(task.articleUrl(), task.usageSubject())).thenReturn(screening);
+        when(usagePolicy.recordAnalysisStart(task.usageSubject()))
+                .thenReturn(new HealthTopicFailureUsageResult(true, 2, 5));
+        when(useCase.continueAfterScreening(screening, task.usageSubject(), accepted.deadlineAt()))
+                .thenThrow(new IllegalStateException("analysis failed"));
+
+        assertThat(worker(
+                store,
+                new SingleTaskQueue(task, true),
+                useCase,
+                usagePolicy,
+                NOW
+        ).runOnce()).isTrue();
+
+        AnalysisJobOutcome outcome = store.findOutcome(accepted.id()).orElseThrow();
+        HealthAnalysisJobService.Usage usage = new ObjectMapper().readValue(
+                outcome.usageJson(),
+                HealthAnalysisJobService.Usage.class
+        );
+        assertThat(outcome.errorCode()).isEqualTo("ANALYSIS_FAILED");
+        assertThat(usage).isEqualTo(new HealthAnalysisJobService.Usage(5, 2, 3, true));
+    }
+
     /** Queue 대기를 포함한 90초 Deadline 이후 실행 차단 */
     @Test
     void failsExpiredQueuedTaskBeforeArticleRead() {

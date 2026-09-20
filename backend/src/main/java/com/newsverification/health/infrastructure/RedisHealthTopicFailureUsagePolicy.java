@@ -147,7 +147,7 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
 
     /** TTL 변경 없는 신규 건강 분석 한도 확인 */
     @Override
-    public void verifyCanStart(HealthAnalysisUsageSubject subject) {
+    public HealthTopicFailureUsageResult currentUsage(HealthAnalysisUsageSubject subject) {
         Objects.requireNonNull(subject);
         Long storedCount = redisTemplate.execute(
                 VERIFY_USAGE_SCRIPT,
@@ -157,8 +157,18 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
         if (storedCount == null) {
             throw new IllegalStateException("Redis health usage result is missing");
         }
-        int usedCount = Math.toIntExact(storedCount);
-        rejectExceeded(subject, usedCount);
+        return new HealthTopicFailureUsageResult(
+                false,
+                Math.toIntExact(storedCount),
+                subject.userType().dailyLimit()
+        );
+    }
+
+    /** TTL 변경 없는 신규 건강 분석 한도 확인 */
+    @Override
+    public void verifyCanStart(HealthAnalysisUsageSubject subject) {
+        HealthTopicFailureUsageResult usage = currentUsage(subject);
+        rejectExceeded(subject, usage.usedCount());
     }
 
     /** 첫 실패 무료와 이후 차감 및 한도 검사의 원자 처리 */

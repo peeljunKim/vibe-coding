@@ -42,8 +42,7 @@ public class HeadlineAnalysisConfig {
     @ConditionalOnProperty(
             prefix = "app.analysis",
             name = "provider",
-            havingValue = "mock",
-            matchIfMissing = true
+            havingValue = "mock"
     )
     HeadlineAnalysisPort headlineAnalysisPort(Clock clock) {
         return new MockHeadlineAnalysisPort(clock);

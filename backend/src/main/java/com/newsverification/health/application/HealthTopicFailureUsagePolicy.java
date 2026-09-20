@@ -4,6 +4,9 @@ package com.newsverification.health.application;
 /** 건강 분석 접수 한도 확인과 분야 실패 차감 Port */
 public interface HealthTopicFailureUsagePolicy {
 
+    /** 차감 없는 현재 건강 분석 이용량 조회 */
+    HealthTopicFailureUsageResult currentUsage(HealthAnalysisUsageSubject subject);
+
     /** 신규 건강 분석 접수 가능 여부 확인 */
     void verifyCanStart(HealthAnalysisUsageSubject subject);
 

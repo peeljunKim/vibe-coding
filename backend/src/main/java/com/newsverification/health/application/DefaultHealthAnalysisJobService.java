@@ -21,6 +21,7 @@ public class DefaultHealthAnalysisJobService implements HealthAnalysisJobService
     private final AnalysisJobOutcomeStore outcomeStore;
     private final HealthAnalysisQueue queue;
     private final HealthAnalysisJobIdentityService identityService;
+    private final HealthTopicFailureUsagePolicy usagePolicy;
     private final ObjectMapper objectMapper;
 
     /** 작업 수명·종료 결과·Queue·소유권 경계 구성 */
@@ -29,12 +30,14 @@ public class DefaultHealthAnalysisJobService implements HealthAnalysisJobService
             AnalysisJobOutcomeStore outcomeStore,
             HealthAnalysisQueue queue,
             HealthAnalysisJobIdentityService identityService,
+            HealthTopicFailureUsagePolicy usagePolicy,
             ObjectMapper objectMapper
     ) {
         this.lifecycleService = lifecycleService;
         this.outcomeStore = outcomeStore;
         this.queue = queue;
         this.identityService = identityService;
+        this.usagePolicy = usagePolicy;
         this.objectMapper = objectMapper;
     }
 
@@ -42,8 +45,10 @@ public class DefaultHealthAnalysisJobService implements HealthAnalysisJobService
     @Override
     public Acceptance accept(String articleUrl, Requester requester) {
         HealthAnalysisJobIdentityService.PreparedIdentity identity = identityService.prepare(requester);
-        AnalysisJob job;
+        HealthTopicFailureUsageResult currentUsage;
+        AnalysisJob job = null;
         try {
+            currentUsage = usagePolicy.currentUsage(identity.usageSubject());
             job = lifecycleService.accept(UUID.randomUUID().toString(), identity.owner());
             boolean enqueued = queue.enqueue(new HealthAnalysisTask(
                     job.id(),
@@ -52,21 +57,25 @@ public class DefaultHealthAnalysisJobService implements HealthAnalysisJobService
                     identity.usageSubject().identifierKeys()
             ));
             if (!enqueued) {
-                rejectAcceptedJob(job.id());
                 throw new HealthAnalysisServiceUnavailableException();
             }
-        } catch (HealthAnalysisServiceUnavailableException exception) {
-            throw exception;
         } catch (RuntimeException exception) {
+            if (job != null) {
+                rejectAcceptedJob(job.id());
+            }
+            if (exception instanceof HealthAnalysisServiceUnavailableException unavailable) {
+                throw unavailable;
+            }
             throw new HealthAnalysisServiceUnavailableException(exception);
         }
 
-        int limit = identity.usageSubject().userType().dailyLimit();
+        int limit = currentUsage.dailyLimit();
+        int used = currentUsage.usedCount();
         return new Acceptance(
                 job.id(),
                 job.status(),
                 job.stage(),
-                new Usage(limit, 0, limit, false),
+                new Usage(limit, used, Math.max(0, limit - used), false),
                 job.acceptedAt(),
                 job.deadlineAt(),
                 identity.guestAccessToken(),
@@ -77,8 +86,10 @@ public class DefaultHealthAnalysisJobService implements HealthAnalysisJobService
     /** 소유권 확인 후 작업과 종료 결과 조회 */
     @Override
     public Optional<Progress> find(String analysisId, Requester requester) {
-        return identityService.resolve(requester)
-                .flatMap(owner -> pollSafely(analysisId, owner));
+        return identityService.resolveCandidates(requester).stream()
+                .map(owner -> pollSafely(analysisId, owner))
+                .flatMap(Optional::stream)
+                .findFirst();
     }
 
     /** Redis 오류를 서비스 장애로 변환하는 Polling */

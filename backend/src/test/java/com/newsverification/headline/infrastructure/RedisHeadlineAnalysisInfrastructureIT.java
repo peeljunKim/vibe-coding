@@ -99,12 +99,14 @@ class RedisHeadlineAnalysisInfrastructureIT {
         for (int expected = 1; expected <= 5; expected++) {
             assertThat(usagePolicy.recordAnalysisStart(guest).usedCount()).isEqualTo(expected);
         }
+        assertThat(usagePolicy.currentUsage(guest).usedCount()).isEqualTo(5);
         assertThatThrownBy(() -> usagePolicy.verifyCanStart(guest))
                 .isInstanceOf(HeadlineDailyUsageLimitExceededException.class);
 
         for (int expected = 1; expected <= 10; expected++) {
             assertThat(usagePolicy.recordAnalysisStart(member).usedCount()).isEqualTo(expected);
         }
+        assertThat(usagePolicy.currentUsage(member).usedCount()).isEqualTo(10);
         assertThatThrownBy(() -> usagePolicy.recordAnalysisStart(member))
                 .isInstanceOf(HeadlineDailyUsageLimitExceededException.class);
     }

@@ -65,8 +65,7 @@ public class HealthAnalysisConfig {
     @ConditionalOnProperty(
             prefix = "app.analysis",
             name = "provider",
-            havingValue = "mock",
-            matchIfMissing = true
+            havingValue = "mock"
     )
     HealthArticleTopicClassifier healthArticleTopicClassifier() {
         return new MockHealthArticleTopicClassifier();
@@ -77,8 +76,7 @@ public class HealthAnalysisConfig {
     @ConditionalOnProperty(
             prefix = "app.analysis",
             name = "provider",
-            havingValue = "mock",
-            matchIfMissing = true
+            havingValue = "mock"
     )
     HealthAnalysisPort healthAnalysisPort(Clock clock) {
         return new MockHealthAnalysisPort(clock);

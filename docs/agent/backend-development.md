@@ -121,6 +121,9 @@ Session 인증과 OAuth Redirect를 목표로 유지한다. 현재 HTTP Basic을
 - 단일 EC2에서도 Blue/Green 실행기가 공존하므로 Redis 상태 전환·Lock 소유권 확인
 - 이용량·Lock 검증 불가 시 새로운 AI 호출 차단; DB와 Redis 성공 처리 순서 테스트
 - JSON 등 명시적인 직렬화 모델 사용, 변경 시 이전 Version 데이터 호환성 검토
+- `analysis-job:v1`에는 소유권 정보가 없으므로 임의 소유자 지정·무소유 조회 허용·자동 변환 금지
+- `analysis-job` Key Version 변경 전에는 이전 Version의 읽기 호환성을 구현하거나 신규 접수를 차단하고 최대 종료 TTL 30분 동안 Queue·작업을 비운 뒤 이전 Namespace가 비었음을 확인
+- 소유권 Schema 변경의 Rollback도 새 Version Queue·작업을 먼저 비운 뒤 수행하며, 소유권을 복원할 수 없는 Version으로 실행 중 작업을 되돌리지 않음
 - KEYS/전체 Key 삭제 금지; 테스트 정리도 해당 실행 Namespace만 대상
 - 외부 Client는 기존 MVC와 맞는 동기 HTTP Client를 우선 검토; 비동기라는 이유만으로 WebFlux·MQ 추가 금지
 - URL 정규화, HTTPS·허용 Host·Port·DNS/IP·매 Redirect·응답 크기·시간 검사 필수

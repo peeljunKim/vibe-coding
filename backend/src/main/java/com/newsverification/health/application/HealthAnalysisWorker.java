@@ -125,6 +125,7 @@ public class HealthAnalysisWorker {
             return;
         }
 
+        HealthAnalysisJobService.Usage chargedUsage = null;
         try {
             AnalysisJob checkingJob = lifecycleService.advance(
                     task.analysisId(),
@@ -162,10 +163,11 @@ public class HealthAnalysisWorker {
                 );
                 return;
             }
-            HealthTopicFailureUsageResult chargedUsage = usagePolicy.recordAnalysisStart(
+            HealthTopicFailureUsageResult chargedUsageResult = usagePolicy.recordAnalysisStart(
                     task.usageSubject()
             );
-            HealthAnalysisJobService.Usage usage = toUsage(chargedUsage);
+            HealthAnalysisJobService.Usage usage = toUsage(chargedUsageResult);
+            chargedUsage = usage;
             HealthAnalysisRoutingResult routing = useCase.continueAfterScreening(
                     screening,
                     task.usageSubject(),
@@ -207,11 +209,12 @@ public class HealthAnalysisWorker {
                     )
             );
         } catch (RuntimeException exception) {
+            LOGGER.error("Health analysis failed. analysisId={}", task.analysisId(), exception);
             fail(
                     task.analysisId(),
                     "ANALYSIS_FAILED",
                     "분석하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-                    null
+                    chargedUsage
             );
         }
     }

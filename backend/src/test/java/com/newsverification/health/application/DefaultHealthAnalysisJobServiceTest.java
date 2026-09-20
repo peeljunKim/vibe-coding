@@ -63,6 +63,27 @@ class DefaultHealthAnalysisJobServiceTest {
         )).isEmpty();
     }
 
+    /** 로그인 이후에도 기존 비회원 작업 조회 */
+    @Test
+    void findsGuestOwnedJobAfterLogin() {
+        var store = new InMemoryJobStore();
+        HealthAnalysisJobService service = service(store, new RecordingQueue(true));
+        HealthAnalysisJobService.Acceptance accepted = service.accept(
+                "https://news.example/article",
+                new HealthAnalysisJobService.Requester(null, null, null, "203.0.113.7")
+        );
+
+        assertThat(service.find(
+                accepted.analysisId(),
+                new HealthAnalysisJobService.Requester(
+                        "member-1",
+                        accepted.guestBrowserCookie().value(),
+                        accepted.guestAccessToken(),
+                        "203.0.113.7"
+                )
+        )).isPresent();
+    }
+
     /** 인증 회원 ID의 비식별 소유권 조회 */
     @Test
     void acceptsAndFindsMemberOwnedJob() {
@@ -104,8 +125,48 @@ class DefaultHealthAnalysisJobServiceTest {
                 .allMatch(job -> job.status().name().equals("FAILED"));
     }
 
+    /** Queue 예외 이후 생성 작업 정리 */
+    @Test
+    void failsAcceptedJobWhenQueueThrows() {
+        var store = new InMemoryJobStore();
+        HealthAnalysisJobService service = service(
+                store,
+                new RecordingQueue(new IllegalStateException("Redis unavailable"))
+        );
+
+        assertThatThrownBy(() -> service.accept(
+                "https://news.example/article",
+                new HealthAnalysisJobService.Requester("member-1", null, null, "203.0.113.7")
+        )).isInstanceOf(HealthAnalysisServiceUnavailableException.class);
+
+        assertThat(store.jobs.values()).allMatch(job -> job.status().name().equals("FAILED"));
+    }
+
+    /** 접수 응답의 기존 이용량 반영 */
+    @Test
+    void returnsCurrentUsageOnAcceptance() {
+        var store = new InMemoryJobStore();
+        HealthAnalysisJobService service = service(store, new RecordingQueue(true), 2);
+
+        HealthAnalysisJobService.Acceptance accepted = service.accept(
+                "https://news.example/article",
+                new HealthAnalysisJobService.Requester("member-1", null, null, "203.0.113.7")
+        );
+
+        assertThat(accepted.usage()).isEqualTo(new HealthAnalysisJobService.Usage(5, 2, 3, false));
+    }
+
     /** 고정 시각 기반 Service 구성 */
     private HealthAnalysisJobService service(InMemoryJobStore store, HealthAnalysisQueue queue) {
+        return service(store, queue, 0);
+    }
+
+    /** 현재 이용량 포함 Service 구성 */
+    private HealthAnalysisJobService service(
+            InMemoryJobStore store,
+            HealthAnalysisQueue queue,
+            int currentUsed
+    ) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         var identityService = new HealthAnalysisJobIdentityService(
                 clock,
@@ -119,6 +180,7 @@ class DefaultHealthAnalysisJobServiceTest {
                 store,
                 queue,
                 identityService,
+                new StubUsagePolicy(currentUsed),
                 new ObjectMapper()
         );
     }
@@ -173,14 +235,24 @@ class DefaultHealthAnalysisJobServiceTest {
     private static final class RecordingQueue implements HealthAnalysisQueue {
 
         private final boolean accepts;
+        private final RuntimeException failure;
         private HealthAnalysisTask task;
 
         private RecordingQueue(boolean accepts) {
             this.accepts = accepts;
+            this.failure = null;
+        }
+
+        private RecordingQueue(RuntimeException failure) {
+            this.accepts = false;
+            this.failure = failure;
         }
 
         @Override
         public boolean enqueue(HealthAnalysisTask task) {
+            if (failure != null) {
+                throw failure;
+            }
             this.task = task;
             return accepts;
         }
@@ -197,6 +269,39 @@ class DefaultHealthAnalysisJobServiceTest {
 
         @Override
         public void releaseWorker(String ownerToken) {
+        }
+    }
+
+    /** 테스트용 현재 이용량 정책 */
+    private static final class StubUsagePolicy implements HealthTopicFailureUsagePolicy {
+
+        private final int currentUsed;
+
+        private StubUsagePolicy(int currentUsed) {
+            this.currentUsed = currentUsed;
+        }
+
+        @Override
+        public HealthTopicFailureUsageResult currentUsage(HealthAnalysisUsageSubject subject) {
+            return new HealthTopicFailureUsageResult(
+                    false,
+                    currentUsed,
+                    subject.userType().dailyLimit()
+            );
+        }
+
+        @Override
+        public void verifyCanStart(HealthAnalysisUsageSubject subject) {
+        }
+
+        @Override
+        public HealthTopicFailureUsageResult recordFailure(HealthAnalysisUsageSubject subject) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public HealthTopicFailureUsageResult recordAnalysisStart(HealthAnalysisUsageSubject subject) {
+            throw new UnsupportedOperationException();
         }
     }
 }

@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** 제목 전용 한도와 Queue 입력 및 소유권 조회 검증 */
 class DefaultHeadlineAnalysisJobServiceTest {
@@ -68,6 +69,44 @@ class DefaultHeadlineAnalysisJobServiceTest {
         assertThat(progress).isEmpty();
     }
 
+    /** 로그인 이후에도 기존 비회원 제목 작업 조회 */
+    @Test
+    void findsGuestOwnedJobAfterLogin() {
+        InMemoryJobStore store = new InMemoryJobStore();
+        HeadlineAnalysisJobService service = service(store, new RecordingQueue(true));
+        HeadlineAnalysisJobService.Acceptance acceptance = service.accept(
+                "https://news.example/general",
+                new HeadlineAnalysisJobService.Requester(null, null, null, "203.0.113.10")
+        );
+
+        assertThat(service.find(
+                acceptance.analysisId(),
+                new HeadlineAnalysisJobService.Requester(
+                        "member-1",
+                        acceptance.guestBrowserCookie().value(),
+                        acceptance.guestAccessToken(),
+                        "203.0.113.10"
+                )
+        )).isPresent();
+    }
+
+    /** Queue 예외 이후 생성된 제목 작업 정리 */
+    @Test
+    void failsAcceptedJobWhenQueueThrows() {
+        InMemoryJobStore store = new InMemoryJobStore();
+        HeadlineAnalysisJobService service = service(
+                store,
+                new RecordingQueue(new IllegalStateException("Redis unavailable"))
+        );
+
+        assertThatThrownBy(() -> service.accept(
+                "https://news.example/general",
+                new HeadlineAnalysisJobService.Requester("member-1", null, null, "203.0.113.10")
+        )).isInstanceOf(HeadlineAnalysisServiceUnavailableException.class);
+
+        assertThat(store.jobs.values()).allMatch(job -> job.status().name().equals("FAILED"));
+    }
+
     /** 고정 시각 기반 Service 구성 */
     private HeadlineAnalysisJobService service(InMemoryJobStore store, HeadlineAnalysisQueue queue) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
@@ -82,6 +121,7 @@ class DefaultHeadlineAnalysisJobServiceTest {
                         new SecureRandom(),
                         false
                 ),
+                new StubUsagePolicy(),
                 new ObjectMapper()
         );
     }
@@ -136,14 +176,24 @@ class DefaultHeadlineAnalysisJobServiceTest {
     private static final class RecordingQueue implements HeadlineAnalysisQueue {
 
         private final boolean accepts;
+        private final RuntimeException failure;
         private HeadlineAnalysisTask task;
 
         private RecordingQueue(boolean accepts) {
             this.accepts = accepts;
+            this.failure = null;
+        }
+
+        private RecordingQueue(RuntimeException failure) {
+            this.accepts = false;
+            this.failure = failure;
         }
 
         @Override
         public boolean enqueue(HeadlineAnalysisTask task) {
+            if (failure != null) {
+                throw failure;
+            }
             this.task = task;
             return accepts;
         }
@@ -160,6 +210,24 @@ class DefaultHeadlineAnalysisJobServiceTest {
 
         @Override
         public void releaseWorker(String ownerToken) {
+        }
+    }
+
+    /** 테스트용 제목 이용량 정책 */
+    private static final class StubUsagePolicy implements HeadlineAnalysisUsagePolicy {
+
+        @Override
+        public HeadlineAnalysisUsageResult currentUsage(HeadlineAnalysisUsageSubject subject) {
+            return new HeadlineAnalysisUsageResult(0, subject.userType().dailyLimit());
+        }
+
+        @Override
+        public void verifyCanStart(HeadlineAnalysisUsageSubject subject) {
+        }
+
+        @Override
+        public HeadlineAnalysisUsageResult recordAnalysisStart(HeadlineAnalysisUsageSubject subject) {
+            throw new UnsupportedOperationException();
         }
     }
 }

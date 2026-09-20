@@ -106,6 +106,9 @@
 - 기사 제목 분석 접수 API와 Use Case: PASS (비회원·회원 소유권, 독립 5·10회 한도, 안전 기사 수집, 건강 분야 판별·근거 검색 생략, Mock 결과 Polling)
 - 기사 제목 분석 Redis Queue·이용량 통합 검증: PASS (전용 Namespace, 최대 20개, 단일 소비·무재시도, 한국시간 자정 만료)
 - 기사 제목 분석 Backend 전체 회귀: PASS (Maven 97개, 실패·오류·Skip 0)
+- PR 20 분석 작업 리뷰 보완: PASS (Queue 실패 정리, 로그인 후 비회원 Polling, 현재 이용량 응답, 차감 후 실패 정보, 명시적 Mock Provider, 예외 로그, Redis TTL 검사)
+- Redis 작업 Key Version 배포 경계: PASS (`analysis-job:v1` 소유권 자동 추정 금지, 이전 Version 호환 구현 또는 최대 종료 TTL 30분 Drain 선행)
+- PR 20 Docker Redis 통합 재검증: NOT RUN (Docker Desktop Linux Engine 미실행, Backend 단위·전체 회귀는 PASS)
 - 건강 분석 Local Full-stack HTTP E2E: PASS (Native MySQL 8.0.30, Docker Redis 8.8, Mock 분석, 비회원 CSRF·소유권, 완료·실패 Polling, Redis 장애 `503`)
 - Local Redis 실행 경계: PASS (Windows Native Redis `6379`와 Docker Redis `6380` 분리, `.env` 기준 Backend 연결, 무인증 거부·인증 성공·Actuator `UP` 확인)
 

@@ -12,10 +12,11 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 /** 회원 HMAC과 비회원 Cookie·작업 Token 결합 소유권 */
 public class HealthAnalysisJobIdentityService {
@@ -93,24 +94,25 @@ public class HealthAnalysisJobIdentityService {
         );
     }
 
-    /** Polling 요청의 기대 소유권 복원 */
-    public Optional<AnalysisJobOwner> resolve(HealthAnalysisJobService.Requester requester) {
+    /** Polling 요청의 회원·비회원 소유권 후보 복원 */
+    public List<AnalysisJobOwner> resolveCandidates(HealthAnalysisJobService.Requester requester) {
         if (requester == null) {
-            return Optional.empty();
+            return List.of();
         }
+        List<AnalysisJobOwner> candidates = new ArrayList<>(2);
         if (hasText(requester.memberId())) {
-            return Optional.of(new AnalysisJobOwner(
+            candidates.add(new AnalysisJobOwner(
                     AnalysisJobOwnerType.MEMBER,
                     hmac("member-owner:" + requester.memberId().trim())
             ));
         }
-        if (!hasText(requester.guestBrowserId()) || !hasText(requester.guestAccessToken())) {
-            return Optional.empty();
+        if (hasText(requester.guestBrowserId()) && hasText(requester.guestAccessToken())) {
+            candidates.add(guestOwner(
+                    requester.guestBrowserId().trim(),
+                    requester.guestAccessToken().trim()
+            ));
         }
-        return Optional.of(guestOwner(
-                requester.guestBrowserId().trim(),
-                requester.guestAccessToken().trim()
-        ));
+        return List.copyOf(candidates);
     }
 
     /** 비회원 Cookie와 작업 Token 결합 소유권 */

@@ -60,4 +60,12 @@ class HeadlineAnalysisConfigTest {
             assertThat(context).hasSingleBean(HeadlineAnalysisWorker.class);
         });
     }
+
+    /** 분석 Provider 누락 시 안전한 시작 실패 */
+    @Test
+    void failsWhenAnalysisProviderIsNotExplicitlyConfigured() {
+        contextRunner
+                .withPropertyValues("app.analysis.provider=")
+                .run(context -> assertThat(context).hasFailed());
+    }
 }
