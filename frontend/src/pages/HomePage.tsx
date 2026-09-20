@@ -23,13 +23,19 @@ const publisherCategoryGroups = [
 
 interface HomePageProps {
   onStartHealthAnalysis: () => void
+  onStartHeadlineAnalysis: () => void
   onOpenSavedRecords: () => void
+  isHeadlineAnalysisPending?: boolean
+  headlineAnalysisError?: string | null
   usage?: UsageViewData
 }
 
 function HomePage({
   onStartHealthAnalysis,
+  onStartHeadlineAnalysis,
   onOpenSavedRecords,
+  isHeadlineAnalysisPending = false,
+  headlineAnalysisError,
   usage,
 }: HomePageProps) {
   const [isPublisherDirectoryOpen, setPublisherDirectoryOpen] = useState(false)
@@ -146,9 +152,18 @@ function HomePage({
             <button
               className="feature-card__button feature-card__button--title"
               type="button"
+              disabled={isHeadlineAnalysisPending}
+              onClick={onStartHeadlineAnalysis}
             >
-              복사한 기사 제목 확인하기
+              {isHeadlineAnalysisPending
+                ? '기사 제목 확인 중'
+                : '복사한 기사 제목 확인하기'}
             </button>
+            {headlineAnalysisError && (
+              <p className="feature-card__feedback" role="alert">
+                {headlineAnalysisError}
+              </p>
+            )}
           </article>
         </section>
 

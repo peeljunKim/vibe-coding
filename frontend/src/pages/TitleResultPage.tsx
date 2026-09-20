@@ -1,4 +1,5 @@
 // 기사 제목 분석 결과 화면
+import { useLocation } from 'react-router-dom'
 import AppHeader from '../components/AppHeader'
 import type { HeadlineIssueType, TitleResultViewData } from '../types/pageData'
 
@@ -14,12 +15,16 @@ const issueLabels: Record<HeadlineIssueType, string> = {
 }
 
 function TitleResultPage({ data }: TitleResultPageProps) {
+  const location = useLocation()
+  const routeData = (location.state as { result?: TitleResultViewData } | null)
+    ?.result
+  const resultData = data ?? routeData
   const issueCount =
-    data?.issues.filter((issue) => issue.type !== 'NO_ISSUE').length ?? 0
+    resultData?.issues.filter((issue) => issue.type !== 'NO_ISSUE').length ?? 0
   const hasIssue = issueCount > 0
-  const resultSummary = data
+  const resultSummary = resultData
     ? hasIssue
-      ? `${data.issues.map((issue) => issueLabels[issue.type]).join('·')}을 확인했습니다.`
+      ? `${resultData.issues.map((issue) => issueLabels[issue.type]).join('·')}을 확인했습니다.`
       : '문제를 발견하지 않았습니다.'
     : '[기사 제목 분석 결과 데이터가 필요합니다.]'
 
@@ -37,7 +42,8 @@ function TitleResultPage({ data }: TitleResultPageProps) {
         >
           <span>기존 제목</span>
           <h1 id="original-title-heading">
-            {data?.article.title ?? '[분석한 기사 제목 데이터가 필요합니다.]'}
+            {resultData?.article.title ??
+              '[분석한 기사 제목 데이터가 필요합니다.]'}
           </h1>
         </section>
 
@@ -55,11 +61,11 @@ function TitleResultPage({ data }: TitleResultPageProps) {
           aria-labelledby="title-issues-heading"
         >
           <h2 id="title-issues-heading">
-            {data ? `발견한 문제 ${issueCount}개` : '발견한 문제'}
+            {resultData ? `발견한 문제 ${issueCount}개` : '발견한 문제'}
           </h2>
           <div className="title-issues__grid">
-            {data?.issues.length ? (
-              data.issues.map((issue, index) => (
+            {resultData?.issues.length ? (
+              resultData.issues.map((issue, index) => (
                 <article
                   className={`title-issue title-issue--${issue.type === 'EXAGGERATED' ? 'warning' : issue.type === 'NO_ISSUE' ? 'success' : 'danger'}`}
                   key={`${issue.type}-${index}`}
@@ -71,7 +77,7 @@ function TitleResultPage({ data }: TitleResultPageProps) {
             ) : (
               <article className="title-issue title-issue--empty">
                 <p>
-                  {data
+                  {resultData
                     ? '발견된 제목 문제가 없습니다.'
                     : '[제목 문제 유형과 설명 데이터가 필요합니다.]'}
                 </p>
@@ -87,8 +93,8 @@ function TitleResultPage({ data }: TitleResultPageProps) {
           <div>
             <span>중립적인 대체 제목</span>
             <h2 id="neutral-title-heading">
-              {data?.alternativeHeadline ??
-                (data
+              {resultData?.alternativeHeadline ??
+                (resultData
                   ? '문제 없음으로 대체 제목을 생성하지 않습니다.'
                   : '[대체 제목 데이터가 필요합니다.]')}
             </h2>
@@ -96,10 +102,12 @@ function TitleResultPage({ data }: TitleResultPageProps) {
           <button
             className="primary-button"
             type="button"
-            disabled={!data?.alternativeHeadline}
+            disabled={!resultData?.alternativeHeadline}
             onClick={() => {
-              if (data?.alternativeHeadline) {
-                void navigator.clipboard.writeText(data.alternativeHeadline)
+              if (resultData?.alternativeHeadline) {
+                void navigator.clipboard.writeText(
+                  resultData.alternativeHeadline,
+                )
               }
             }}
           >

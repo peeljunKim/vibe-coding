@@ -155,6 +155,78 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
+  it('클립보드 기사 URL의 제목 분석을 완료하고 결과 화면으로 이동한다', async () => {
+    const articleUrl = 'https://news.example.com/article'
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { readText: vi.fn().mockResolvedValue(articleUrl) },
+    })
+    document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'headline-1',
+            pollAfterSeconds: 0,
+            guestAccessToken: 'guest-job-token',
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'headline-1',
+            status: 'COMPLETED',
+            stage: 'COMPLETED',
+            result: {
+              article: {
+                url: articleUrl,
+                title: '검증된 기사 제목',
+                publisher: '테스트 언론사',
+                publishedAt: '2026-09-20T09:00:00+09:00',
+              },
+              analyzedAt: '2026-09-20T00:00:03Z',
+              issues: [
+                {
+                  type: 'NO_ISSUE',
+                  explanation: '제목과 본문의 핵심 내용이 일치합니다.',
+                },
+              ],
+            },
+          }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    renderApp()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '복사한 기사 제목 확인하기' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: '검증된 기사 제목' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/csrf',
+      expect.objectContaining({ credentials: 'include' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/analyses/headline',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      '/api/analyses/headline/headline-1',
+      expect.objectContaining({
+        headers: { 'X-Analysis-Access-Token': 'guest-job-token' },
+      }),
+    )
+  })
+
   it('로그인 Route에 일반 로그인 입력과 초대 안내를 표시한다', () => {
     renderApp('/login')
 
