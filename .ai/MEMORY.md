@@ -28,7 +28,7 @@
 - Local OAuth Callback: Naver `/oauth/naver`, Naver 연결 끊기 `/oauth/naver/disconnect`, Kakao `/oauth/kakao`, Google `/oauth/google`
 - Secret 입력 책임: Gemini API Key, Gmail App Password, OAuth Client Key·Secret은 사용자가 Local `.env`에 직접 입력
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
-- 현재 구현: Frontend Desktop 화면과 Backend 상태 기반 지원 언론사 펼침 목록, Backend 부트스트랩·기본 Security, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집 진입점, 기사 URL 안전 검증·Mock 본문 추출, 관련 단위·보안 Filter 테스트
+- 현재 구현: Frontend Desktop 화면과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
 - 프로젝트 구조·위험: `docs/agent/project-context.md`
 - Backend 구현 표준: `docs/agent/backend-development.md` (채택 기준, 업무 기능 구현 완료 아님)
@@ -36,12 +36,15 @@
 
 ## 현재 구현 경계
 
-- 요구사항에 정의된 분석·회원·공유·신고 Domain 구현은 아직 없음
-- 지원 언론사 외 JPA Entity·Repository·API Controller와 외부 AI·검색 연동은 아직 없음
+- 회원·공유·신고 Domain과 건강 분석 결과 영구 저장은 아직 없음
+- 실제 Gemini와 근거 검색 외부 연동은 아직 없음
 - 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
-- `backend` 설명에 언급된 Worker 구현은 아직 없음
+- 분석 작업 상태에는 회원·비회원 비식별 소유권 Key를 함께 저장하며 다른 소유자의 Polling 조회는 빈 결과로 처리
+- 건강 분석 HTTP Adapter는 비회원·회원 접수와 Polling을 Redis 작업 상태·결과에 연결하고 Queue 포화·Redis 장애를 `503`으로 처리
+- 건강 분석 Worker는 Redis Streams 최대 대기 20개, 전역 동시 실행 1개, 자동 재시도 없음, 90초 Deadline과 늦은 결과 폐기를 적용
+- Local 건강 분석은 외부 API를 호출하지 않는 Mock 분야 판별·구조화 결과 Port를 사용
 
 ## Deferred
 

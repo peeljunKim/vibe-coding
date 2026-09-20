@@ -68,6 +68,18 @@
 - 건강 분석 Use Case 분야 분기: PASS (관련 기사만 후속 Mock Port 전달, 비관련·판단 어려움은 사용자 안내 후 중단)
 - 공통 비동기 분석 작업 상태 머신: PASS (90초 기한, 실행 중 5분·종료 상태 30분 만료, 늦은 결과·상태 역전 차단, 읽기 무변경 Mock 검증)
 - Redis 작업 저장 Adapter와 실제 TTL·조건부 전환 검증: PASS (Docker Redis 8.8, 통합 테스트 7개, TTL·Version 전환·완료/실패 경쟁·장애 차단)
+- 건강 분야 판별 실패 이용량 정책: PASS (회원 5회·비회원 2회, 첫 실패 무료, 이후 차감, 한국시간 자정 만료, 회원·비회원 Key 분리, Redis 원자 처리)
+- 건강 분석 Use Case 이용량 연결: PASS (접수 전 Redis 확인, 비관련·판단 어려움만 실패 기록, 관련 기사는 실패 횟수 미기록)
+- 건강 이용량 식별 경계: PASS (회원 ID 단일 Key, 비회원 Cookie·날짜별 IP 이중 Key, HMAC 비식별화, 한국시간 날짜 전환)
+- 건강 이용량 Backend 단위 회귀: PASS (60개, 실패·오류·Skip 0; Redis IT 제외)
+- 건강 이용량 Docker Redis 8.8 통합 검증: PASS (작업 상태 8개·이용량 10개, Redis `TIME` 기준 TTL 검증 포함)
+- 분석 작업 소유권 Domain과 Application Polling 차단: PASS (회원·비회원 비식별 소유권 Key, 다른 소유자 조회 시 빈 결과)
+- Redis 작업 소유권 저장과 변경 차단: PASS (`analysis-job:v2`, 소유권 Hash 저장·복원, 상태 변경 중 소유권 변경 거절)
+- 건강 분석 비동기 HTTP 계약과 보안 Filter: PASS (비회원·회원 접수, CSRF, Cookie·작업 Token 전달, 진행 상태 조회, 동일 404, Port 미연결 503; Mock Application Port)
+- 건강 분석 Queue·Worker와 완료·실패 결과 API: PASS (Redis Streams 최대 20개, 전역 Worker 1개, 무재시도, 90초 Deadline, 소유권 Polling, 종료 결과 원자 저장, Queue·Redis 장애 503)
+- 건강 분석 Local Mock 연결: PASS (분야 판별·구조화 결과 Port, 외부 Gemini·검색 호출 없음, Spring Service·Worker Bean 조립)
+- 건강 분석 Docker Redis 8.8 통합 검증: PASS (24개, 작업 상태·종료 결과·Stream Queue·Worker Lease·이용량 Namespace)
+- 건강 분석 Backend 전체 회귀: PASS (Maven 83개, 실패·오류·Skip 0)
 - 지원·일시 중단·현재 미지원 언론사 웹 표시 정책: PASS
 - 지원 언론사 펼침 Figma Frame: PASS (`31:2`, `01-1 · 기능 선택 홈 · 지원 언론사 펼침`, 1440×1240)
 - 지원 언론사 펼침 인터랙션 정의: PASS (동일 버튼 토글, `접기`와 `Escape` 닫기, 닫은 뒤 트리거로 Focus 복귀)
@@ -90,18 +102,27 @@
 - 후보·일시 중단·미등록 Host의 외부 HTTP 전 차단: PASS
 - 언론사 도메인 Repository Native MySQL 통합 검증: PASS (MySQL 8.0.30, 언론사 상태 조인과 활성 별칭 조회)
 - Backend Maven 재검증: PASS (36개, 실패·오류·Skip 0)
-- 분석 접수 API의 DB 상태 기반 기사 수집 진입점 호출: NOT RUN (건강·제목 분석 Use Case 미구현)
+- 건강 분석 접수 API의 DB 상태 기반 기사 수집 진입점 호출: PASS (Worker에서 활성 언론사·URL 안전 검증·본문 추출·기사 분야 판별 연결)
+- 기사 제목 분석 접수 API와 Use Case: PASS (비회원·회원 소유권, 독립 5·10회 한도, 안전 기사 수집, 건강 분야 판별·근거 검색 생략, Mock 결과 Polling)
+- 기사 제목 분석 Redis Queue·이용량 통합 검증: PASS (전용 Namespace, 최대 20개, 단일 소비·무재시도, 한국시간 자정 만료)
+- 기사 제목 분석 Backend 전체 회귀: PASS (Maven 97개, 실패·오류·Skip 0)
+- PR 20 분석 작업 리뷰 보완: PASS (Queue 실패 정리, 로그인 후 비회원 Polling, 현재 이용량 응답, 차감 후 실패 정보, 명시적 Mock Provider, 예외 로그, Redis TTL 검사)
+- Redis 작업 Key Version 배포 경계: PASS (`analysis-job:v1` 소유권 자동 추정 금지, 이전 Version 호환 구현 또는 최대 종료 TTL 30분 Drain 선행)
+- PR 20 Docker Redis 통합 재검증: NOT RUN (Docker Desktop Linux Engine 미실행, Backend 단위·전체 회귀는 PASS)
+- 건강 분석 Local Full-stack HTTP E2E: PASS (Native MySQL 8.0.30, Docker Redis 8.8, Mock 분석, 비회원 CSRF·소유권, 완료·실패 Polling, Redis 장애 `503`)
+- Local Redis 실행 경계: PASS (Windows Native Redis `6379`와 Docker Redis `6380` 분리, `.env` 기준 Backend 연결, 무인증 거부·인증 성공·Actuator `UP` 확인)
 
 ## Next Loop
 
-1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
-3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-4. 분야 판별 실패 이용량 정책 구현
+1. 기사 제목 분석 Local Full-stack HTTP E2E와 Frontend 실제 API 연결
+2. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+3. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
+4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 
 ## Backend 표준화 상태
 
 - Backend 개발 표준과 Harness 연결·Docs 검증: PASS
+- AI Agent 외부 API·MCP 최소 호출 규칙: PASS (Local 근거 우선, Batch, 결과 재사용, 중복 호출·Quota 자동 재시도 금지)
 - Astra·Sol 협업 역할과 Local Custom Agent TOML 문법: PASS
 - 명시적 Sol 모델 호출을 통한 교차 검토: PASS
 - Custom Agent 파일 자동 로딩·실행: NOT RUN (별도 CLI Sandbox의 인증·연결 환경 제약)

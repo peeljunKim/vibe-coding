@@ -22,6 +22,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/publishers").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/analyses/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/analyses/health/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/analyses/headline").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/analyses/headline/*").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults())

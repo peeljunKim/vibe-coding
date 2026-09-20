@@ -2,6 +2,7 @@
 package com.newsverification.analysis.application;
 
 import com.newsverification.analysis.domain.AnalysisJob;
+import com.newsverification.analysis.domain.AnalysisJobOwner;
 import com.newsverification.analysis.domain.AnalysisJobStage;
 
 import java.time.Clock;
@@ -21,8 +22,8 @@ public class AnalysisJobLifecycleService {
     }
 
     /** 대기열 접수 작업 생성 */
-    public AnalysisJob accept(String jobId) {
-        AnalysisJob job = AnalysisJob.queued(jobId, clock.instant());
+    public AnalysisJob accept(String jobId, AnalysisJobOwner owner) {
+        AnalysisJob job = AnalysisJob.queued(jobId, owner, clock.instant());
         if (!store.create(job)) {
             throw new IllegalStateException("Analysis job already exists");
         }
@@ -48,8 +49,9 @@ public class AnalysisJobLifecycleService {
     }
 
     /** 상태와 TTL을 변경하지 않는 Polling 조회 */
-    public Optional<AnalysisJob> poll(String jobId) {
+    public Optional<AnalysisJob> poll(String jobId, AnalysisJobOwner owner) {
         return store.findById(jobId)
+                .filter(job -> job.owner().equals(owner))
                 .filter(job -> !job.isExpiredAt(clock.instant()));
     }
 

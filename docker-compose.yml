@@ -10,7 +10,7 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis-data:/data
       - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -22,7 +22,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "redis-cli -a $$REDIS_PASSWORD --no-auth-warning ping | grep PONG",
+          "redis-cli ping 2>&1 | grep -q '^NOAUTH ' && redis-cli -a $$REDIS_PASSWORD --no-auth-warning ping 2>/dev/null | grep -qx PONG",
         ]
       interval: 10s
       timeout: 5s

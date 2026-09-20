@@ -130,5 +130,11 @@ Backend는 `backend-development.md`의 관련 절을 적용한다. Astra·Sol �
 - Harness만으로 충분한 작업에는 Skill Context를 추가하지 않음
 - 완료 응답에는 변경 결과, 검증, 남은 Required만 기록하고 작업 과정 반복 생략
 - 이미 확인한 고정 사실은 경로로 참조하고 응답마다 재서술하지 않음
+- 외부 API·MCP 호출 전 Repository와 Local 명령으로 같은 사실을 확인할 수 있는지 먼저 검사
+- 외부 서비스의 여러 Node·Query·상태 확인은 지원되는 Batch 호출로 묶고 필요한 필드와 결과 크기만 요청
+- 같은 Task에서 받은 외부 API·MCP 결과는 대상 Version이나 외부 상태가 바뀌지 않았다면 재사용
+- 프로젝트 내부 API 구현·Localhost 검증·Mock·통합 테스트는 외부 호출로 간주하지 않음
+- Figma MCP는 대상 Node 확정 전 반복 탐색하지 않고 Rate Limit 발생 시 자동 재시도 대신 Screenshot·Export 요청으로 전환
+- 외부 작업 상태 확인은 즉시 반복 Polling 대신 도구의 대기 기능과 Backoff 사용
 
 모델 또는 추론 속도 변경에 의존하지 않는다.
