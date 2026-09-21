@@ -114,15 +114,17 @@
 - 기사 제목 분석 Frontend 실제 API 연결: PASS (클립보드 URL 접수, 2초 Polling, 결과 Route 이동, Browser Console 오류 0건)
 - 건강 분석 Frontend 실제 API 연결: PASS (클립보드 URL 접수, CSRF, 비회원 작업 Token, 단계 Polling, 완료 결과 Route 이동)
 - 건강 분석 Frontend Local Browser E2E: PASS (Native MySQL 8.0.30, Docker Redis, Mock 분석, 실제 지원 기사 추출, Runtime·Console warning/error 0건)
-- 건강 분석 Frontend 회귀 검증: PASS (Vitest 17개, TypeScript, ESLint, Vite Build)
+- 건강 분석 Frontend 실패·분야 중단 표시: PASS (Backend 오류 Code별 안전한 사용자 안내, 내부 Detail 비노출)
+- 건강 분석 취소 경쟁 방지: PASS (취소 뒤 늦게 도착한 완료 결과 폐기)
+- 건강 분석 자동 Browser E2E: PASS (설치된 Chrome, API Mock, 완료·새로고침·분야 중단·503·취소 4개 흐름)
+- 건강 분석 Frontend 회귀 검증: PASS (Vitest 20개, TypeScript, ESLint, Vite Build)
 - Local Redis 실행 경계: PASS (Windows Native Redis `6379`와 Docker Redis `6380` 분리, `.env` 기준 Backend 연결, 무인증 거부·인증 성공·Actuator `UP` 확인)
 
 ## Next Loop
 
-1. 건강 분석 Frontend의 실패·분야 판별 중단 상태와 자동 Browser E2E 회귀 보강
-2. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-3. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
-4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
+3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 
 ## Backend 표준화 상태
 

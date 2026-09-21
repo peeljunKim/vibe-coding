@@ -76,6 +76,12 @@ function App() {
         signal: controller.signal,
         onProgress: setHealthAnalysisData,
       })
+      if (
+        controller.signal.aborted ||
+        healthAnalysisController.current !== controller
+      ) {
+        return
+      }
       setHealthResultData(result)
       void navigate('/results/health')
     } catch (error) {

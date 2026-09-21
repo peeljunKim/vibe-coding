@@ -1,5 +1,11 @@
 // 데스크톱 화면 전환 검증
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -42,19 +48,20 @@ describe('App', () => {
   it('Backend 지원 상태를 펼치고 키보드로 다시 닫는다', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve([
-        { name: 'API 통신사', category: 'NEWS_AGENCY', status: 'ACTIVE' },
-        {
-          name: 'API 중단사',
-          category: 'HEALTH_MEDICAL',
-          status: 'TEMPORARILY_DISABLED',
-        },
-        {
-          name: 'API 후보사',
-          category: 'GENERAL_NEWSPAPER',
-          status: 'UNSUPPORTED',
-        },
-      ]),
+      json: () =>
+        Promise.resolve([
+          { name: 'API 통신사', category: 'NEWS_AGENCY', status: 'ACTIVE' },
+          {
+            name: 'API 중단사',
+            category: 'HEALTH_MEDICAL',
+            status: 'TEMPORARILY_DISABLED',
+          },
+          {
+            name: 'API 후보사',
+            category: 'GENERAL_NEWSPAPER',
+            status: 'UNSUPPORTED',
+          },
+        ]),
     })
     vi.stubGlobal('fetch', fetchMock)
     renderApp()
@@ -260,6 +267,143 @@ describe('App', () => {
     ).toBe('test-guest-health-token')
   })
 
+  it.each([
+    [
+      'ARTICLE_NOT_HEALTH_RELATED',
+      '건강·의학·보건 관련 기사로 확인되지 않았습니다.',
+    ],
+    [
+      'ARTICLE_TOPIC_UNCERTAIN',
+      '건강·의학·보건 관련 기사인지 확인하기 어렵습니다.',
+    ],
+  ])(
+    '%s 실패에는 내부 상세 대신 안전한 안내를 표시한다',
+    async (code, message) => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          readText: vi
+            .fn()
+            .mockResolvedValue('https://news.example.com/general-article'),
+        },
+      })
+      document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce({ ok: true })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                analysisId: 'health-failed-1',
+                deadlineAt: '2099-09-20T00:01:30Z',
+                pollAfterSeconds: 0,
+                guestAccessToken: 'test-guest-health-token',
+              }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                analysisId: 'health-failed-1',
+                status: 'FAILED',
+                stage: 'FAILED',
+                error: {
+                  code,
+                  detail: '내부 판별 상세 정보',
+                },
+              }),
+          }),
+      )
+      renderApp()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: '복사한 건강 기사 확인하기' }),
+      )
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(message)
+      expect(screen.queryByText('내부 판별 상세 정보')).not.toBeInTheDocument()
+    },
+  )
+
+  it('건강 분석 취소 뒤 늦게 도착한 완료 결과를 폐기한다', async () => {
+    const articleUrl = 'https://news.example.com/health-article'
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { readText: vi.fn().mockResolvedValue(articleUrl) },
+    })
+    document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+    let resolvePoll: ((response: unknown) => void) | undefined
+    const pollResponse = new Promise((resolve) => {
+      resolvePoll = resolve
+    })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'health-cancelled-1',
+            deadlineAt: '2099-09-20T00:01:30Z',
+            pollAfterSeconds: 0,
+            guestAccessToken: 'test-guest-health-token',
+          }),
+      })
+      .mockImplementationOnce(() => pollResponse)
+    vi.stubGlobal('fetch', fetchMock)
+    renderApp()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '복사한 건강 기사 확인하기' }),
+    )
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+
+    fireEvent.click(screen.getByRole('button', { name: '분석 취소' }))
+    resolvePoll?.({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          analysisId: 'health-cancelled-1',
+          status: 'COMPLETED',
+          stage: 'COMPLETED',
+          result: {
+            article: {
+              url: articleUrl,
+              title: '취소 뒤 도착한 기사',
+              publisher: '테스트 언론사',
+            },
+            analyzedAt: '2026-09-20T00:00:03Z',
+            claims: [
+              {
+                order: 1,
+                claim: '폐기되어야 할 건강 기사 주장',
+                status: 'INSUFFICIENT',
+                reason: '확인 가능한 외부 근거가 부족합니다.',
+                evidences: [],
+              },
+            ],
+          },
+        }),
+    })
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', {
+          name: '기사의 주장과 제목을 쉽게 확인해 보세요',
+        }),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByRole('heading', {
+        name: '폐기되어야 할 건강 기사 주장',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
   it('클립보드 기사 URL의 제목 분석을 완료하고 결과 화면으로 이동한다', async () => {
     const articleUrl = 'https://news.example.com/article'
     Object.defineProperty(navigator, 'clipboard', {
@@ -333,9 +477,7 @@ describe('App', () => {
       RequestInit | undefined,
     ]
     expect(
-      new Headers(headlinePollRequest?.headers).get(
-        'X-Analysis-Access-Token',
-      ),
+      new Headers(headlinePollRequest?.headers).get('X-Analysis-Access-Token'),
     ).toBe('test-guest-job-token')
   })
 
