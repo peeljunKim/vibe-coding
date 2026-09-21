@@ -112,11 +112,14 @@
 - 건강 분석 Local Full-stack HTTP E2E: PASS (Native MySQL 8.0.30, Docker Redis 8.8, Mock 분석, 비회원 CSRF·소유권, 완료·실패 Polling, Redis 장애 `503`)
 - 기사 제목 분석 Local Full-stack HTTP E2E: PASS (실제 지원 기사 URL, CSRF, Redis Streams Worker, 비회원 소유권, 완료 Polling, 이용량 차감)
 - 기사 제목 분석 Frontend 실제 API 연결: PASS (클립보드 URL 접수, 2초 Polling, 결과 Route 이동, Browser Console 오류 0건)
+- 건강 분석 Frontend 실제 API 연결: PASS (클립보드 URL 접수, CSRF, 비회원 작업 Token, 단계 Polling, 완료 결과 Route 이동)
+- 건강 분석 Frontend Local Browser E2E: PASS (Native MySQL 8.0.30, Docker Redis, Mock 분석, 실제 지원 기사 추출, Runtime·Console warning/error 0건)
+- 건강 분석 Frontend 회귀 검증: PASS (Vitest 17개, TypeScript, ESLint, Vite Build)
 - Local Redis 실행 경계: PASS (Windows Native Redis `6379`와 Docker Redis `6380` 분리, `.env` 기준 Backend 연결, 무인증 거부·인증 성공·Actuator `UP` 확인)
 
 ## Next Loop
 
-1. 건강·의학 뉴스 확인 Frontend의 실제 분석 API 연결과 Browser E2E
+1. 건강 분석 Frontend의 실패·분야 판별 중단 상태와 자동 Browser E2E 회귀 보강
 2. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 3. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
 4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대

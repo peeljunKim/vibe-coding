@@ -135,14 +135,26 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('건강 기사 확인을 시작하고 취소하면 홈으로 돌아온다', () => {
+  it('건강 기사 확인을 시작하고 취소하면 홈으로 돌아온다', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        readText: vi
+          .fn()
+          .mockResolvedValue('https://news.example.com/health-article'),
+      },
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => undefined)),
+    )
     renderApp()
 
     fireEvent.click(
       screen.getByRole('button', { name: '복사한 건강 기사 확인하기' }),
     )
     expect(
-      screen.getByRole('heading', {
+      await screen.findByRole('heading', {
         name: '기사의 근거를 확인하고 있습니다',
       }),
     ).toBeInTheDocument()
@@ -153,6 +165,99 @@ describe('App', () => {
         name: '기사의 주장과 제목을 쉽게 확인해 보세요',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('클립보드 건강 기사 URL의 분석을 완료하고 결과 화면으로 이동한다', async () => {
+    const articleUrl = 'https://news.example.com/health-article'
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { readText: vi.fn().mockResolvedValue(articleUrl) },
+    })
+    document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'health-1',
+            deadlineAt: '2099-09-20T00:01:30Z',
+            pollAfterSeconds: 0,
+            guestAccessToken: 'test-guest-health-token',
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'health-1',
+            status: 'PROCESSING',
+            stage: 'SEARCHING_EVIDENCE',
+            deadlineAt: '2099-09-20T00:01:30Z',
+            pollAfterSeconds: 0,
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'health-1',
+            status: 'COMPLETED',
+            stage: 'COMPLETED',
+            result: {
+              article: {
+                url: articleUrl,
+                title: '검증된 건강 기사 제목',
+                publisher: '테스트 언론사',
+                publishedAt: '2026-09-20T09:00:00+09:00',
+              },
+              analyzedAt: '2026-09-20T00:00:03Z',
+              overallStatus: 'CAUTION',
+              confirmationRate: 0,
+              confirmedClaimCount: 0,
+              totalClaimCount: 1,
+              claims: [
+                {
+                  order: 1,
+                  claim: '건강 기사 핵심 주장',
+                  status: 'INSUFFICIENT',
+                  reason: '확인 가능한 외부 근거가 부족합니다.',
+                  evidences: [],
+                },
+              ],
+              expertReviewStatus: 'NOT_REVIEWED',
+              limitedEvidence: true,
+            },
+          }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    renderApp()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '복사한 건강 기사 확인하기' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: '건강 기사 핵심 주장' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/analyses/health',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      '/api/analyses/health/health-1',
+      expect.objectContaining({ credentials: 'include' }),
+    )
+    const [, healthPollRequest] = fetchMock.mock.calls[2] as unknown as [
+      RequestInfo | URL,
+      RequestInit | undefined,
+    ]
+    expect(
+      new Headers(healthPollRequest?.headers).get('X-Analysis-Access-Token'),
+    ).toBe('test-guest-health-token')
   })
 
   it('클립보드 기사 URL의 제목 분석을 완료하고 결과 화면으로 이동한다', async () => {
@@ -171,7 +276,7 @@ describe('App', () => {
           Promise.resolve({
             analysisId: 'headline-1',
             pollAfterSeconds: 0,
-            guestAccessToken: 'guest-job-token',
+            guestAccessToken: 'test-guest-job-token',
           }),
       })
       .mockResolvedValueOnce({
@@ -221,10 +326,17 @@ describe('App', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       '/api/analyses/headline/headline-1',
-      expect.objectContaining({
-        headers: { 'X-Analysis-Access-Token': 'guest-job-token' },
-      }),
+      expect.objectContaining({ credentials: 'include' }),
     )
+    const [, headlinePollRequest] = fetchMock.mock.calls[2] as unknown as [
+      RequestInfo | URL,
+      RequestInit | undefined,
+    ]
+    expect(
+      new Headers(headlinePollRequest?.headers).get(
+        'X-Analysis-Access-Token',
+      ),
+    ).toBe('test-guest-job-token')
   })
 
   it('로그인 Route에 일반 로그인 입력과 초대 안내를 표시한다', () => {

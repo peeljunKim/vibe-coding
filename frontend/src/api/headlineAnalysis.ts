@@ -47,13 +47,13 @@ const acceptHeadlineAnalysis = async (
     throw new Error('분석을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.')
   }
 
+  const headers = new Headers()
+  headers.set('Content-Type', 'application/json')
+  headers.set('X-XSRF-TOKEN', csrfToken)
   const response = await fetch('/api/analyses/headline', {
     method: 'POST',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-XSRF-TOKEN': csrfToken,
-    },
+    headers,
     body: JSON.stringify({ articleUrl }),
   })
   if (!response.ok) {
@@ -76,9 +76,9 @@ const pollHeadlineAnalysis = async (
     await wait(pollAfterSeconds)
     const requestInit: RequestInit = { credentials: 'include' }
     if (accepted.guestAccessToken) {
-      requestInit.headers = {
-        'X-Analysis-Access-Token': accepted.guestAccessToken,
-      }
+      const headers = new Headers()
+      headers.set('X-Analysis-Access-Token', accepted.guestAccessToken)
+      requestInit.headers = headers
     }
     const response = await fetch(
       `/api/analyses/headline/${encodeURIComponent(accepted.analysisId)}`,

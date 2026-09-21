@@ -27,6 +27,8 @@ interface HomePageProps {
   onOpenSavedRecords: () => void
   isHeadlineAnalysisPending?: boolean
   headlineAnalysisError?: string | null
+  isHealthAnalysisPending?: boolean
+  healthAnalysisError?: string | null
   usage?: UsageViewData
 }
 
@@ -36,6 +38,8 @@ function HomePage({
   onOpenSavedRecords,
   isHeadlineAnalysisPending = false,
   headlineAnalysisError,
+  isHealthAnalysisPending = false,
+  healthAnalysisError,
   usage,
 }: HomePageProps) {
   const [isPublisherDirectoryOpen, setPublisherDirectoryOpen] = useState(false)
@@ -135,10 +139,18 @@ function HomePage({
             <button
               className="feature-card__button feature-card__button--health"
               type="button"
+              disabled={isHealthAnalysisPending}
               onClick={onStartHealthAnalysis}
             >
-              복사한 건강 기사 확인하기
+              {isHealthAnalysisPending
+                ? '건강 기사 확인 중'
+                : '복사한 건강 기사 확인하기'}
             </button>
+            {healthAnalysisError && (
+              <p className="feature-card__feedback" role="alert">
+                {healthAnalysisError}
+              </p>
+            )}
           </article>
 
           <article className="feature-card feature-card--title">
