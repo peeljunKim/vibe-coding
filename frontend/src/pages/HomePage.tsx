@@ -23,13 +23,23 @@ const publisherCategoryGroups = [
 
 interface HomePageProps {
   onStartHealthAnalysis: () => void
+  onStartHeadlineAnalysis: () => void
   onOpenSavedRecords: () => void
+  isHeadlineAnalysisPending?: boolean
+  headlineAnalysisError?: string | null
+  isHealthAnalysisPending?: boolean
+  healthAnalysisError?: string | null
   usage?: UsageViewData
 }
 
 function HomePage({
   onStartHealthAnalysis,
+  onStartHeadlineAnalysis,
   onOpenSavedRecords,
+  isHeadlineAnalysisPending = false,
+  headlineAnalysisError,
+  isHealthAnalysisPending = false,
+  healthAnalysisError,
   usage,
 }: HomePageProps) {
   const [isPublisherDirectoryOpen, setPublisherDirectoryOpen] = useState(false)
@@ -129,10 +139,18 @@ function HomePage({
             <button
               className="feature-card__button feature-card__button--health"
               type="button"
+              disabled={isHealthAnalysisPending}
               onClick={onStartHealthAnalysis}
             >
-              복사한 건강 기사 확인하기
+              {isHealthAnalysisPending
+                ? '건강 기사 확인 중'
+                : '복사한 건강 기사 확인하기'}
             </button>
+            {healthAnalysisError && (
+              <p className="feature-card__feedback" role="alert">
+                {healthAnalysisError}
+              </p>
+            )}
           </article>
 
           <article className="feature-card feature-card--title">
@@ -146,9 +164,18 @@ function HomePage({
             <button
               className="feature-card__button feature-card__button--title"
               type="button"
+              disabled={isHeadlineAnalysisPending}
+              onClick={onStartHeadlineAnalysis}
             >
-              복사한 기사 제목 확인하기
+              {isHeadlineAnalysisPending
+                ? '기사 제목 확인 중'
+                : '복사한 기사 제목 확인하기'}
             </button>
+            {headlineAnalysisError && (
+              <p className="feature-card__feedback" role="alert">
+                {headlineAnalysisError}
+              </p>
+            )}
           </article>
         </section>
 

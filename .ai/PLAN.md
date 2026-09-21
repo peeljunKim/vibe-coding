@@ -108,16 +108,23 @@
 - 기사 제목 분석 Backend 전체 회귀: PASS (Maven 97개, 실패·오류·Skip 0)
 - PR 20 분석 작업 리뷰 보완: PASS (Queue 실패 정리, 로그인 후 비회원 Polling, 현재 이용량 응답, 차감 후 실패 정보, 명시적 Mock Provider, 예외 로그, Redis TTL 검사)
 - Redis 작업 Key Version 배포 경계: PASS (`analysis-job:v1` 소유권 자동 추정 금지, 이전 Version 호환 구현 또는 최대 종료 TTL 30분 Drain 선행)
-- PR 20 Docker Redis 통합 재검증: NOT RUN (Docker Desktop Linux Engine 미실행, Backend 단위·전체 회귀는 PASS)
+- PR 20 Docker Redis 통합 재검증: PASS (Docker Redis 8.8, 분석 작업·건강·제목 Queue와 이용량 통합 테스트)
 - 건강 분석 Local Full-stack HTTP E2E: PASS (Native MySQL 8.0.30, Docker Redis 8.8, Mock 분석, 비회원 CSRF·소유권, 완료·실패 Polling, Redis 장애 `503`)
+- 기사 제목 분석 Local Full-stack HTTP E2E: PASS (실제 지원 기사 URL, CSRF, Redis Streams Worker, 비회원 소유권, 완료 Polling, 이용량 차감)
+- 기사 제목 분석 Frontend 실제 API 연결: PASS (클립보드 URL 접수, 2초 Polling, 결과 Route 이동, Browser Console 오류 0건)
+- 건강 분석 Frontend 실제 API 연결: PASS (클립보드 URL 접수, CSRF, 비회원 작업 Token, 단계 Polling, 완료 결과 Route 이동)
+- 건강 분석 Frontend Local Browser E2E: PASS (Native MySQL 8.0.30, Docker Redis, Mock 분석, 실제 지원 기사 추출, Runtime·Console warning/error 0건)
+- 건강 분석 Frontend 실패·분야 중단 표시: PASS (Backend 오류 Code별 안전한 사용자 안내, 내부 Detail 비노출)
+- 건강 분석 취소 경쟁 방지: PASS (취소 뒤 늦게 도착한 완료 결과 폐기)
+- 건강 분석 자동 Browser E2E: PASS (설치된 Chrome, API Mock, 완료·새로고침·분야 중단·503·취소 4개 흐름)
+- 건강 분석 Frontend 회귀 검증: PASS (Vitest 20개, TypeScript, ESLint, Vite Build)
 - Local Redis 실행 경계: PASS (Windows Native Redis `6379`와 Docker Redis `6380` 분리, `.env` 기준 Backend 연결, 무인증 거부·인증 성공·Actuator `UP` 확인)
 
 ## Next Loop
 
-1. 기사 제목 분석 Local Full-stack HTTP E2E와 Frontend 실제 API 연결
-2. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-3. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
-4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
+3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 
 ## Backend 표준화 상태
 

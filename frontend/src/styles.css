@@ -221,6 +221,19 @@ button:disabled {
   background: #17637a;
 }
 
+.feature-card__button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.feature-card__feedback {
+  max-width: 360px;
+  margin-top: 10px;
+  color: #b33b47;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .publisher-directory {
   display: flex;
   min-height: 108px;
