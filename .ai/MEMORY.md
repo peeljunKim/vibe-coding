@@ -27,6 +27,8 @@
 - Local OAuth: 서비스 기준 URL `http://localhost:8080`
 - Local OAuth Callback: Naver `/oauth/naver`, Naver 연결 끊기 `/oauth/naver/disconnect`, Kakao `/oauth/kakao`, Google `/oauth/google`
 - Secret 입력 책임: Gemini API Key, Gmail App Password, OAuth Client Key·Secret은 사용자가 Local `.env`에 직접 입력
+- 회원가입 이메일 발송: 기본 Profile은 Mock, `smtp`·`prod` Profile은 Gmail SMTP Adapter 사용
+- 미인증 일반 계정: 가입 후 7일 경과 시 일일 정리, 공개 중복 오류는 계정 정보 단일 코드 사용
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
 - 현재 구현: Frontend Desktop 화면과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
@@ -36,7 +38,7 @@
 
 ## 현재 구현 경계
 
-- 회원·공유·신고 Domain과 건강 분석 결과 영구 저장은 아직 없음
+- 일반 회원가입·이메일 인증 Domain은 구현됨; 로그인·소셜 가입·공유·신고 Domain과 건강 분석 결과 영구 저장은 아직 없음
 - 실제 Gemini와 근거 검색 외부 연동은 아직 없음
 - 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당

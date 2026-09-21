@@ -15,13 +15,13 @@
 | Module Structure | 단일 Repository 안의 독립 Frontend/Backend/Infrastructure 모듈, Root 통합 Build 도구 없음 |
 | Dependency Management | `frontend/package-lock.json`, `backend/pom.xml` |
 | Configuration | Root·Frontend `.env.example`, Spring `application.yml`/`application-prod.yml`, Docker Compose |
-| Architecture | 현재 코드는 React 단일 App과 Spring Boot 부트스트랩·Security 설정 수준 |
-| Domain Structure | 요구사항에는 건강 뉴스, 제목 확인, 회원, 기록, 공유, 신고가 있으나 Domain 코드는 아직 없음 |
-| Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 업무 Entity/Repository는 아직 없음 |
+| Architecture | React Page·API Adapter와 Spring Boot Domain별 API·Application·Infrastructure 계층 |
+| Domain Structure | 건강 뉴스·제목 확인·일반 회원가입과 이메일 인증 코드 존재; 로그인·소셜 가입·기록·공유·신고는 아직 미구현 |
+| Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 지원 언론사와 일반 회원 Entity·Repository 존재 |
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session, 3일 분석 Cache 설정 |
-| External Services | Gmail SMTP, Google/Kakao/Naver OAuth, Gemini·PubMed 환경 변수 자리만 존재; 실제 Provider 구현 없음 |
-| Authentication/Authorization | Spring Security, Cookie CSRF, Actuator 일부 공개, 나머지 요청 인증 필요; Domain 인증 흐름은 미구현 |
-| Testing | Vitest/Testing Library 1 test, JUnit/AssertJ 1 test; Playwright 전략은 확정됐으나 Config·E2E Test 없음 |
+| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock, PubMed 검색 Adapter 존재; Google/Kakao/Naver OAuth Provider 구현 없음 |
+| Authentication/Authorization | Spring Security, Cookie CSRF, 비로그인 일반 회원가입·이메일 인증과 Actuator 일부 공개; 로그인·소셜 인증 흐름은 미구현 |
+| Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
 | Monitoring | Actuator, Prometheus scrape, Grafana provisioning과 Dashboard |
 | CI/CD | GitHub Actions에서 Frontend lint/test/build, Backend verify, Compose config 검증; 배포 단계 없음 |
@@ -33,10 +33,9 @@
 
 ## 문서와 실제 구현 차이
 
-- README는 `backend`에 API와 내부 Worker가 있다고 설명하지만 현재 Worker 구현은 없음
 - README와 CI는 Maven Wrapper 실행 파일을 사용하지만 현재 `mvnw`와 `mvnw.cmd`는 없고 Wrapper JAR와 속성만 있음
-- Frontend `package.json`에는 E2E 명령이 있으나 Playwright 설정과 E2E 테스트 파일은 없음
-- JPA, Redis, OAuth, Mail, Testcontainers 의존성은 존재하지만 대부분의 Domain 사용 코드는 아직 없음
+- Frontend Playwright 설정과 E2E 시나리오는 존재하며 외부 Provider 실제 연동은 별도 Smoke 검증이 필요함
+- 건강·제목 분석 Worker와 JPA·Redis·Mail Adapter는 존재하지만 OAuth 로그인 구현은 아직 없음
 - Local Schema 작업은 Windows Service 전용 MySQL 8.0.30 Client를 사용하며 Scoop 기본 Client 9.7.1은 사용하지 않음
 
 ## 확정된 Prototype 결정
@@ -91,8 +90,8 @@
 
 ## Inferred
 
-- 현재는 기능 개발 전 Project Scaffold 단계로 보임
-- Spring Package 계층과 Domain 경계는 구현 사례가 부족해 아직 규칙으로 확정할 수 없음
+- 현재는 건강·제목 분석, 지원 언론사, 일반 회원가입 Vertical Slice가 구현된 MVP 기능 개발 단계로 보임
+- Spring Package는 Domain별 API·Application·Infrastructure 계층을 반복 사용하며 세부 규칙은 Backend 개발 표준을 따름
 
 ## Required
 
@@ -120,7 +119,7 @@
 
 | 위험 | 실제 근거 | Guardrail |
 | --- | --- | --- |
-| 요구사항과 구현 혼동 | 상세 요구사항 대비 Scaffold 코드만 존재 | 계획에서 `요구됨`과 `구현됨`을 분리 |
+| 요구사항과 구현 혼동 | 일부 Vertical Slice와 미구현 인증·기록·신고 범위가 함께 존재 | 계획에서 `요구됨`과 `구현됨`을 분리 |
 | 두 분석 기능 정책 혼합 | 이용량·Cache·저장 정책이 기능별로 다름 | API, Cache key, 이용량, 테스트를 기능별 분리 |
 | SSRF와 추출 비용 | 외부 기사 URL 수집, Redirect와 DNS 검사 요구 | AI 호출 전 URL·Host·IP·Port·Redirect·크기·시간 검증 |
 | 의료 정보 과단정 | 고정 상태·출처·전문가 미검토 문구 요구 | AI 자유 판정 금지, 구조 검증, 출처 재검증, 경고 문구 보호 |
@@ -131,7 +130,7 @@
 | 무료 AI 데이터 처리 | Gemini 무료 등급을 Prototype에 사용 | 공개 기사·허용 근거만 전송하고 개인정보·기밀정보 차단 |
 | 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |
 | Blue/Green Schema 충돌 | 두 Application Version이 동일 DB 사용 | Traffic 전환 전 양쪽 Version 호환 Migration 검증 |
-| 선언된 검증과 실행 차이 | Wrapper launcher 부재, E2E 설정 부재 | 실행 가능성 먼저 확인하고 `NOT RUN`과 도구 실패를 구분 |
+| 선언된 검증과 실행 차이 | Wrapper launcher 부재, 외부 Provider Smoke 미실행 | 실행 가능성 먼저 확인하고 `NOT RUN`과 도구 실패를 구분 |
 | Harness 비추적 | Local Markdown 제외 요청과 CI의 Harness 문서 의존 | `AGENTS.md`, `.ai`, `docs/agent`, 연결된 Architecture 문서를 명시적으로 Git 추적 |
 
 ## Harness Architecture

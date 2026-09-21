@@ -1,4 +1,4 @@
-# Native MySQL 지원 언론사 Repository 통합 테스트 실행
+# Native MySQL 지원 언론사와 회원가입 Repository 통합 테스트 실행
 [CmdletBinding()]
 param()
 
@@ -116,7 +116,7 @@ try {
     Push-Location $backendRoot
     try {
         & $javaPath "-Dmaven.multiModuleProjectDirectory=$backendRoot" '-classpath' $wrapperJar `
-            'org.apache.maven.wrapper.MavenWrapperMain' '-q' '-Dtest=NewsPublisherRepositoryIT' 'test'
+            'org.apache.maven.wrapper.MavenWrapperMain' '-q' '-Dtest=NewsPublisherRepositoryIT,SignupAccountStoreIT' 'test'
         if ($LASTEXITCODE -ne 0) {
             throw "Publisher Native MySQL integration test failed with exit code $LASTEXITCODE"
         }
@@ -125,7 +125,7 @@ try {
         Pop-Location
     }
 
-    Write-Host '[PASS] Publisher Repository Native MySQL integration test'
+    Write-Host '[PASS] Publisher and signup account Native MySQL integration tests'
 }
 finally {
     foreach ($name in $environmentNames) {

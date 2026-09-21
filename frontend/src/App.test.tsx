@@ -605,7 +605,33 @@ describe('App', () => {
     expect(screen.getByLabelText('처리 상태')).toHaveValue('확인 전')
   })
 
-  it('로그인에서 회원가입 완료까지 화면을 이동한다', () => {
+  it('로그인에서 회원가입 API와 이메일 인증 API를 거쳐 완료 화면으로 이동한다', async () => {
+    document.cookie = 'XSRF-TOKEN=signup-test-csrf; path=/'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            userId: 42,
+            username: 'healthcheck26',
+            email: 'user@example.com',
+            remainingAttempts: 5,
+            resendAvailableInSeconds: 60,
+          }),
+      })
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            userId: 42,
+            username: 'healthcheck26',
+            email: 'user@example.com',
+          }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
     renderApp('/login')
 
     fireEvent.click(
@@ -633,9 +659,9 @@ describe('App', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /이메일/ }), {
       target: { value: 'user@example.com' },
     })
-    fireEvent.change(screen.getByRole('textbox', { name: /휴대전화 번호/ }), {
-      target: { value: '010-1234-5678' },
-    })
+    const phoneInput = screen.getByRole('textbox', { name: /휴대전화 번호/ })
+    fireEvent.input(phoneInput, { target: { value: '01012345678' } })
+    expect(phoneInput).toHaveValue('010-1234-5678')
     fireEvent.click(
       screen.getByRole('checkbox', {
         name: '개인정보 처리와 서비스 이용약관에 동의합니다.',
@@ -643,7 +669,7 @@ describe('App', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: '다음: 이메일 인증' }))
     expect(
-      screen.getByRole('heading', {
+      await screen.findByRole('heading', {
         name: 'user@example.com으로 6자리 인증번호를 보냈습니다',
       }),
     ).toBeInTheDocument()
@@ -655,12 +681,28 @@ describe('App', () => {
     }
     fireEvent.click(screen.getByRole('button', { name: '인증번호 확인' }))
     expect(
-      screen.getByRole('heading', { name: '회원가입이 완료되었습니다' }),
+      await screen.findByRole('heading', {
+        name: '회원가입이 완료되었습니다',
+      }),
     ).toBeInTheDocument()
     expect(screen.getByText('healthcheck26')).toBeInTheDocument()
     expect(screen.getByText('user@example.com')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '로그인하러 가기' }))
     expect(screen.getByRole('heading', { name: '로그인' })).toBeInTheDocument()
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/csrf', {
+      credentials: 'include',
+    })
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/signup',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      '/api/signup/email-verification',
+      expect.objectContaining({ method: 'POST' }),
+    )
   })
 })

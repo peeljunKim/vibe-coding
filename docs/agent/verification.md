@@ -22,7 +22,7 @@ pwsh -NoProfile -File scripts/agent/verify-native-mysql.ps1
 # Native MySQL 테스트 Database와 제한 계정 최초 구성
 pwsh -NoProfile -File scripts/agent/setup-native-mysql-test.ps1
 
-# 지원 언론사 Repository 실제 MySQL 통합 테스트 재실행
+# 지원 언론사와 회원가입 Repository 실제 MySQL 통합 테스트 재실행
 pwsh -NoProfile -File scripts/agent/verify-publisher-native-mysql.ps1
 
 # 테스트 Database 지원 언론사 초기 데이터 적용과 검증
