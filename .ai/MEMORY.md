@@ -36,7 +36,7 @@
 
 ## 현재 구현 경계
 
-- 회원·공유·신고 Domain과 건강 분석 결과 영구 저장은 아직 없음
+- 일반 회원가입·이메일 인증 Domain은 구현됨; 로그인·소셜 가입·공유·신고 Domain과 건강 분석 결과 영구 저장은 아직 없음
 - 실제 Gemini와 근거 검색 외부 연동은 아직 없음
 - 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당

@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /** Publisher 통합 테스트 전용 연결값 검증 */
-final class NativeMySqlTestConnectionGuard {
+public final class NativeMySqlTestConnectionGuard {
 
     private static final Map<String, String> ALLOWED_QUERY_PARAMETERS = Map.of(
             "useUnicode", "true",
@@ -19,7 +19,7 @@ final class NativeMySqlTestConnectionGuard {
     }
 
     /** Process 환경 변수 기반 연결값 검증 */
-    static Settings fromEnvironment() {
+    public static Settings fromEnvironment() {
         return validate(System.getenv());
     }
 
@@ -105,7 +105,7 @@ final class NativeMySqlTestConnectionGuard {
         return value;
     }
 
-    record Settings(String databaseUrl, String username, String password) {
+    public record Settings(String databaseUrl, String username, String password) {
 
         @Override
         public String toString() {

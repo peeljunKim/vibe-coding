@@ -33,7 +33,7 @@
 - Figma Design Context 재조회: NOT RUN (Figma Starter MCP 호출 한도)
 - Provider 공식 OAuth 버튼 Asset과 Backend 로그인 시작 URL: PASS
 - OAuth Callback과 실제 Provider 연동: NOT RUN
-- 일반 로그인·도움말·계정 찾기·회원가입 Backend 연결: NOT RUN
+- 일반 로그인·도움말·계정 찾기 Backend 연결: NOT RUN (일반 회원가입·이메일 인증은 아래 Vertical Slice 참조)
 - Browser Runtime과 Console 오류 확인: PASS
 - Browser 회원가입 단계 전환: PASS
 - 실행 코드의 화면 더미 데이터 제거와 화면별 입력 모델 정의: PASS
@@ -123,7 +123,7 @@
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-2. 관련 Backend 기능 구현 후 저장·삭제·신고·인증 동작 연결
+2. 일반 로그인과 남은 저장·삭제·신고·인증 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 
 ## Backend 표준화 상태
@@ -148,6 +148,28 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Local Database와 애플리케이션 계정 설정: Git에서 제외된 `.env`
 - Root 인증 저장: 사용하지 않음
 - 초기 Schema와 JPA 기동 재검증: `scripts/agent/verify-native-mysql.ps1`
+
+## 일반 회원가입과 이메일 인증 Vertical Slice
+
+- 초대 코드·일반 계정 입력 API와 미인증 계정 생성: PASS
+- 환경별 공용 초대 코드 5개 검증과 검증 완료 시각 기록: PASS
+- 비밀번호 적응형 단방향 Hash와 민감 Request 문자열 마스킹: PASS
+- Redis 6자리 인증번호 Digest, 24시간 TTL, 1분 재발송, 하루 5회, 실패 5회·30분 제한: PASS
+- 이메일 인증 완료와 `PENDING_EMAIL` → `ACTIVE` 전환: PASS
+- 실제 Gmail 호출 없는 교체 가능 발송 Port와 Local Mock: PASS
+- 비로그인 회원가입 3개 POST 경로와 CSRF 유지: PASS
+- 가입 중 Session 소유권과 활성 계정 인증 재호출 개인정보 반환 차단: PASS
+- Redis 발급·발송 실패 시 미인증 계정과 인증 상태 보상 정리: PASS
+- Frontend 회원가입 1·2·3단계 API 연결과 재발송 Countdown: PASS
+- Frontend 휴대전화 번호 자동 하이픈 적용: PASS
+- Backend 단위·MVC 회귀: PASS (12개, 실패·오류·Skip 0)
+- Backend 전체 회귀: PASS (120개, 실패·오류·Skip 0; `*IT` 제외)
+- Frontend Test·Lint·TypeScript·Build: PASS (20개)
+- Docker Redis 8.8 이메일 인증 통합 테스트: PASS (3개, 평문 미저장·TTL·실패 제한·재발송 무효화)
+- Chrome 회원가입 Browser E2E: PASS (API Mock, Runtime·Console 오류 0건)
+- Native MySQL 회원가입 Repository 통합 테스트 소스와 Harness 연결: PASS
+- Native MySQL 회원가입 Repository 실제 실행: NOT RUN (현재 Agent Process에 테스트 계정 비밀번호 없음)
+- 실제 Gmail SMTP 발송: NOT RUN (이번 범위는 Mock Adapter)
 
 ## PR 16 보완 작업
 

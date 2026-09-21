@@ -15,13 +15,13 @@
 | Module Structure | 단일 Repository 안의 독립 Frontend/Backend/Infrastructure 모듈, Root 통합 Build 도구 없음 |
 | Dependency Management | `frontend/package-lock.json`, `backend/pom.xml` |
 | Configuration | Root·Frontend `.env.example`, Spring `application.yml`/`application-prod.yml`, Docker Compose |
-| Architecture | 현재 코드는 React 단일 App과 Spring Boot 부트스트랩·Security 설정 수준 |
-| Domain Structure | 요구사항에는 건강 뉴스, 제목 확인, 회원, 기록, 공유, 신고가 있으나 Domain 코드는 아직 없음 |
-| Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 업무 Entity/Repository는 아직 없음 |
+| Architecture | React Page·API Adapter와 Spring Boot Domain별 API·Application·Infrastructure 계층 |
+| Domain Structure | 건강 뉴스·제목 확인·일반 회원가입과 이메일 인증 코드 존재; 로그인·소셜 가입·기록·공유·신고는 아직 미구현 |
+| Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 지원 언론사와 일반 회원 Entity·Repository 존재 |
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session, 3일 분석 Cache 설정 |
 | External Services | Gmail SMTP, Google/Kakao/Naver OAuth, Gemini·PubMed 환경 변수 자리만 존재; 실제 Provider 구현 없음 |
-| Authentication/Authorization | Spring Security, Cookie CSRF, Actuator 일부 공개, 나머지 요청 인증 필요; Domain 인증 흐름은 미구현 |
-| Testing | Vitest/Testing Library 1 test, JUnit/AssertJ 1 test; Playwright 전략은 확정됐으나 Config·E2E Test 없음 |
+| Authentication/Authorization | Spring Security, Cookie CSRF, 비로그인 일반 회원가입·이메일 인증과 Actuator 일부 공개; 로그인·소셜 인증 흐름은 미구현 |
+| Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
 | Monitoring | Actuator, Prometheus scrape, Grafana provisioning과 Dashboard |
 | CI/CD | GitHub Actions에서 Frontend lint/test/build, Backend verify, Compose config 검증; 배포 단계 없음 |

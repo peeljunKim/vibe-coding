@@ -225,7 +225,7 @@ function Invoke-SecretValueVerification {
     }
 
     $binaryExtensions = @('.jar', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.pdf', '.zip', '.gz', '.woff', '.woff2')
-    $assignmentPattern = '(?im)^[ \t]*["'']?(?<name>[A-Z][A-Z0-9_.-]*(?:API_KEY|CLIENT_SECRET|APP_PASSWORD|ACCESS_TOKEN|PRIVATE_KEY|SECRET|PASSWORD|TOKEN)|(?:api[-_.]?key|client[-_.]?secret|app[-_.]?password))["'']?[ \t]*[:=][ \t]*["'']?(?<value>[^"'' \t\r\n,#}]+)'
+    $assignmentPattern = '(?im)^[ \t]*["'']?(?<name>(?:[A-Z][A-Z0-9_.-]*)?(?:API_KEY|CLIENT_SECRET|APP_PASSWORD|ACCESS_TOKEN|PRIVATE_KEY|SECRET|PASSWORD|TOKEN)|(?:api[-_.]?key|client[-_.]?secret|app[-_.]?password))["'']?[ \t]*[:=][ \t]*(?<quote>["'']?)(?<value>[^"'' \t\r\n,#}]+)'
     $knownSecretPatterns = @(
         'AIza[0-9A-Za-z_-]{35}',
         'AKIA[0-9A-Z]{16}',
@@ -255,7 +255,14 @@ function Invoke-SecretValueVerification {
 
         foreach ($match in [regex]::Matches($content, $assignmentPattern)) {
             $value = $match.Groups['value'].Value
-            if ($value -notmatch '^(\$\{|replace-with-|<|example|dummy|test|\.\.\.)') {
+            $sourceExtensions = @('.java', '.ts', '.tsx', '.js', '.jsx')
+            $isSourceFile = [IO.Path]::GetExtension($candidatePath).ToLowerInvariant() -in $sourceExtensions
+            $unquotedSourceValue = $match.Groups['quote'].Value.Length -eq 0 -and (
+                $value -match '^(?:String|string|number|boolean)(?:[;?,]|$)' -or
+                $value -match '^[A-Za-z_$][A-Za-z0-9_$.]*(?:\(|[;?,]|$)'
+            )
+            if ($value -notmatch '^(\$\{|replace-with-|<|example|dummy|test|\.\.\.)' -and
+                    -not ($isSourceFile -and $unquotedSourceValue)) {
                 [void]$detectedPaths.Add($candidatePath)
             }
         }
