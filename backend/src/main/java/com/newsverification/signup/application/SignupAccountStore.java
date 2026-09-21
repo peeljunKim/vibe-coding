@@ -15,6 +15,8 @@ public interface SignupAccountStore {
 
     void deletePending(long userId);
 
+    int deletePendingCreatedBefore(Instant cutoff);
+
     record NewAccount(
             String username,
             String passwordHash,

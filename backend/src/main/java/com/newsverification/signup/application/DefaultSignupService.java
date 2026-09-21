@@ -1,6 +1,8 @@
 /* 일반 회원가입 Use Case */
 package com.newsverification.signup.application;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.nio.charset.StandardCharsets;
@@ -12,6 +14,8 @@ import java.util.Objects;
 
 /** 초대 검증과 이메일 인증 기반 계정 활성화 */
 public class DefaultSignupService implements SignupService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultSignupService.class);
 
     private final List<String> inviteCodes;
     private final SignupAccountStore accountStore;
@@ -81,7 +85,7 @@ public class DefaultSignupService implements SignupService {
             throw verificationFailure(result);
         }
         account = accountStore.activate(command.userId(), clock.instant());
-        verificationStore.consume(command.userId());
+        consumeAfterActivation(command.userId());
         return new CompletedSignup(account.id(), account.username(), account.email());
     }
 
@@ -142,6 +146,18 @@ public class DefaultSignupService implements SignupService {
             verificationStore.consume(userId);
         } catch (RuntimeException cleanupFailure) {
             originalFailure.addSuppressed(cleanupFailure);
+        }
+    }
+
+    private void consumeAfterActivation(long userId) {
+        try {
+            verificationStore.consume(userId);
+        } catch (RuntimeException exception) {
+            LOGGER.warn(
+                    "Email verification state cleanup failed after account activation. userId={} cause={}",
+                    userId,
+                    exception.getClass().getSimpleName()
+            );
         }
     }
 }

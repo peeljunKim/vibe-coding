@@ -81,6 +81,24 @@ class DefaultSignupServiceTest {
         assertThat(verifications.consumed).isTrue();
     }
 
+    /** 계정 활성화 후 Redis 정리 실패의 가입 완료 유지 */
+    @Test
+    void completesVerificationWhenCodeCleanupFailsAfterActivation() {
+        var accounts = new FakeAccountStore();
+        accounts.account = new SignupAccountStore.Account(42L, "health26", "user@example.com", false);
+        var verifications = new FakeVerificationStore();
+        verifications.result = EmailVerificationStore.VerificationResult.VERIFIED;
+        verifications.consumeFailure = new IllegalStateException("redis unavailable");
+        var service = service(accounts, verifications, new FakeCodeSender());
+
+        SignupService.CompletedSignup completed = service.verifyEmail(
+                new SignupService.VerifyCommand(42L, "482916")
+        );
+
+        assertThat(completed.userId()).isEqualTo(42L);
+        assertThat(accounts.account.active()).isTrue();
+    }
+
     /** 활성 계정의 인증 재호출 개인정보 반환 차단 */
     @Test
     void rejectsVerificationReplayForActiveAccount() {
@@ -159,6 +177,11 @@ class DefaultSignupServiceTest {
             deletedUserId = userId;
             account = null;
         }
+
+        @Override
+        public int deletePendingCreatedBefore(Instant cutoff) {
+            return 0;
+        }
     }
 
     private static final class FakeVerificationStore implements EmailVerificationStore {
@@ -166,6 +189,7 @@ class DefaultSignupServiceTest {
         private VerificationResult result = VerificationResult.VERIFIED;
         private boolean consumed;
         private RuntimeException issueFailure;
+        private RuntimeException consumeFailure;
 
         @Override
         public IssueResult issue(long userId, String code) {
@@ -183,6 +207,9 @@ class DefaultSignupServiceTest {
 
         @Override
         public void consume(long userId) {
+            if (consumeFailure != null) {
+                throw consumeFailure;
+            }
             consumed = true;
         }
     }

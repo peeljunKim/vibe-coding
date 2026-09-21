@@ -2,14 +2,15 @@
 package com.newsverification.signup.infrastructure;
 
 import com.newsverification.signup.domain.UserAccount;
+import com.newsverification.signup.domain.UserAccount.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.time.Instant;
 
 /** 가입 중복 검사와 계정 조회 */
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
 
-    boolean existsByUsername(String username);
+    boolean existsByUsernameOrEmailOrPhoneNumber(String username, String email, String phoneNumber);
 
-    boolean existsByEmail(String email);
-
-    boolean existsByPhoneNumber(String phoneNumber);
+    int deleteByStatusAndCreatedAtBefore(UserStatus status, Instant cutoff);
 }

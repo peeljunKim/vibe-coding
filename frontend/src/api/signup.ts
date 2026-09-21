@@ -27,10 +27,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVALID_INVITE_CODE: '초대 코드를 확인해 주세요.',
   PASSWORD_CONFIRMATION_MISMATCH: '비밀번호 확인 값이 일치하지 않습니다.',
   AGREEMENTS_REQUIRED: '개인정보 처리와 서비스 이용약관 동의가 필요합니다.',
-  USERNAME_ALREADY_EXISTS: '이미 사용 중인 사용자 아이디입니다.',
-  EMAIL_ALREADY_EXISTS: '이미 등록된 이메일입니다.',
-  PHONE_ALREADY_EXISTS: '이미 등록된 번호입니다.',
-  DUPLICATE_ACCOUNT: '이미 등록된 계정 정보입니다.',
+  DUPLICATE_ACCOUNT: '이미 사용 중인 계정 정보가 있습니다.',
   INVALID_VERIFICATION_CODE: '인증번호를 확인해 주세요.',
   VERIFICATION_EXPIRED: '인증번호가 만료되었습니다. 다시 발급해 주세요.',
   VERIFICATION_BLOCKED:

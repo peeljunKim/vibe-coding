@@ -171,6 +171,20 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Native MySQL 회원가입 Repository 실제 실행: NOT RUN (현재 Agent Process에 테스트 계정 비밀번호 없음)
 - 실제 Gmail SMTP 발송: NOT RUN (이번 범위는 Mock Adapter)
 
+## PR 22 CodeRabbit 보완
+
+- 기본 Profile Mock과 `smtp`·`prod` Gmail SMTP Adapter 분리: PASS
+- Gmail 발송 메시지 구성 단위 테스트: PASS (실제 SMTP 호출 없음)
+- 가입 후 7일 경과 미인증 계정 일일 정리: PASS
+- 계정 활성화 후 Redis 인증 상태 정리 실패의 완료 응답 유지: PASS
+- 아이디·이메일·휴대전화 번호 중복의 단일 공개 오류: PASS
+- 오래된 Project Discovery 구현 상태 정정: PASS
+- Backend 전체 Test·Package: PASS (124개, 실패·오류·Skip 0)
+- Frontend Test·Lint·TypeScript·Build: PASS (20개)
+- 변경 범위 Harness·Secret 후보·Diff 공백 검사: PASS
+- 실제 Gmail SMTP Smoke: NOT RUN (사용자 자격 증명과 별도 실행 승인 필요)
+- Native MySQL 만료 계정 정리·중복 통합 테스트: NOT RUN (현재 Agent Process에 테스트 계정 비밀번호 없음)
+
 ## PR 16 보완 작업
 
 - Task Understanding: 리뷰 8건의 중복을 합친 7개 항목과 사용자 승인 초기 Schema 통합

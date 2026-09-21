@@ -97,7 +97,7 @@ class SignupAccountStoreIT {
                 "01033334444",
                 now
         ))).isInstanceOf(SignupException.class)
-                .hasMessage("USERNAME_ALREADY_EXISTS");
+                .hasMessage("DUPLICATE_ACCOUNT");
     }
 
     /** 미인증 계정만 보상 삭제하는 경계 검증 */

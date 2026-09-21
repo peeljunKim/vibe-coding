@@ -2,6 +2,7 @@
 package com.newsverification.signup.api;
 
 import com.newsverification.config.SecurityConfig;
+import com.newsverification.signup.application.SignupException;
 import com.newsverification.signup.application.SignupService;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.BeforeEach;
@@ -163,6 +164,30 @@ class SignupControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isForbidden());
+    }
+
+    /** 계정 중복 항목을 구분하지 않는 공개 오류 */
+    @Test
+    void returnsGenericConflictForDuplicateAccountData() throws Exception {
+        when(signupService.register(any())).thenThrow(new SignupException("DUPLICATE_ACCOUNT"));
+
+        mockMvc.perform(post("/api/signup")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "inviteCode":"INVITE-2026",
+                                  "username":"health26",
+                                  "password":"test-Password23!",
+                                  "passwordConfirm":"test-Password23!",
+                                  "email":"user@example.com",
+                                  "phoneNumber":"010-1234-5678",
+                                  "agreementsAccepted":true
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_ACCOUNT"))
+                .andExpect(jsonPath("$.detail").value("이미 사용 중인 계정 정보가 있습니다."));
     }
 
     /** 민감 가입 입력의 문자열 노출 차단 */

@@ -63,15 +63,20 @@ public class JpaSignupAccountStore implements SignupAccountStore {
                 .ifPresent(repository::delete);
     }
 
+    /** 가입 후 7일이 지난 미인증 계정 정리 */
+    @Override
+    @Transactional
+    public int deletePendingCreatedBefore(Instant cutoff) {
+        return repository.deleteByStatusAndCreatedAtBefore(UserAccount.UserStatus.PENDING_EMAIL, cutoff);
+    }
+
     private void rejectDuplicate(NewAccount account) {
-        if (repository.existsByUsername(account.username())) {
-            throw new SignupException("USERNAME_ALREADY_EXISTS");
-        }
-        if (repository.existsByEmail(account.email())) {
-            throw new SignupException("EMAIL_ALREADY_EXISTS");
-        }
-        if (repository.existsByPhoneNumber(account.phoneNumber())) {
-            throw new SignupException("PHONE_ALREADY_EXISTS");
+        if (repository.existsByUsernameOrEmailOrPhoneNumber(
+                account.username(),
+                account.email(),
+                account.phoneNumber()
+        )) {
+            throw new SignupException("DUPLICATE_ACCOUNT");
         }
     }
 

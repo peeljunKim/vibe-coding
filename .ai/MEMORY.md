@@ -27,6 +27,8 @@
 - Local OAuth: 서비스 기준 URL `http://localhost:8080`
 - Local OAuth Callback: Naver `/oauth/naver`, Naver 연결 끊기 `/oauth/naver/disconnect`, Kakao `/oauth/kakao`, Google `/oauth/google`
 - Secret 입력 책임: Gemini API Key, Gmail App Password, OAuth Client Key·Secret은 사용자가 Local `.env`에 직접 입력
+- 회원가입 이메일 발송: 기본 Profile은 Mock, `smtp`·`prod` Profile은 Gmail SMTP Adapter 사용
+- 미인증 일반 계정: 가입 후 7일 경과 시 일일 정리, 공개 중복 오류는 계정 정보 단일 코드 사용
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
 - 현재 구현: Frontend Desktop 화면과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`

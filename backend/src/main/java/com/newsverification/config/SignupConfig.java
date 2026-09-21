@@ -3,17 +3,22 @@ package com.newsverification.config;
 
 import com.newsverification.signup.application.DefaultSignupService;
 import com.newsverification.signup.application.EmailVerificationStore;
+import com.newsverification.signup.application.PendingSignupCleanupService;
 import com.newsverification.signup.application.SignupAccountStore;
 import com.newsverification.signup.application.SignupService;
 import com.newsverification.signup.application.VerificationCodeGenerator;
 import com.newsverification.signup.application.VerificationCodeSender;
+import com.newsverification.signup.infrastructure.GmailVerificationCodeSender;
 import com.newsverification.signup.infrastructure.MockVerificationCodeSender;
 import com.newsverification.signup.infrastructure.RedisEmailVerificationStore;
 import com.newsverification.signup.infrastructure.SecureVerificationCodeGenerator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -21,8 +26,9 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.util.List;
 
-/** 실제 DB·Redis와 외부 호출 없는 이메일 Mock 연결 */
+/** 일반 회원가입과 이메일 발송 연결 */
 @Configuration
+@EnableScheduling
 public class SignupConfig {
 
     @Bean
@@ -36,8 +42,18 @@ public class SignupConfig {
     }
 
     @Bean
-    VerificationCodeSender verificationCodeSender() {
+    @Profile("!prod & !smtp")
+    VerificationCodeSender mockVerificationCodeSender() {
         return new MockVerificationCodeSender();
+    }
+
+    @Bean
+    @Profile({"prod", "smtp"})
+    VerificationCodeSender gmailVerificationCodeSender(
+            JavaMailSender mailSender,
+            @Value("${MAIL_FROM:${spring.mail.username:}}") String senderEmail
+    ) {
+        return new GmailVerificationCodeSender(mailSender, senderEmail);
     }
 
     @Bean
@@ -74,5 +90,13 @@ public class SignupConfig {
                 passwordEncoder,
                 clock
         );
+    }
+
+    @Bean
+    PendingSignupCleanupService pendingSignupCleanupService(
+            SignupAccountStore accountStore,
+            Clock clock
+    ) {
+        return new PendingSignupCleanupService(accountStore, clock);
     }
 }
