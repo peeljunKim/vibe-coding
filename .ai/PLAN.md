@@ -33,7 +33,8 @@
 - Figma Design Context 재조회: NOT RUN (Figma Starter MCP 호출 한도)
 - Provider 공식 OAuth 버튼 Asset과 Backend 로그인 시작 URL: PASS
 - OAuth Callback과 실제 Provider 연동: NOT RUN
-- 일반 로그인·도움말·계정 찾기 Backend 연결: NOT RUN (일반 회원가입·이메일 인증은 아래 Vertical Slice 참조)
+- 일반 로그인·로그아웃·Redis Session 연결: PASS (5회 실패 30분 잠금, 기본 2시간·로그인 유지 7일, Native MySQL·Docker Redis HTTP 통합 검증)
+- 도움말·아이디 찾기·비밀번호 재설정 Backend 연결: NOT RUN
 - Browser Runtime과 Console 오류 확인: PASS
 - Browser 회원가입 단계 전환: PASS
 - 실행 코드의 화면 더미 데이터 제거와 화면별 입력 모델 정의: PASS
@@ -123,7 +124,7 @@
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-2. 일반 로그인과 남은 저장·삭제·신고·인증 동작 연결
+2. 도움말·계정 찾기와 남은 저장·삭제·신고 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 
 ## Backend 표준화 상태
@@ -169,7 +170,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Chrome 회원가입 Browser E2E: PASS (API Mock, Runtime·Console 오류 0건)
 - Native MySQL 회원가입 Repository 통합 테스트 소스와 Harness 연결: PASS
 - Native MySQL 회원가입 Repository 실제 실행: NOT RUN (현재 Agent Process에 테스트 계정 비밀번호 없음)
-- 실제 Gmail SMTP 발송: NOT RUN (이번 범위는 Mock Adapter)
+- 실제 Gmail SMTP 발송: PASS (HTML 메일 수신과 인증번호 확인)
 
 ## PR 22 CodeRabbit 보완
 
@@ -182,7 +183,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend 전체 Test·Package: PASS (124개, 실패·오류·Skip 0)
 - Frontend Test·Lint·TypeScript·Build: PASS (20개)
 - 변경 범위 Harness·Secret 후보·Diff 공백 검사: PASS
-- 실제 Gmail SMTP Smoke: NOT RUN (사용자 자격 증명과 별도 실행 승인 필요)
+- 실제 Gmail SMTP Full-stack HTTP E2E: PASS (`PENDING_EMAIL` 생성, Gmail 수신, `ACTIVE` 전환, Redis 상태 삭제, 공통 중복 오류, 테스트 데이터 정리)
 - Native MySQL 만료 계정 정리·중복 통합 테스트: NOT RUN (현재 Agent Process에 테스트 계정 비밀번호 없음)
 
 ## PR 16 보완 작업

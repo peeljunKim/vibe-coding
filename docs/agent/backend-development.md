@@ -26,7 +26,7 @@ Boot 관리 Dependency의 세부 버전은 실제 effective POM/dependency tree�
 - 영향 범위
 - 롤백 방법
 
-현재 코드는 Application, HTTP Basic·Cookie CSRF 설정, 지원 언론사 조회·JPA, DB 언론사·도메인 상태 기반 기사 수집 진입점과 URL 검증·본문 추출 범위다. OAuth와 그 밖의 업무 기능·작업 실행기는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
+현재 코드는 Application, Redis Session 일반 로그인·로그아웃과 Cookie CSRF 설정, 지원 언론사 조회·JPA, DB 언론사·도메인 상태 기반 기사 수집 진입점과 URL 검증·본문 추출 범위다. OAuth와 그 밖의 업무 기능은 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
 
 ## 읽기와 계약 관리
 
@@ -75,7 +75,7 @@ Request/Response와 Entity를 분리한다. 단순 비민감 불변 DTO는 recor
 
 ## 채택 기준: 인증·보안
 
-Session 인증과 OAuth Redirect를 목표로 유지한다. 현재 HTTP Basic을 최종 로그인 구현으로 보지 않는다. Security 정책의 코드 반영 시 영향·롤백을 먼저 설명하고 기존 승인 범위를 확인한다.
+일반 로그인은 Redis Session 인증, OAuth는 Redirect 방식을 유지한다. HTTP Basic은 사용하지 않는다. Security 정책의 코드 반영 시 영향·롤백을 먼저 설명하고 기존 승인 범위를 확인한다.
 
 - 인증 정보는 서버에서 확인, 요청 Body의 사용자 ID·역할을 인증 주체로 신뢰 금지
 - 인증과 자원 소유권을 별도로 검사, 관리자 기능은 서버 측 ADMIN 검사
