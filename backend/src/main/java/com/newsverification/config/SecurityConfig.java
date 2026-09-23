@@ -3,7 +3,6 @@ package com.newsverification.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -34,9 +33,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/signup").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/signup/email-verification").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/signup/email-verification/resend").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/session").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated())
-                .httpBasic(Customizer.withDefaults())
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint(new AuthenticationProblemEntryPoint()))
                 .build();
     }
 }

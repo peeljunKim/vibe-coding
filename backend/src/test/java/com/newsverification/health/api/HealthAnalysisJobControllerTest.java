@@ -40,7 +40,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -266,7 +266,7 @@ class HealthAnalysisJobControllerTest {
         when(jobService.accept(eq("https://news.example/member-article"), any())).thenReturn(acceptance);
 
         mockMvc.perform(post("/api/analyses/health")
-                        .with(httpBasic("test-user", "test-password"))
+                        .with(user("test-user").roles("USER"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

@@ -1,4 +1,6 @@
 // 사용자 로그인 화면
+import { useState } from 'react'
+import { login, type LoginResponse } from '../api/auth'
 import AppHeader from '../components/AppHeader'
 import googleLoginImage from '../assets/oauth/google-login.png'
 import kakaoLoginImage from '../assets/oauth/kakao-login.png'
@@ -29,9 +31,33 @@ const oauthProviders = [
 interface LoginPageProps {
   onHome: () => void
   onStartSignup: () => void
+  onAuthenticated: (session: LoginResponse) => void
 }
 
-function LoginPage({ onHome, onStartSignup }: LoginPageProps) {
+function LoginPage({ onHome, onStartSignup, onAuthenticated }: LoginPageProps) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setSubmitting] = useState(false)
+
+  const submitLogin = async () => {
+    setSubmitting(true)
+    setError(null)
+    try {
+      const session = await login({ username, password, rememberMe })
+      onAuthenticated(session)
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : '로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="app-page login-page">
       <AppHeader section="로그인" onHome={onHome}>
@@ -49,7 +75,10 @@ function LoginPage({ onHome, onStartSignup }: LoginPageProps) {
 
           <form
             className="login-form"
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void submitLogin()
+            }}
           >
             <div className="form-field">
               <label htmlFor="username">아이디</label>
@@ -59,6 +88,10 @@ function LoginPage({ onHome, onStartSignup }: LoginPageProps) {
                 type="text"
                 autoComplete="username"
                 placeholder="아이디 입력"
+                required
+                maxLength={20}
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
               />
             </div>
 
@@ -70,16 +103,38 @@ function LoginPage({ onHome, onStartSignup }: LoginPageProps) {
                 type="password"
                 autoComplete="current-password"
                 placeholder="비밀번호 입력"
+                required
+                maxLength={128}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
               />
             </div>
 
             <label className="remember-option">
-              <input name="remember-me" type="checkbox" />
+              <input
+                name="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(event) => setRememberMe(event.target.checked)}
+              />
               로그인 상태 유지
             </label>
+            <p className="remember-notice">
+              공용 PC에서는 로그인 상태 유지를 선택하지 마세요.
+            </p>
 
-            <button className="primary-button login-form__submit" type="submit">
-              로그인
+            {error && (
+              <p className="login-form__error" role="alert">
+                {error}
+              </p>
+            )}
+
+            <button
+              className="primary-button login-form__submit"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? '로그인 중' : '로그인'}
             </button>
           </form>
 

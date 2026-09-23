@@ -130,7 +130,7 @@ public record InviteProperties(String code) {}
 | `phone_number` | VARCHAR(11) | N | N | Y | Y | - | 하이픈 제거 번호 |
 | `email_verified_at` | TIMESTAMP(6) | N | N | Y | N | - | 이메일 확인 완료 일시 |
 | `invite_code_verified_at` | TIMESTAMP(6) | N | N | N | N | - | 설정 초대 코드 검증 완료 일시, 가입 시 명시 입력 |
-| `failed_login_count` | TINYINT UNSIGNED | N | N | N | N | `0` | 연속 실패 횟수 |
+| `failed_login_count` | INT UNSIGNED | N | N | N | N | `0` | 연속 실패 횟수 |
 | `login_locked_until` | TIMESTAMP(6) | N | N | Y | N | - | 잠금 종료 일시 |
 | `withdrawal_requested_at` | TIMESTAMP(6) | N | N | Y | N | - | 탈퇴 신청 일시 |
 | `scheduled_deletion_at` | TIMESTAMP(6) | N | N | Y | N | - | 탈퇴 확정 예정 일시 |

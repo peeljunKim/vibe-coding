@@ -25,6 +25,9 @@ interface HomePageProps {
   onStartHealthAnalysis: () => void
   onStartHeadlineAnalysis: () => void
   onOpenSavedRecords: () => void
+  authenticated?: boolean
+  onLogout?: () => void
+  authError?: string | null
   isHeadlineAnalysisPending?: boolean
   headlineAnalysisError?: string | null
   isHealthAnalysisPending?: boolean
@@ -36,6 +39,9 @@ function HomePage({
   onStartHealthAnalysis,
   onStartHeadlineAnalysis,
   onOpenSavedRecords,
+  authenticated = false,
+  onLogout,
+  authError,
   isHeadlineAnalysisPending = false,
   headlineAnalysisError,
   isHealthAnalysisPending = false,
@@ -104,10 +110,21 @@ function HomePage({
           저장 기록
         </button>
         <span>내 신고</span>
-        <Link to="/login">로그인</Link>
+        {authenticated ? (
+          <button type="button" onClick={onLogout}>
+            로그아웃
+          </button>
+        ) : (
+          <Link to="/login">로그인</Link>
+        )}
       </AppHeader>
 
       <main className="home-content">
+        {authError && (
+          <p className="home-auth-error" role="alert">
+            {authError}
+          </p>
+        )}
         <section className="home-hero" aria-labelledby="home-heading">
           <h1
             id="home-heading"

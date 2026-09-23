@@ -1,5 +1,6 @@
 // 데스크톱 화면 전환 검증
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -7,7 +8,8 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getSession, login, logout } from './api/auth'
 import App from './App'
 import AdminReportsPage from './pages/AdminReportsPage'
 import HealthResultPage from './pages/HealthResultPage'
@@ -15,6 +17,20 @@ import type {
   HealthResultViewData,
   ReportSummaryViewData,
 } from './types/pageData'
+
+vi.mock('./api/auth', () => ({
+  getSession: vi.fn(),
+  login: vi.fn(),
+  logout: vi.fn(),
+}))
+
+beforeEach(() => {
+  vi.mocked(getSession).mockReset()
+  vi.mocked(login).mockReset()
+  vi.mocked(logout).mockReset()
+  vi.mocked(getSession).mockResolvedValue({ authenticated: false })
+  vi.mocked(logout).mockResolvedValue(undefined)
+})
 
 afterEach(() => {
   cleanup()
@@ -514,6 +530,111 @@ describe('App', () => {
     )
   })
 
+  it('일반 로그인 성공 후 홈에서 로그아웃한다', async () => {
+    vi.mocked(login).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      username: 'health26',
+      role: 'USER',
+      expiresInSeconds: 604800,
+    })
+    renderApp('/login')
+
+    fireEvent.change(screen.getByLabelText('아이디'), {
+      target: { value: 'health26' },
+    })
+    fireEvent.change(screen.getByLabelText('비밀번호'), {
+      target: { value: 'test-Password23!' },
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: '로그인 상태 유지' }))
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }))
+
+    expect(
+      await screen.findByRole('button', { name: '로그아웃' }),
+    ).toBeInTheDocument()
+    expect(login).toHaveBeenCalledWith({
+      username: 'health26',
+      password: 'test-Password23!',
+      rememberMe: true,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+    expect(
+      await screen.findByRole('link', { name: '로그인' }),
+    ).toBeInTheDocument()
+    expect(logout).toHaveBeenCalledOnce()
+  })
+
+  it('기존 인증 Session을 새로고침 뒤 복원한다', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+
+    renderApp()
+
+    expect(
+      await screen.findByRole('button', { name: '로그아웃' }),
+    ).toBeInTheDocument()
+  })
+
+  it('지연된 초기 Session 조회가 로그인 결과를 덮어쓰지 않는다', async () => {
+    let resolveInitialSession!: (session: { authenticated: boolean }) => void
+    vi.mocked(getSession).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveInitialSession = resolve
+        }),
+    )
+    vi.mocked(login).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      username: 'health26',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+    renderApp('/login')
+
+    fireEvent.change(screen.getByLabelText('아이디'), {
+      target: { value: 'health26' },
+    })
+    fireEvent.change(screen.getByLabelText('비밀번호'), {
+      target: { value: 'test-Password23!' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }))
+    expect(
+      await screen.findByRole('button', { name: '로그아웃' }),
+    ).toBeInTheDocument()
+
+    act(() => {
+      resolveInitialSession({ authenticated: false })
+    })
+
+    expect(screen.getByRole('button', { name: '로그아웃' })).toBeInTheDocument()
+  })
+
+  it('로그아웃 실패 시 인증 상태를 유지하고 오류를 안내한다', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+    vi.mocked(logout).mockRejectedValue(
+      new Error('로그아웃하지 못했습니다. 다시 시도해 주세요.'),
+    )
+    renderApp()
+
+    fireEvent.click(await screen.findByRole('button', { name: '로그아웃' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '로그아웃하지 못했습니다. 다시 시도해 주세요.',
+    )
+    expect(screen.getByRole('button', { name: '로그아웃' })).toBeInTheDocument()
+  })
+
   it.each([
     ['/results/health', '[핵심 주장 데이터가 필요합니다.]'],
     ['/results/title', '[기사 제목 분석 결과 데이터가 필요합니다.]'],
@@ -650,11 +771,11 @@ describe('App', () => {
       target: { value: 'healthcheck26' },
     })
     fireEvent.change(document.querySelector('[name="signup-password"]')!, {
-      target: { value: 'Password!23' },
+      target: { value: 'test-Password23!' },
     })
     fireEvent.change(
       document.querySelector('[name="signup-password-confirm"]')!,
-      { target: { value: 'Password!23' } },
+      { target: { value: 'test-Password23!' } },
     )
     fireEvent.change(screen.getByRole('textbox', { name: /이메일/ }), {
       target: { value: 'user@example.com' },

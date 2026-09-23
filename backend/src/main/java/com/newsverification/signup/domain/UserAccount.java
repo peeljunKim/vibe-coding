@@ -112,6 +112,54 @@ public class UserAccount {
         return status == UserStatus.PENDING_EMAIL;
     }
 
+    public boolean localAccount() {
+        return "LOCAL".equals(accountType);
+    }
+
+    public String role() {
+        return role;
+    }
+
+    public String passwordHash() {
+        return passwordHash;
+    }
+
+    public int failedLoginCount() {
+        return failedLoginCount;
+    }
+
+    public Instant loginLockedUntil() {
+        return loginLockedUntil;
+    }
+
+    /** 로그인 잠금 상태 확인 */
+    public boolean loginLockedAt(Instant now) {
+        return loginLockedUntil != null && now.isBefore(loginLockedUntil);
+    }
+
+    /** 만료된 로그인 잠금 초기화 */
+    public void clearExpiredLoginLock(Instant now) {
+        if (loginLockedUntil != null && !now.isBefore(loginLockedUntil)) {
+            resetLoginFailures();
+        }
+    }
+
+    /** 로그인 실패 누적과 잠금 전환 */
+    public boolean recordLoginFailure(Instant now, int maximumFailures, long lockSeconds) {
+        failedLoginCount = Math.min(failedLoginCount + 1, maximumFailures);
+        if (failedLoginCount >= maximumFailures) {
+            loginLockedUntil = now.plusSeconds(lockSeconds);
+            return true;
+        }
+        return false;
+    }
+
+    /** 로그인 실패 상태 초기화 */
+    public void resetLoginFailures() {
+        failedLoginCount = 0;
+        loginLockedUntil = null;
+    }
+
     /** 이메일 인증 완료 상태 전환 */
     public void activate(Instant verifiedAt) {
         if (status == UserStatus.PENDING_EMAIL) {

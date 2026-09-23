@@ -1,6 +1,12 @@
 // 데스크톱 화면 흐름 구성
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
+import {
+  getSession,
+  logout,
+  type LoginResponse,
+  type SessionState,
+} from './api/auth'
 import { analyzeHealthArticle } from './api/healthAnalysis'
 import { analyzeHeadline } from './api/headlineAnalysis'
 import AdminReportsPage from './pages/AdminReportsPage'
@@ -32,9 +38,56 @@ function App() {
     useState<HealthAnalysisViewData>()
   const [healthResultData, setHealthResultData] =
     useState<HealthResultViewData>()
+  const [authSession, setAuthSession] = useState<SessionState>({
+    authenticated: false,
+  })
+  const [authError, setAuthError] = useState<string | null>(null)
   const healthAnalysisController = useRef<AbortController | null>(null)
+  const authRevision = useRef(0)
   const goTo = (path: string) => {
     void navigate(path)
+  }
+
+  useEffect(() => {
+    let active = true
+    const requestedRevision = authRevision.current
+    void getSession()
+      .then((session) => {
+        if (active && requestedRevision === authRevision.current) {
+          setAuthSession(session)
+        }
+      })
+      .catch(() => {
+        if (active && requestedRevision === authRevision.current) {
+          setAuthSession({ authenticated: false })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const completeLogin = (session: LoginResponse) => {
+    authRevision.current += 1
+    setAuthError(null)
+    setAuthSession(session)
+    goTo('/')
+  }
+
+  const endSession = async () => {
+    authRevision.current += 1
+    setAuthError(null)
+    try {
+      await logout()
+      setAuthSession({ authenticated: false })
+      goTo('/')
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : '로그아웃하지 못했습니다. 다시 시도해 주세요.',
+      )
+    }
   }
 
   const startHeadlineAnalysis = async () => {
@@ -119,6 +172,9 @@ function App() {
             onStartHealthAnalysis={() => void startHealthAnalysis()}
             onStartHeadlineAnalysis={() => void startHeadlineAnalysis()}
             onOpenSavedRecords={() => goTo('/saved')}
+            authenticated={authSession.authenticated}
+            onLogout={() => void endSession()}
+            authError={authError}
             isHeadlineAnalysisPending={isHeadlineAnalysisPending}
             headlineAnalysisError={headlineAnalysisError}
             isHealthAnalysisPending={isHealthAnalysisPending}
@@ -157,6 +213,7 @@ function App() {
           <LoginPage
             onHome={() => goTo('/')}
             onStartSignup={() => goTo('/signup')}
+            onAuthenticated={completeLogin}
           />
         }
       />
