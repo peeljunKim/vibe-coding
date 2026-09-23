@@ -13,9 +13,12 @@ import com.newsverification.auth.infrastructure.RedisAccountRecoveryVerification
 import com.newsverification.auth.infrastructure.SpringSessionAccountSessionInvalidator;
 import com.newsverification.signup.application.VerificationCodeGenerator;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -69,11 +72,25 @@ public class AccountRecoveryConfig {
         return new GmailAccountRecoveryMailSender(mailSender, senderEmail);
     }
 
+    /** 계정 복구 메일 전용 제한 실행기 */
+    @Bean
+    TaskExecutor accountRecoveryMailExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(20);
+        executor.setThreadNamePrefix("account-recovery-mail-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        return executor;
+    }
+
     @Bean
     AccountRecoveryService accountRecoveryService(
             AccountRecoveryAccountStore accountStore,
             AccountRecoveryVerificationStore verificationStore,
             AccountRecoveryMailSender mailSender,
+            @Qualifier("accountRecoveryMailExecutor") TaskExecutor accountRecoveryMailExecutor,
             VerificationCodeGenerator codeGenerator,
             PasswordEncoder passwordEncoder,
             AccountSessionInvalidator sessionInvalidator,
@@ -83,6 +100,7 @@ public class AccountRecoveryConfig {
                 accountStore,
                 verificationStore,
                 mailSender,
+                accountRecoveryMailExecutor,
                 codeGenerator,
                 passwordEncoder,
                 sessionInvalidator,

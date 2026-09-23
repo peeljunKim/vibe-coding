@@ -15,7 +15,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 
 /** 인증번호 Hash와 계정 복구 요청 제한 저장 */
@@ -45,16 +44,27 @@ public class RedisAccountRecoveryVerificationStore implements AccountRecoveryVer
             return sentCount
             """, Long.class);
 
-    private static final RedisScript<Long> FAILURE_SCRIPT = new DefaultRedisScript<>("""
-            if redis.call('EXISTS', KEYS[1]) == 0 then return -1 end
+    private static final RedisScript<String> RESERVE_ATTEMPT_SCRIPT = new DefaultRedisScript<>("""
+            if redis.call('EXISTS', KEYS[1]) == 0 then return 'EXPIRED|' end
             local blockedUntil = tonumber(redis.call('HGET', KEYS[1], 'blockedUntil') or '0')
-            if blockedUntil > tonumber(ARGV[1]) then return -2 end
-            local attempts = redis.call('HINCRBY', KEYS[1], 'attempts', 1)
+            if blockedUntil > tonumber(ARGV[1]) then return 'BLOCKED|' end
+            local attempts = tonumber(redis.call('HGET', KEYS[1], 'attempts') or '0')
+            if attempts >= tonumber(ARGV[2]) then return 'BLOCKED|' end
+            local codeHash = redis.call('HGET', KEYS[1], 'codeHash') or ''
+            attempts = redis.call('HINCRBY', KEYS[1], 'attempts', 1)
             if attempts >= tonumber(ARGV[2]) then
                 redis.call('HSET', KEYS[1], 'blockedUntil', tonumber(ARGV[1]) + tonumber(ARGV[3]))
                 redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[3]))
+                return 'LAST|' .. codeHash
             end
-            return attempts
+            return 'OK|' .. codeHash
+            """, String.class);
+
+    private static final RedisScript<Long> DELETE_IF_HASH_MATCHES_SCRIPT = new DefaultRedisScript<>("""
+            if redis.call('HGET', KEYS[1], 'codeHash') == ARGV[1] then
+                return redis.call('DEL', KEYS[1])
+            end
+            return 0
             """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
@@ -110,36 +120,53 @@ public class RedisAccountRecoveryVerificationStore implements AccountRecoveryVer
     @Override
     public VerificationResult verify(Purpose purpose, String lookupKey, String code) {
         String key = codeKey(purpose, lookupKey);
-        Map<Object, Object> state = redisTemplate.opsForHash().entries(key);
-        if (state.isEmpty()) {
-            return VerificationResult.EXPIRED;
-        }
         long now = clock.instant().toEpochMilli();
-        if (number(state.get("blockedUntil")) > now || number(state.get("attempts")) >= MAX_ATTEMPTS) {
-            return VerificationResult.BLOCKED;
-        }
-        Object storedHash = state.get("codeHash");
-        if (storedHash != null && passwordEncoder.matches(code, storedHash.toString())) {
-            return VerificationResult.VERIFIED;
-        }
-        Long attempts = redisTemplate.execute(
-                FAILURE_SCRIPT,
+        String reservation = redisTemplate.execute(
+                RESERVE_ATTEMPT_SCRIPT,
                 List.of(key),
                 Long.toString(now),
                 Integer.toString(MAX_ATTEMPTS),
                 Long.toString(FAILURE_BLOCK.toMillis())
         );
-        if (attempts == null || attempts == -1) {
+        if (reservation == null || reservation.startsWith("EXPIRED|")) {
             return VerificationResult.EXPIRED;
         }
-        return attempts >= MAX_ATTEMPTS || attempts == -2
-                ? VerificationResult.BLOCKED
-                : VerificationResult.INVALID;
+        if (reservation.startsWith("BLOCKED|")) {
+            return VerificationResult.BLOCKED;
+        }
+        int separator = reservation.indexOf('|');
+        if (separator < 0 || separator == reservation.length() - 1) {
+            throw new IllegalStateException("Redis account recovery reservation is invalid");
+        }
+        String status = reservation.substring(0, separator);
+        String storedHash = reservation.substring(separator + 1);
+        if (!"OK".equals(status) && !"LAST".equals(status)) {
+            throw new IllegalStateException("Redis account recovery reservation status is invalid");
+        }
+        if (passwordEncoder.matches(code, storedHash)) {
+            return VerificationResult.VERIFIED;
+        }
+        return "LAST".equals(status) ? VerificationResult.BLOCKED : VerificationResult.INVALID;
     }
 
     @Override
     public void consume(Purpose purpose, String lookupKey) {
         redisTemplate.delete(codeKey(purpose, lookupKey));
+    }
+
+    /** 발송 실패 인증번호와 현재 상태 일치 시 보상 삭제 */
+    @Override
+    public void consumeIfCodeMatches(Purpose purpose, String lookupKey, String code) {
+        String key = codeKey(purpose, lookupKey);
+        Object currentHash = redisTemplate.opsForHash().get(key, "codeHash");
+        if (currentHash == null || !passwordEncoder.matches(code, currentHash.toString())) {
+            return;
+        }
+        redisTemplate.execute(
+                DELETE_IF_HASH_MATCHES_SCRIPT,
+                List.of(key),
+                currentHash.toString()
+        );
     }
 
     private String codeKey(Purpose purpose, String lookupKey) {
@@ -155,7 +182,4 @@ public class RedisAccountRecoveryVerificationStore implements AccountRecoveryVer
         return LocalDate.ofInstant(now, zoneId).plusDays(1).atStartOfDay(zoneId).toInstant();
     }
 
-    private long number(Object value) {
-        return value == null ? 0 : Long.parseLong(value.toString());
-    }
 }

@@ -10,6 +10,8 @@ public interface AccountRecoveryVerificationStore {
 
     void consume(Purpose purpose, String lookupKey);
 
+    void consumeIfCodeMatches(Purpose purpose, String lookupKey, String code);
+
     enum Purpose {
         USERNAME,
         PASSWORD
