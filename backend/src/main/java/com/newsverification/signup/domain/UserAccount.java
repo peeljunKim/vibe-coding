@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
 import java.time.Instant;
+import java.util.Objects;
 
 /** 일반 회원의 이메일 인증 상태 */
 @Entity
@@ -158,6 +159,12 @@ public class UserAccount {
     public void resetLoginFailures() {
         failedLoginCount = 0;
         loginLockedUntil = null;
+    }
+
+    /** 비밀번호 변경과 로그인 실패 상태 초기화 */
+    public void changePasswordHash(String passwordHash) {
+        this.passwordHash = Objects.requireNonNull(passwordHash);
+        resetLoginFailures();
     }
 
     /** 이메일 인증 완료 상태 전환 */

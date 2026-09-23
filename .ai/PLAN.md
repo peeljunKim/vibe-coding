@@ -34,7 +34,7 @@
 - Provider 공식 OAuth 버튼 Asset과 Backend 로그인 시작 URL: PASS
 - OAuth Callback과 실제 Provider 연동: NOT RUN
 - 일반 로그인·로그아웃·Redis Session 연결: PASS (5회 실패 30분 잠금, 기본 2시간·로그인 유지 7일, Native MySQL·Docker Redis HTTP 통합 검증)
-- 도움말·아이디 찾기·비밀번호 재설정 Backend 연결: NOT RUN
+- 아이디 찾기·비밀번호 재설정 Backend 연결: PASS (이메일 인증, 아이디 마스킹·전체 아이디 메일, 비밀번호 변경·기존 Redis Session 만료)
 - Browser Runtime과 Console 오류 확인: PASS
 - Browser 회원가입 단계 전환: PASS
 - 실행 코드의 화면 더미 데이터 제거와 화면별 입력 모델 정의: PASS
@@ -124,7 +124,7 @@
 ## Next Loop
 
 1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-2. 도움말·계정 찾기와 남은 저장·삭제·신고 동작 연결
+2. 도움말과 남은 저장·삭제·신고 동작 연결
 3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 
 ## Backend 표준화 상태
@@ -185,6 +185,21 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 변경 범위 Harness·Secret 후보·Diff 공백 검사: PASS
 - 실제 Gmail SMTP Full-stack HTTP E2E: PASS (`PENDING_EMAIL` 생성, Gmail 수신, `ACTIVE` 전환, Redis 상태 삭제, 공통 중복 오류, 테스트 데이터 정리)
 - Native MySQL 만료 계정 정리·중복 통합 테스트: NOT RUN (현재 Agent Process에 테스트 계정 비밀번호 없음)
+
+## 이메일 기반 계정 복구 Vertical Slice
+
+- 아이디 찾기와 비밀번호 재설정 공개 API·CSRF 연결: PASS
+- 계정 존재 여부 비공개 공통 발급 응답: PASS
+- Redis 인증번호 10분 TTL·1분 재발송·하루 5회·5회 실패 30분 제한: PASS
+- 재발급 시 기존 인증번호 무효화와 Digest 저장: PASS
+- 인증 후 마스킹 아이디 응답과 전체 아이디 Gmail 발송: PASS
+- 비밀번호 변경과 해당 사용자 전체 Spring Session 만료: PASS
+- Frontend 계정 복구 Desktop 화면과 로그인 진입 연결: PASS
+- Backend 전체 회귀: PASS (149개, 실패·오류·Skip 0)
+- Docker Redis 8.8 계정 복구 통합 검증: PASS
+- Frontend Test·Lint·TypeScript·Build: PASS (33개)
+- Chrome 계정 복구 Browser E2E: PASS (아이디 찾기·비밀번호 재설정 2개, Runtime·Console 오류 0건)
+- 실제 Gmail 계정 복구 발송과 Native MySQL 비밀번호 변경: NOT RUN (자동 검증은 Adapter·Service·Repository 경계까지 수행)
 
 ## PR 16 보완 작업
 

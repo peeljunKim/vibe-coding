@@ -10,6 +10,7 @@ import {
 import { analyzeHealthArticle } from './api/healthAnalysis'
 import { analyzeHeadline } from './api/headlineAnalysis'
 import AdminReportsPage from './pages/AdminReportsPage'
+import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import HealthAnalysisPage from './pages/HealthAnalysisPage'
 import HealthResultPage from './pages/HealthResultPage'
 import HomePage from './pages/HomePage'
@@ -213,6 +214,7 @@ function App() {
           <LoginPage
             onHome={() => goTo('/')}
             onStartSignup={() => goTo('/signup')}
+            onStartRecovery={() => goTo('/account-recovery')}
             onAuthenticated={completeLogin}
           />
         }
@@ -220,6 +222,15 @@ function App() {
       <Route
         path="/signup"
         element={<SignupFlowPage onLogin={() => goTo('/login')} />}
+      />
+      <Route
+        path="/account-recovery"
+        element={
+          <AccountRecoveryPage
+            onHome={() => goTo('/')}
+            onLogin={() => goTo('/login')}
+          />
+        }
       />
       <Route path="/admin/reports" element={<AdminReportsPage />} />
     </Routes>

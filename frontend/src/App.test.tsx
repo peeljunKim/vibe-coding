@@ -10,6 +10,10 @@ import {
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSession, login, logout } from './api/auth'
+import {
+  requestRecoveryCode,
+  verifyUsernameRecovery,
+} from './api/accountRecovery'
 import App from './App'
 import AdminReportsPage from './pages/AdminReportsPage'
 import HealthResultPage from './pages/HealthResultPage'
@@ -24,10 +28,18 @@ vi.mock('./api/auth', () => ({
   logout: vi.fn(),
 }))
 
+vi.mock('./api/accountRecovery', () => ({
+  requestRecoveryCode: vi.fn(),
+  resetRecoveredPassword: vi.fn(),
+  verifyUsernameRecovery: vi.fn(),
+}))
+
 beforeEach(() => {
   vi.mocked(getSession).mockReset()
   vi.mocked(login).mockReset()
   vi.mocked(logout).mockReset()
+  vi.mocked(requestRecoveryCode).mockReset()
+  vi.mocked(verifyUsernameRecovery).mockReset()
   vi.mocked(getSession).mockResolvedValue({ authenticated: false })
   vi.mocked(logout).mockResolvedValue(undefined)
 })
@@ -563,6 +575,39 @@ describe('App', () => {
       await screen.findByRole('link', { name: '로그인' }),
     ).toBeInTheDocument()
     expect(logout).toHaveBeenCalledOnce()
+  })
+
+  it('로그인 화면에서 아이디 찾기와 인증 결과를 표시한다', async () => {
+    vi.mocked(requestRecoveryCode).mockResolvedValue({
+      remainingAttempts: 5,
+      resendAvailableInSeconds: 60,
+    })
+    vi.mocked(verifyUsernameRecovery).mockResolvedValue({
+      maskedUsername: 'he***********',
+    })
+    renderApp('/login')
+
+    fireEvent.click(screen.getByRole('button', { name: '아이디·비밀번호 찾기' }))
+    fireEvent.change(screen.getByLabelText('가입 이메일'), {
+      target: { value: 'user@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '인증번호 받기' }))
+
+    expect(
+      await screen.findByText(
+        '입력한 이메일과 일치하는 계정이 있으면 인증번호를 보냈습니다.',
+      ),
+    ).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('6자리 인증번호'), {
+      target: { value: '482916' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '아이디 확인' }))
+
+    expect(await screen.findByText('he***********')).toBeInTheDocument()
+    expect(verifyUsernameRecovery).toHaveBeenCalledWith(
+      'user@example.com',
+      '482916',
+    )
   })
 
   it('기존 인증 Session을 새로고침 뒤 복원한다', async () => {
