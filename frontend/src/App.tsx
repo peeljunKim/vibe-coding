@@ -43,20 +43,22 @@ function App() {
   })
   const [authError, setAuthError] = useState<string | null>(null)
   const healthAnalysisController = useRef<AbortController | null>(null)
+  const authRevision = useRef(0)
   const goTo = (path: string) => {
     void navigate(path)
   }
 
   useEffect(() => {
     let active = true
+    const requestedRevision = authRevision.current
     void getSession()
       .then((session) => {
-        if (active) {
+        if (active && requestedRevision === authRevision.current) {
           setAuthSession(session)
         }
       })
       .catch(() => {
-        if (active) {
+        if (active && requestedRevision === authRevision.current) {
           setAuthSession({ authenticated: false })
         }
       })
@@ -66,12 +68,14 @@ function App() {
   }, [])
 
   const completeLogin = (session: LoginResponse) => {
+    authRevision.current += 1
     setAuthError(null)
     setAuthSession(session)
     goTo('/')
   }
 
   const endSession = async () => {
+    authRevision.current += 1
     setAuthError(null)
     try {
       await logout()

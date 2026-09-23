@@ -40,6 +40,14 @@ const refreshCsrfToken = async () => {
   return token
 }
 
+const refreshCsrfTokenAfterAuthChange = async () => {
+  try {
+    await refreshCsrfToken()
+  } catch {
+    // 완료된 인증 상태 변경 우선
+  }
+}
+
 const parseError = async (response: Response, fallback: string) => {
   const problem = (await response.json().catch(() => ({}))) as {
     code?: string
@@ -67,7 +75,7 @@ export const login = async (request: LoginRequest): Promise<LoginResponse> => {
     )
   }
   const authenticated = (await response.json()) as LoginResponse
-  await refreshCsrfToken()
+  await refreshCsrfTokenAfterAuthChange()
   return authenticated
 }
 
@@ -92,5 +100,5 @@ export const logout = async () => {
   if (!response.ok) {
     throw new Error('로그아웃하지 못했습니다. 다시 시도해 주세요.')
   }
-  await refreshCsrfToken()
+  await refreshCsrfTokenAfterAuthChange()
 }

@@ -54,7 +54,7 @@ class DefaultLoginServiceTest {
         assertThat(account.loginLockedUntil()).isNull();
     }
 
-    /** 다섯 번째 잘못된 비밀번호의 잠금 오류 */
+    /** 다섯 번째 잘못된 비밀번호의 공통 인증 오류 */
     @Test
     void locksAccountOnFifthInvalidPassword() {
         UserAccount account = activeAccount();
@@ -66,10 +66,23 @@ class DefaultLoginServiceTest {
         assertThatThrownBy(() -> service.authenticate(
                 new LoginService.LoginCommand("health26", "WrongPassword!23")
         )).isInstanceOf(LoginException.class)
-                .hasMessage("LOGIN_LOCKED")
-                .extracting("retryAfterSeconds")
-                .isEqualTo(1800L);
+                .hasMessage("INVALID_CREDENTIALS");
         assertThat(account.failedLoginCount()).isEqualTo(5);
+    }
+
+    /** 잠금 중 잘못된 비밀번호의 공통 인증 오류 */
+    @Test
+    void hidesLockedAccountFromInvalidPassword() {
+        UserAccount account = activeAccount();
+        for (int attempt = 0; attempt < 5; attempt++) {
+            account.recordLoginFailure(NOW.minusSeconds(60), 5, 1800);
+        }
+        when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> service.authenticate(
+                new LoginService.LoginCommand("health26", "WrongPassword!23")
+        )).isInstanceOf(LoginException.class)
+                .hasMessage("INVALID_CREDENTIALS");
     }
 
     /** 잠금 중 올바른 비밀번호의 인증 차단 */

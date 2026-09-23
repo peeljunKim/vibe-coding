@@ -48,22 +48,22 @@ public class DefaultLoginService implements LoginService {
         }
 
         account.clearExpiredLoginLock(now);
-        if (account.loginLockedAt(now)) {
-            throw locked(account.loginLockedUntil(), now);
-        }
-
         boolean passwordMatches = account.localAccount()
                 && account.passwordHash() != null
                 && passwordEncoder.matches(command.password(), account.passwordHash());
+        if (account.loginLockedAt(now)) {
+            if (account.active() && passwordMatches) {
+                throw locked(account.loginLockedUntil(), now);
+            }
+            throw invalidCredentials();
+        }
+
         if (!account.active() || !passwordMatches) {
-            boolean newlyLocked = account.recordLoginFailure(
+            account.recordLoginFailure(
                     now,
                     MAXIMUM_FAILURES,
                     LOCK_DURATION.toSeconds()
             );
-            if (newlyLocked) {
-                throw locked(account.loginLockedUntil(), now);
-            }
             throw invalidCredentials();
         }
 

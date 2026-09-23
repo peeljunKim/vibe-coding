@@ -74,6 +74,35 @@ describe('auth API', () => {
     ).rejects.toThrow('로그인이 일시 제한되었습니다. 30분 후 이용 가능합니다.')
   })
 
+  it('로그인 완료 후 CSRF 갱신 실패와 무관하게 인증 결과를 반환한다', async () => {
+    document.cookie = 'XSRF-TOKEN=test-login-csrf; path=/'
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              authenticated: true,
+              userId: '42',
+              username: 'health26',
+              role: 'USER',
+            }),
+        })
+        .mockResolvedValueOnce({ ok: false }),
+    )
+
+    await expect(
+      login({
+        username: 'health26',
+        password: 'test-Password23!',
+        rememberMe: false,
+      }),
+    ).resolves.toMatchObject({ authenticated: true, userId: '42' })
+  })
+
   it('현재 Session 조회와 로그아웃을 같은 Cookie 자격으로 요청한다', async () => {
     document.cookie = 'XSRF-TOKEN=test-logout-csrf; path=/'
     const fetchMock = vi
@@ -102,5 +131,19 @@ describe('auth API', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(4, '/api/csrf', {
       credentials: 'include',
     })
+  })
+
+  it('로그아웃 완료 후 CSRF 갱신 실패와 무관하게 종료한다', async () => {
+    document.cookie = 'XSRF-TOKEN=test-logout-csrf; path=/'
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({ ok: false }),
+    )
+
+    await expect(logout()).resolves.toBeUndefined()
   })
 })

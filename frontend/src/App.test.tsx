@@ -1,5 +1,6 @@
 // 데스크톱 화면 전환 검증
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -577,6 +578,41 @@ describe('App', () => {
     expect(
       await screen.findByRole('button', { name: '로그아웃' }),
     ).toBeInTheDocument()
+  })
+
+  it('지연된 초기 Session 조회가 로그인 결과를 덮어쓰지 않는다', async () => {
+    let resolveInitialSession!: (session: { authenticated: boolean }) => void
+    vi.mocked(getSession).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveInitialSession = resolve
+        }),
+    )
+    vi.mocked(login).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      username: 'health26',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+    renderApp('/login')
+
+    fireEvent.change(screen.getByLabelText('아이디'), {
+      target: { value: 'health26' },
+    })
+    fireEvent.change(screen.getByLabelText('비밀번호'), {
+      target: { value: 'test-Password23!' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }))
+    expect(
+      await screen.findByRole('button', { name: '로그아웃' }),
+    ).toBeInTheDocument()
+
+    act(() => {
+      resolveInitialSession({ authenticated: false })
+    })
+
+    expect(screen.getByRole('button', { name: '로그아웃' })).toBeInTheDocument()
   })
 
   it('로그아웃 실패 시 인증 상태를 유지하고 오류를 안내한다', async () => {
