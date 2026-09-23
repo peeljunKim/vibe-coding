@@ -695,6 +695,105 @@ button:disabled {
   font-weight: 700;
 }
 
+.account-recovery-content {
+  width: min(calc(100% - 64px), 760px);
+  margin: 68px auto 142px;
+}
+
+.account-recovery-card {
+  min-height: 650px;
+  padding: 40px;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.account-recovery-card h1 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.account-recovery-card__description {
+  margin: 12px 0 34px;
+  color: #5e7079;
+  font-size: 14px;
+}
+
+.account-recovery-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 34px;
+  padding: 5px;
+  border-radius: 12px;
+  background: #edf3f6;
+}
+
+.account-recovery-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #5e7079;
+  font-weight: 700;
+}
+
+.account-recovery-tabs button.is-active {
+  background: #17637a;
+  color: #fff;
+}
+
+.account-recovery-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-recovery-form .form-field:not(:first-child) {
+  margin-top: 24px;
+}
+
+.account-recovery-form small {
+  color: #5e7079;
+  font-size: 12px;
+}
+
+.account-recovery-notice,
+.account-recovery-result {
+  margin: 24px 0;
+  padding: 20px;
+  border-radius: 12px;
+  background: #dff0f5;
+  color: #324a55;
+}
+
+.account-recovery-submit {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 32px;
+}
+
+.account-recovery-resend {
+  align-self: center;
+  margin-top: 18px;
+}
+
+.account-recovery-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 54px;
+  text-align: center;
+}
+
+.account-recovery-result strong {
+  margin-top: 12px;
+  font-size: 28px;
+}
+
+.account-recovery-result p {
+  margin: 12px 0 0;
+  color: #5e7079;
+}
+
 .social-divider {
   display: flex;
   align-items: center;

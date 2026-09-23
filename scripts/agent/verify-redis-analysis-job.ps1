@@ -158,7 +158,7 @@ try {
     try {
         & $javaPath "-Dmaven.multiModuleProjectDirectory=$backendRoot" '-classpath' $wrapperJar `
             'org.apache.maven.wrapper.MavenWrapperMain' '-q' `
-            '-Dtest=RedisAnalysisJobStoreIT,RedisHealthAnalysisQueueIT,RedisHealthTopicFailureUsagePolicyIT,RedisHeadlineAnalysisInfrastructureIT,RedisEmailVerificationStoreIT' 'test'
+            '-Dtest=RedisAnalysisJobStoreIT,RedisHealthAnalysisQueueIT,RedisHealthTopicFailureUsagePolicyIT,RedisHeadlineAnalysisInfrastructureIT,RedisEmailVerificationStoreIT,RedisAccountRecoveryVerificationStoreIT' 'test'
         if ($LASTEXITCODE -ne 0) {
             throw "Redis integration test failed with exit code $LASTEXITCODE"
         }

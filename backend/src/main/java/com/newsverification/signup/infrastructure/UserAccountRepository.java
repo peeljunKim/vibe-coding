@@ -23,4 +23,24 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select account from UserAccount account where account.username = :username")
     Optional<UserAccount> findByUsernameForLogin(@Param("username") String username);
+
+    Optional<UserAccount> findByEmailAndAccountTypeAndStatus(
+            String email,
+            String accountType,
+            UserStatus status
+    );
+
+    /** 비밀번호 변경의 동시 갱신 보호 조회 */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select account from UserAccount account
+            where account.id = :userId
+              and account.accountType = :accountType
+              and account.status = :status
+            """)
+    Optional<UserAccount> findActiveLocalByIdForUpdate(
+            @Param("userId") long userId,
+            @Param("accountType") String accountType,
+            @Param("status") UserStatus status
+    );
 }

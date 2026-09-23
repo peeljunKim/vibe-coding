@@ -31,10 +31,16 @@ const oauthProviders = [
 interface LoginPageProps {
   onHome: () => void
   onStartSignup: () => void
+  onStartRecovery: () => void
   onAuthenticated: (session: LoginResponse) => void
 }
 
-function LoginPage({ onHome, onStartSignup, onAuthenticated }: LoginPageProps) {
+function LoginPage({
+  onHome,
+  onStartSignup,
+  onStartRecovery,
+  onAuthenticated,
+}: LoginPageProps) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
@@ -138,7 +144,11 @@ function LoginPage({ onHome, onStartSignup, onAuthenticated }: LoginPageProps) {
             </button>
           </form>
 
-          <button className="text-action account-recovery" type="button">
+          <button
+            className="text-action account-recovery"
+            type="button"
+            onClick={onStartRecovery}
+          >
             아이디·비밀번호 찾기
           </button>
 

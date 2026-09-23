@@ -35,6 +35,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/signup/email-verification/resend").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/recovery/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/session").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated())
