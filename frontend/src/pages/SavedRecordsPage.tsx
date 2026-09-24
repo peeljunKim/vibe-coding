@@ -1,6 +1,6 @@
 // 저장된 건강 뉴스 목록 화면
 import { useEffect, useState } from 'react'
-import { listHealthRecords } from '../api/healthRecords'
+import { listHealthRecords, type HealthRecordPage } from '../api/healthRecords'
 import AppHeader from '../components/AppHeader'
 import type { SavedRecordViewData } from '../types/pageData'
 
@@ -42,9 +42,8 @@ function SavedRecordsPage({
   onDelete,
   onDeleteAll,
 }: SavedRecordsPageProps) {
-  const [loadedRecords, setLoadedRecords] = useState<
-    SavedRecordViewData[] | undefined
-  >()
+  const [loadedPage, setLoadedPage] = useState<HealthRecordPage>()
+  const [currentPage, setCurrentPage] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -52,16 +51,16 @@ function SavedRecordsPage({
       return
     }
     let active = true
-    void listHealthRecords(0, 20)
+    void listHealthRecords(currentPage, 20)
       .then((page) => {
         if (active) {
-          setLoadedRecords(page.items)
+          setLoadedPage(page)
           setLoadError(null)
         }
       })
       .catch((error: unknown) => {
         if (active) {
-          setLoadedRecords([])
+          setLoadedPage(undefined)
           setLoadError(
             error instanceof Error
               ? error.message
@@ -72,9 +71,10 @@ function SavedRecordsPage({
     return () => {
       active = false
     }
-  }, [records])
+  }, [currentPage, records])
 
-  const visibleRecords = records ?? loadedRecords
+  const visibleRecords = records ?? loadedPage?.items
+  const totalRecords = records ? records.length : loadedPage?.totalElements
 
   return (
     <div className="app-page saved-page">
@@ -101,8 +101,8 @@ function SavedRecordsPage({
               <p>사용자가 저장한 결과만 분석일로부터 30일 보관됩니다.</p>
             </div>
             <span>
-              {visibleRecords
-                ? `남은 기록 ${visibleRecords.length}개`
+              {totalRecords !== undefined
+                ? `남은 기록 ${totalRecords}개`
                 : '기록 확인 중'}
             </span>
           </div>
@@ -150,6 +150,28 @@ function SavedRecordsPage({
               </div>
             )}
           </div>
+
+          {!records && loadedPage && loadedPage.totalPages > 1 ? (
+            <nav className="saved-pagination" aria-label="저장 기록 페이지">
+              <button
+                type="button"
+                disabled={loadedPage.page === 0}
+                onClick={() => setCurrentPage((page) => page - 1)}
+              >
+                이전 페이지
+              </button>
+              <span aria-live="polite">
+                {loadedPage.page + 1} / {loadedPage.totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={!loadedPage.hasNext}
+                onClick={() => setCurrentPage((page) => page + 1)}
+              >
+                다음 페이지
+              </button>
+            </nav>
+          ) : null}
 
           <aside className="saved-notice" role="note">
             <h2>다시 분석 안내</h2>

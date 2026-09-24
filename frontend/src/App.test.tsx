@@ -781,6 +781,49 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: '저장 완료' })).toBeDisabled()
   })
 
+  it('건강 분석 결과 저장이 실패하면 다시 시도할 수 있다', async () => {
+    const result: HealthResultViewData = {
+      analysisId: 'analysis-retry',
+      article: {
+        title: '건강 기사 제목',
+        publisher: '테스트 언론사',
+        url: 'https://news.example.com/article',
+      },
+      analyzedAt: '2026-09-24T01:00:00Z',
+      claim: '건강 기사 핵심 주장',
+      claimStatus: 'NEEDS_REVIEW',
+      reasons: ['근거가 부족합니다.'],
+      evidences: [],
+    }
+    const onSave = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('결과를 저장하지 못했습니다.'))
+      .mockResolvedValueOnce(undefined)
+
+    render(
+      <MemoryRouter>
+        <HealthResultPage
+          data={result}
+          onNewArticle={() => undefined}
+          onSave={onSave}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '결과 저장' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '결과를 저장하지 못했습니다.',
+    )
+    const retryButton = screen.getByRole('button', { name: '결과 저장' })
+    expect(retryButton).toBeEnabled()
+
+    fireEvent.click(retryButton)
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('button', { name: '저장 완료' })).toBeDisabled()
+  })
+
   it('로그인 회원의 실제 저장 기록 API 목록을 표시한다', async () => {
     vi.mocked(getSession).mockResolvedValue({
       authenticated: true,
@@ -814,6 +857,64 @@ describe('App', () => {
       screen.getByText('분석일 2026.09.24 · 2026.10.24 삭제'),
     ).toBeInTheDocument()
     expect(listHealthRecords).toHaveBeenCalledWith(0, 20)
+  })
+
+  it('저장 기록의 전체 개수와 다음 페이지를 표시한다', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+    vi.mocked(listHealthRecords)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: '31',
+            title: '첫 페이지 기록',
+            overallStatus: 'CAUTION',
+            analyzedAt: '2026-09-24T01:00:00Z',
+            expiresAt: '2026-10-24T01:00:00Z',
+          },
+        ],
+        page: 0,
+        size: 20,
+        totalElements: 21,
+        totalPages: 2,
+        hasNext: true,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: '11',
+            title: '둘째 페이지 기록',
+            overallStatus: 'RELIABLE',
+            analyzedAt: '2026-09-23T01:00:00Z',
+            expiresAt: '2026-10-23T01:00:00Z',
+          },
+        ],
+        page: 1,
+        size: 20,
+        totalElements: 21,
+        totalPages: 2,
+        hasNext: false,
+      })
+
+    renderApp('/saved')
+
+    expect(
+      await screen.findByRole('heading', { name: '첫 페이지 기록' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('남은 기록 21개')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '다음 페이지' }))
+
+    expect(
+      await screen.findByRole('heading', { name: '둘째 페이지 기록' }),
+    ).toBeInTheDocument()
+    expect(listHealthRecords).toHaveBeenLastCalledWith(1, 20)
+    expect(screen.getByRole('button', { name: '이전 페이지' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
   })
 
   it('관리자 신고를 선택하면 실제 입력 데이터로 상세 내용을 갱신한다', () => {

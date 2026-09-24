@@ -183,7 +183,12 @@ function HealthResultPage({
             <button
               className="secondary-button"
               type="button"
-              disabled={!data || !onSave || saveStatus !== 'idle'}
+              disabled={
+                !data ||
+                !onSave ||
+                saveStatus === 'saving' ||
+                saveStatus === 'saved'
+              }
               onClick={() => void save()}
             >
               {saveStatus === 'saving'

@@ -5,10 +5,15 @@ import com.newsverification.health.application.HealthAnalysisResult;
 import com.newsverification.healthrecord.application.HealthRecordStore;
 import com.newsverification.publisher.domain.NewsPublisherDomain;
 import com.newsverification.publisher.infrastructure.NewsPublisherDomainRepository;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -18,41 +23,62 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** 건강 분석 Aggregate의 MySQL 저장과 목록 조회 */
 @Component
 public class JpaHealthRecordStore implements HealthRecordStore {
+
+    private static final String SAVE_IDENTITY_CONSTRAINT =
+            "uk_health_records_user_url_analyzed";
 
     private final HealthAnalysisRecordRepository recordRepository;
     private final HealthClaimRepository claimRepository;
     private final HealthEvidenceRepository evidenceRepository;
     private final HealthClaimEvidenceRepository relationRepository;
     private final NewsPublisherDomainRepository publisherDomainRepository;
+    private final TransactionTemplate writeTransaction;
 
     public JpaHealthRecordStore(
             HealthAnalysisRecordRepository recordRepository,
             HealthClaimRepository claimRepository,
             HealthEvidenceRepository evidenceRepository,
             HealthClaimEvidenceRepository relationRepository,
-            NewsPublisherDomainRepository publisherDomainRepository
+            NewsPublisherDomainRepository publisherDomainRepository,
+            PlatformTransactionManager transactionManager
     ) {
         this.recordRepository = recordRepository;
         this.claimRepository = claimRepository;
         this.evidenceRepository = evidenceRepository;
         this.relationRepository = relationRepository;
         this.publisherDomainRepository = publisherDomainRepository;
+        this.writeTransaction = new TransactionTemplate(transactionManager);
+        this.writeTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     /** 결과·주장·근거의 단일 Transaction 저장 */
     @Override
-    @Transactional
     public SavedRecord save(SaveCommand command) {
         HealthAnalysisResult result = command.result();
         byte[] articleDigest = digest(result.article().url().normalize().toASCIIString());
-        return recordRepository.findByUserIdAndNormalizedUrlDigestAndAnalyzedAt(
-                        command.userId(), articleDigest, result.analyzedAt())
-                .map(JpaHealthRecordStore::toSavedRecord)
-                .orElseGet(() -> saveNew(command, articleDigest));
+        var existing = findExisting(command, articleDigest);
+        if (existing != null) {
+            return existing;
+        }
+        try {
+            return Objects.requireNonNull(
+                    writeTransaction.execute(status -> saveNew(command, articleDigest))
+            );
+        } catch (DataIntegrityViolationException exception) {
+            if (!isSaveIdentityViolation(exception)) {
+                throw exception;
+            }
+            SavedRecord concurrentSave = findExisting(command, articleDigest);
+            if (concurrentSave == null) {
+                throw exception;
+            }
+            return concurrentSave;
+        }
     }
 
     /** 회원별 최신 저장 기록 조회 */
@@ -104,6 +130,33 @@ public class JpaHealthRecordStore implements HealthRecordStore {
         );
         saveChildren(record.id(), result);
         return toSavedRecord(record);
+    }
+
+    private SavedRecord findExisting(SaveCommand command, byte[] articleDigest) {
+        return recordRepository.findByUserIdAndNormalizedUrlDigestAndAnalyzedAt(
+                        command.userId(), articleDigest, command.result().analyzedAt())
+                .map(JpaHealthRecordStore::toSavedRecord)
+                .orElse(null);
+    }
+
+    private static boolean isSaveIdentityViolation(DataIntegrityViolationException exception) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException constraintViolation) {
+                String constraintName = constraintViolation.getConstraintName();
+                if (constraintName == null) {
+                    return false;
+                }
+                String unquotedName = constraintName.replace("`", "");
+                int qualifierIndex = unquotedName.lastIndexOf('.');
+                String simpleName = qualifierIndex < 0
+                        ? unquotedName
+                        : unquotedName.substring(qualifierIndex + 1);
+                return SAVE_IDENTITY_CONSTRAINT.equalsIgnoreCase(simpleName);
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     private void saveChildren(long recordId, HealthAnalysisResult result) {

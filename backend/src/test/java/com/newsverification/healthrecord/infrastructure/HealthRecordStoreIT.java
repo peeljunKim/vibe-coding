@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -19,6 +20,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -84,6 +89,70 @@ class HealthRecordStoreIT {
                 Integer.class,
                 first.id()
         )).isEqualTo(1);
+    }
+
+    /** 같은 완료 결과의 동시 저장 중복 방지 */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void preventsConcurrentDuplicateSaves() throws Exception {
+        cleanupFixture();
+        long userId = insertUser();
+        insertPublisherDomain();
+        HealthRecordStore.SaveCommand command = new HealthRecordStore.SaveCommand(
+                userId,
+                result(),
+                ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60)
+        );
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            var saves = List.of(
+                    executor.submit(() -> saveAfterSignal(command, ready, start)),
+                    executor.submit(() -> saveAfterSignal(command, ready, start))
+            );
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            long firstId = saves.get(0).get(10, TimeUnit.SECONDS).id();
+            long secondId = saves.get(1).get(10, TimeUnit.SECONDS).id();
+
+            assertThat(secondId).isEqualTo(firstId);
+            assertThat(jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM health_analysis_records
+                    WHERE user_id = ? AND analyzed_at = ?
+                    """,
+                    Integer.class,
+                    userId,
+                    ANALYZED_AT
+            )).isEqualTo(1);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+            cleanupFixture();
+        }
+    }
+
+    private HealthRecordStore.SavedRecord saveAfterSignal(
+            HealthRecordStore.SaveCommand command,
+            CountDownLatch ready,
+            CountDownLatch start
+    ) throws InterruptedException {
+        ready.countDown();
+        if (!start.await(5, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("Concurrent save start timed out");
+        }
+        return store.save(command);
+    }
+
+    private void cleanupFixture() {
+        jdbcTemplate.update("DELETE FROM users WHERE username = 'record26'");
+        jdbcTemplate.update("DELETE FROM news_publisher_domains WHERE hostname = 'news.example'");
+        jdbcTemplate.update("DELETE FROM news_publishers WHERE name = '통합검증언론사'");
     }
 
     private long insertUser() {

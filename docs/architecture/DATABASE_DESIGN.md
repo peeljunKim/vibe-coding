@@ -194,14 +194,14 @@ public record InviteProperties(String code) {}
 | 컬럼명 | 타입 | PK | FK | NULL | UNIQUE | DEFAULT | 설명 / 참조 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `id` | BIGINT UNSIGNED | Y | N | N | Y | AUTO_INCREMENT | 저장 결과 식별자 |
-| `user_id` | BIGINT UNSIGNED | N | Y | N | N | - | `users.id`, 삭제 CASCADE |
+| `user_id` | BIGINT UNSIGNED | N | Y | N | 복합 | - | `users.id`, 삭제 CASCADE |
 | `publisher_domain_id` | BIGINT UNSIGNED | N | Y | N | N | - | `news_publisher_domains.id`, 삭제 RESTRICT |
 | `article_url` | VARCHAR(2048) | N | N | N | N | - | 검증한 최종 기사 URL |
-| `normalized_url_digest` | BINARY(32) | N | N | N | N | - | 정규화 URL SHA-256 |
+| `normalized_url_digest` | BINARY(32) | N | N | N | 복합 | - | 정규화 URL SHA-256 |
 | `article_title` | VARCHAR(500) | N | N | N | N | - | 분석 당시 제목 |
 | `article_published_at` | DATETIME(6) | N | N | Y | N | - | 기사 게시 시각 |
 | `article_modified_at` | DATETIME(6) | N | N | Y | N | - | 기사 수정 시각 |
-| `analyzed_at` | TIMESTAMP(6) | N | N | N | N | - | 현재 결과 분석 시각 |
+| `analyzed_at` | TIMESTAMP(6) | N | N | N | 복합 | - | 현재 결과 분석 시각, 사용자·URL과 저장 멱등성 UNIQUE |
 | `expires_at` | TIMESTAMP(6) | N | N | N | N | - | 30일 삭제 예정 시각 |
 | `overall_status` | VARCHAR(30) | N | N | N | N | - | `RELIABLE`, `CAUTION`, `DOUBTFUL` |
 | `total_claim_count` | TINYINT UNSIGNED | N | N | N | N | - | 1~3 주장 수 |
@@ -350,7 +350,7 @@ public record InviteProperties(String code) {}
 
 ## 6. INDEX 설계
 
-PK와 UNIQUE 제약으로 생성되는 인덱스 외의 조회 인덱스만 정리한다.
+PK를 제외한 주요 UNIQUE와 조회 인덱스를 정리한다.
 
 | 테이블 | INDEX | 컬럼 | UNIQUE | 설계 이유 |
 | --- | --- | --- | --- | --- |
@@ -359,6 +359,7 @@ PK와 UNIQUE 제약으로 생성되는 인덱스 외의 조회 인덱스만 정�
 | `news_publishers` | `idx_news_publishers_status` | `status, name` | N | 화면의 지원/일시 중단 목록 분리 |
 | `news_publisher_domains` | `idx_publisher_domains_publisher_status` | `publisher_id, status` | N | 언론사별 활성 허용 호스트 로딩 |
 | `health_analysis_records` | `idx_health_records_user_analyzed` | `user_id, analyzed_at DESC` | N | 회원 히스토리 최신순 조회 |
+| `health_analysis_records` | `uk_health_records_user_url_analyzed` | `user_id, normalized_url_digest, analyzed_at` | Y | 같은 완료 결과의 동시 중복 저장 방지 |
 | `health_analysis_records` | `idx_health_records_user_url` | `user_id, normalized_url_digest` | N | 같은 사용자의 저장 결과·재분석 대상 찾기 |
 | `health_analysis_records` | `idx_health_records_expires` | `expires_at` | N | 30일 만료 배치 |
 | `health_analysis_records` | `idx_health_records_publisher` | `publisher_domain_id` | N | 삭제 RESTRICT FK와 운영 영향 조회 |
@@ -404,6 +405,8 @@ infra/mysql/schema/V0001__create_initial_domain_schema.sql
 
 DDL은 13개 `CREATE TABLE`, PK, FK 삭제 정책, UNIQUE, NOT NULL, DEFAULT, CHECK, 조회·만료 인덱스, 컬럼·테이블 COMMENT를 포함한다. DB 내부 스키마 이력 테이블은 만들지 않는다. 초기 SQL은 Git에서 제외하며, 이 문서는 Git에서 관리하는 설계 검토 기준이다.
 
+초기 생성 이후의 변경은 Git에서 관리하는 Version SQL을 순서대로 적용한다. 현재 후속 변경은 `V0003__prevent_duplicate_health_records.sql`이며 동일 완료 결과의 동시 중복 저장을 DB UNIQUE 제약으로 차단한다.
+
 ## 9. 설계 가정 및 확인 필요사항
 
 ### 설계 가정
@@ -418,11 +421,11 @@ DDL은 13개 `CREATE TABLE`, PK, FK 삭제 정책, UNIQUE, NOT NULL, DEFAULT, CH
 - 언론사 최근 1시간 추출 실패율과 기능별 일일 이용량은 Redis 또는 메트릭 저장소에서 TTL로 집계한다.
 - 모든 보존 기한은 애플리케이션에서 한국시간 정책으로 계산한 절대 UTC 시각을 DB에 저장한다. DB 세션 시간대는 UTC로 고정한다.
 - 건강 저장 결과의 재분석은 기존 행을 유지하고 자식 주장·근거를 트랜잭션 교체하며 `version`을 증가시킨다.
+- 동일 사용자의 같은 기사라도 분석 시각이 다른 재분석 결과는 별도 저장하며, 동일 분석 결과의 중복 요청은 `(user_id, normalized_url_digest, analyzed_at)` UNIQUE로 한 건만 허용한다.
 - 신고 `result_snapshot`은 `schemaVersion`, 판정, 설명, 근거 링크만 포함하고 기사 원문과 사용자 개인정보를 포함하지 않는다.
 
 ### 확인 필요사항
 
-- 동일 사용자가 같은 기사 건강 결과를 여러 건 저장할 수 있는지, 아니면 최신 한 건만 허용할지 정책이 필요하다. 현재 DDL은 중복 저장을 막는 UNIQUE를 두지 않는다.
 - 탈퇴 취소 후 `WITHDRAWAL_PENDING` 이전 상태가 항상 `ACTIVE`인지 확인이 필요하다. 미인증 계정의 탈퇴 흐름은 정의되지 않았다.
 - 사용자 이메일 변경 기능과 변경 시 재인증 정책이 범위에 포함되는지 확인이 필요하다.
 - 전문가 검토 도입 시 리뷰어가 서비스 사용자 계정인지 별도 전문가 명부인지 결정이 필요하다.

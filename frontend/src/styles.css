@@ -1577,6 +1577,35 @@ input:focus-visible {
   text-align: center;
 }
 
+.saved-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.saved-pagination button {
+  min-width: 108px;
+  height: 42px;
+  border: 1px solid #b9ccd3;
+  border-radius: 10px;
+  background: #fff;
+  color: #17637a;
+  font-weight: 700;
+}
+
+.saved-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.saved-pagination span {
+  color: #5e7079;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 /* 회원가입 화면 스타일 */
 .signup-content {
   width: min(calc(100% - 152px), 1288px);
