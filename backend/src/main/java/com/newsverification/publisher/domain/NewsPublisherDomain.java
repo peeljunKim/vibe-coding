@@ -36,6 +36,11 @@ public class NewsPublisherDomain {
     protected NewsPublisherDomain() {
     }
 
+    /** 언론사 도메인 식별자 조회 */
+    public Long id() {
+        return id;
+    }
+
     /** 소속 언론사 조회 */
     public NewsPublisher publisher() {
         return publisher;

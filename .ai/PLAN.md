@@ -199,7 +199,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Docker Redis 8.8 계정 복구 통합 검증: PASS
 - Frontend Test·Lint·TypeScript·Build: PASS (33개)
 - Chrome 계정 복구 Browser E2E: PASS (아이디 찾기·비밀번호 재설정 2개, Runtime·Console 오류 0건)
-- 실제 Gmail 계정 복구 발송과 Native MySQL 비밀번호 변경: NOT RUN (자동 검증은 Adapter·Service·Repository 경계까지 수행)
+- 실제 Gmail 계정 복구 Full-stack HTTP E2E: PASS (임시 회원가입·아이디 찾기·비밀번호 변경, 기존 Redis Session 만료, 이전 비밀번호 거부·새 비밀번호 로그인, 인증 상태 재사용 차단, 테스트 데이터·임시 로그 정리)
 
 ## PR 16 보완 작업
 
@@ -219,3 +219,23 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Self Review·Diff Review·작업 트리/Stage 공백 검사: PASS
 - 실제 GitHub Actions 재실행: NOT RUN (CI YAML 변경 없음)
 - 실제 MySQL 재적용·외부 기사 추출: NOT RUN (이번 실행 대상 아님)
+
+## 건강 분석 저장 기록 Vertical Slice
+
+- 추천 Prompt와 Harness 비교: PASS (Pagination·30일 만료 조회·Local API 계약 선행 기록 보완)
+- 로그인 회원의 완료된 본인 건강 분석 명시적 저장: PASS
+- 비회원 저장·목록 접근과 타인·없는 작업 저장 차단: PASS
+- 기사 원문 제외, 기사 메타데이터·판정·주장·근거·Version 저장: PASS
+- 같은 회원·기사 URL Digest·분석 시각의 순차 중복 저장 방지: PASS
+- 저장 기록 Pagination: PASS (`page=0`, `size=20`, 최대 100, `analyzedAt`·ID 내림차순)
+- 만료 기록 조회 제외: PASS (분석 시각부터 30일)
+- 만료 기록 자동 삭제: NOT RUN (별도 후속 작업)
+- Frontend 결과 저장과 실제 저장 목록 API 연결: PASS
+- 제목 분석 저장 제외: PASS
+- Backend 단위·MVC 전체 회귀: PASS (163개, 실패·오류·Skip 0; `*IT` 제외)
+- Frontend 전체 Test·Lint·TypeScript·Build: PASS (38개)
+- Chrome 건강 분석 저장·목록 Browser E2E: PASS (6개, Runtime·Console 오류 0건)
+- 전체 Frontend Browser 회귀: FAIL (9개 중 기존 회원가입 E2E 1개가 `/api/auth/session` 미Mock 상태에서 Backend 미실행 502 Console 오류)
+- Native MySQL 저장 기록 JPA 통합 테스트 소스와 Harness 연결: PASS
+- Native MySQL 저장 기록 실제 실행: NOT RUN (현재 Agent Process와 `.env`에 테스트 계정 비밀번호 없음)
+- Local API 계약 JSON 파싱·Git 제외 확인: PASS

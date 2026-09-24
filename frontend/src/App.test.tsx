@@ -10,6 +10,7 @@ import {
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSession, login, logout } from './api/auth'
+import { listHealthRecords, saveHealthRecord } from './api/healthRecords'
 import {
   requestRecoveryCode,
   verifyUsernameRecovery,
@@ -34,14 +35,29 @@ vi.mock('./api/accountRecovery', () => ({
   verifyUsernameRecovery: vi.fn(),
 }))
 
+vi.mock('./api/healthRecords', () => ({
+  listHealthRecords: vi.fn(),
+  saveHealthRecord: vi.fn(),
+}))
+
 beforeEach(() => {
   vi.mocked(getSession).mockReset()
   vi.mocked(login).mockReset()
   vi.mocked(logout).mockReset()
   vi.mocked(requestRecoveryCode).mockReset()
   vi.mocked(verifyUsernameRecovery).mockReset()
+  vi.mocked(listHealthRecords).mockReset()
+  vi.mocked(saveHealthRecord).mockReset()
   vi.mocked(getSession).mockResolvedValue({ authenticated: false })
   vi.mocked(logout).mockResolvedValue(undefined)
+  vi.mocked(listHealthRecords).mockResolvedValue({
+    items: [],
+    page: 0,
+    size: 20,
+    totalElements: 0,
+    totalPages: 0,
+    hasNext: false,
+  })
 })
 
 afterEach(() => {
@@ -587,7 +603,9 @@ describe('App', () => {
     })
     renderApp('/login')
 
-    fireEvent.click(screen.getByRole('button', { name: '아이디·비밀번호 찾기' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: '아이디·비밀번호 찾기' }),
+    )
     fireEvent.change(screen.getByLabelText('가입 이메일'), {
       target: { value: 'user@example.com' },
     })
@@ -693,6 +711,7 @@ describe('App', () => {
 
   it('주입된 건강 분석 결과와 근거 출처를 표시한다', () => {
     const result: HealthResultViewData = {
+      analysisId: 'analysis-1',
       article: {
         title: '건강 기사 제목',
         publisher: '테스트 언론사',
@@ -728,6 +747,73 @@ describe('App', () => {
       'href',
       'https://evidence.example.com/source',
     )
+  })
+
+  it('건강 분석 결과의 저장 버튼으로 완료 작업을 저장한다', async () => {
+    const result: HealthResultViewData = {
+      analysisId: 'analysis-1',
+      article: {
+        title: '건강 기사 제목',
+        publisher: '테스트 언론사',
+        url: 'https://news.example.com/article',
+      },
+      analyzedAt: '2026-09-24T01:00:00Z',
+      claim: '건강 기사 핵심 주장',
+      claimStatus: 'NEEDS_REVIEW',
+      reasons: ['근거가 부족합니다.'],
+      evidences: [],
+    }
+    const onSave = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <MemoryRouter>
+        <HealthResultPage
+          data={result}
+          onNewArticle={() => undefined}
+          onSave={onSave}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '결과 저장' }))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('analysis-1'))
+    expect(screen.getByRole('button', { name: '저장 완료' })).toBeDisabled()
+  })
+
+  it('로그인 회원의 실제 저장 기록 API 목록을 표시한다', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+    vi.mocked(listHealthRecords).mockResolvedValue({
+      items: [
+        {
+          id: '31',
+          title: '저장된 건강 기사',
+          overallStatus: 'CAUTION',
+          analyzedAt: '2026-09-24T01:00:00Z',
+          expiresAt: '2026-10-24T01:00:00Z',
+        },
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+      hasNext: false,
+    })
+
+    renderApp('/saved')
+
+    expect(
+      await screen.findByRole('heading', { name: '저장된 건강 기사' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('분석일 2026.09.24 · 2026.10.24 삭제'),
+    ).toBeInTheDocument()
+    expect(listHealthRecords).toHaveBeenCalledWith(0, 20)
   })
 
   it('관리자 신고를 선택하면 실제 입력 데이터로 상세 내용을 갱신한다', () => {

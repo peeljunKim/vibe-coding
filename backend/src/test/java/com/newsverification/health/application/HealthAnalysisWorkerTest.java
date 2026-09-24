@@ -308,6 +308,9 @@ class HealthAnalysisWorkerTest {
                         List.of()
                 )),
                 HealthAnalysisResult.ExpertReviewStatus.NOT_REVIEWED,
+                "mock-health-analysis-v1",
+                "health-analysis-policy-v1",
+                "evidence-allowlist-v1",
                 false
         );
     }

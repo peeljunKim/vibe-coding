@@ -22,6 +22,7 @@ type BackendStage =
   | 'FAILED'
 
 interface BackendEvidence {
+  sourceKind?: 'OFFICIAL' | 'PUBMED'
   title: string
   provider: string
   publishedOrUpdatedDate?: string
@@ -151,22 +152,35 @@ const toProgressView = (
   stage: toViewStage(stage),
 })
 
-const toResultView = (result: BackendHealthResult): HealthResultViewData => {
+const toResultView = (
+  result: BackendHealthResult,
+  analysisId: string,
+): HealthResultViewData => {
   const primaryClaim = result.claims[0]
   if (!primaryClaim) {
     throw new Error('분석 결과를 확인하지 못했습니다. 다시 시도해 주세요.')
   }
 
   return {
+    analysisId,
     article: result.article,
     analyzedAt: result.analyzedAt,
     claim: primaryClaim.claim,
     claimStatus: primaryClaim.status,
     reasons: [primaryClaim.reason],
-    evidences: primaryClaim.evidences.map((evidence, index) => ({
-      ...evidence,
-      id: `${primaryClaim.order}-${index + 1}`,
-    })),
+    evidences: primaryClaim.evidences.map((evidence, index) => {
+      const sourceType =
+        evidence.sourceKind === 'PUBMED'
+          ? 'PubMed'
+          : evidence.sourceKind === 'OFFICIAL'
+            ? '공식 자료'
+            : null
+      return {
+        ...evidence,
+        id: `${primaryClaim.order}-${index + 1}`,
+        ...(sourceType ? { sourceType } : {}),
+      }
+    }),
   }
 }
 
@@ -239,7 +253,7 @@ const pollHealthAnalysis = async (
 
     const progress = await readJson<ProgressResponse>(response)
     if (progress.status === 'COMPLETED' && progress.result) {
-      return toResultView(progress.result)
+      return toResultView(progress.result, accepted.analysisId)
     }
     if (progress.status === 'FAILED') {
       throw new Error(toHealthAnalysisErrorMessage(progress.error?.code))

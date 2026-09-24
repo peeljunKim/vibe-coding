@@ -1,9 +1,11 @@
 // 건강 뉴스 분석 결과 화면
+import { useState } from 'react'
 import AppHeader from '../components/AppHeader'
 import type { HealthClaimStatus, HealthResultViewData } from '../types/pageData'
 
 interface HealthResultPageProps {
   onNewArticle: () => void
+  onSave?: (analysisId: string) => Promise<void>
   data?: HealthResultViewData
 }
 
@@ -17,8 +19,35 @@ const claimStatus: Record<
   INSUFFICIENT: { label: '자료 부족', className: 'status-badge--neutral' },
 }
 
-function HealthResultPage({ onNewArticle, data }: HealthResultPageProps) {
+function HealthResultPage({
+  onNewArticle,
+  onSave,
+  data,
+}: HealthResultPageProps) {
   const status = data ? claimStatus[data.claimStatus] : undefined
+  const [saveStatus, setSaveStatus] = useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  const save = async () => {
+    if (!data || !onSave || saveStatus === 'saving' || saveStatus === 'saved') {
+      return
+    }
+    setSaveStatus('saving')
+    setSaveError(null)
+    try {
+      await onSave(data.analysisId)
+      setSaveStatus('saved')
+    } catch (error) {
+      setSaveStatus('error')
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : '결과를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      )
+    }
+  }
 
   return (
     <div className="app-page health-result-page">
@@ -147,8 +176,21 @@ function HealthResultPage({ onNewArticle, data }: HealthResultPageProps) {
             </button>
           </div>
           <div className="result-actions__buttons">
-            <button className="secondary-button" type="button" disabled={!data}>
-              결과 저장
+            {saveError ? <span role="alert">{saveError}</span> : null}
+            {saveStatus === 'saved' ? (
+              <span role="status">결과가 저장되었습니다.</span>
+            ) : null}
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={!data || !onSave || saveStatus !== 'idle'}
+              onClick={() => void save()}
+            >
+              {saveStatus === 'saving'
+                ? '저장 중'
+                : saveStatus === 'saved'
+                  ? '저장 완료'
+                  : '결과 저장'}
             </button>
             <button
               className="primary-button"

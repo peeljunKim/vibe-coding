@@ -18,6 +18,9 @@ public record HealthAnalysisResult(
         int totalClaimCount,
         List<Claim> claims,
         ExpertReviewStatus expertReviewStatus,
+        String aiModelVersion,
+        String policyVersion,
+        String evidenceAllowlistVersion,
         boolean limitedEvidence
 ) {
 
@@ -43,6 +46,10 @@ public record HealthAnalysisResult(
 
     /** 근거 출처 요약 */
     public record Evidence(
+            EvidenceSourceKind sourceKind,
+            String sourceIdentifier,
+            EvidenceStudyType studyType,
+            EvidenceRelationType relationType,
             String title,
             String provider,
             LocalDate publishedOrUpdatedDate,
@@ -71,5 +78,28 @@ public record HealthAnalysisResult(
     public enum ExpertReviewStatus {
         NOT_REVIEWED,
         REVIEWED
+    }
+
+    /** 근거 출처 유형 */
+    public enum EvidenceSourceKind {
+        OFFICIAL,
+        PUBMED
+    }
+
+    /** PubMed 연구 유형 */
+    public enum EvidenceStudyType {
+        GUIDELINE,
+        SYSTEMATIC_REVIEW,
+        META_ANALYSIS,
+        RANDOMIZED_TRIAL,
+        OBSERVATIONAL,
+        OTHER
+    }
+
+    /** 주장과 근거의 관계 */
+    public enum EvidenceRelationType {
+        SUPPORTS,
+        CONTRADICTS,
+        CONTEXT
     }
 }

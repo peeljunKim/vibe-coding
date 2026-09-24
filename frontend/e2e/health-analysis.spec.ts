@@ -35,6 +35,13 @@ test.beforeEach(async ({ page }) => {
   })
   page.on('pageerror', (error) => errors.push(error.message))
   await mockCsrf(page)
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false }),
+    }),
+  )
 })
 
 test.afterEach(({ page }) => {
@@ -112,6 +119,131 @@ test('완료 결과는 표시하고 새로고침 뒤에는 비영속 안내를 �
   await expect(
     page.getByRole('heading', { name: '[핵심 주장 데이터가 필요합니다.]' }),
   ).toBeVisible()
+})
+
+test('로그인 회원은 완료된 건강 분석 결과를 명시적으로 저장한다', async ({
+  page,
+}) => {
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        userId: '42',
+        role: 'USER',
+        expiresInSeconds: 7200,
+      }),
+    }),
+  )
+  await page.route('**/api/analyses/health', (route) =>
+    route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analysisId: 'health-e2e-saved',
+        deadlineAt: '2099-09-20T00:01:30Z',
+        pollAfterSeconds: 0,
+      }),
+    }),
+  )
+  await page.route('**/api/analyses/health/health-e2e-saved', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analysisId: 'health-e2e-saved',
+        status: 'COMPLETED',
+        stage: 'COMPLETED',
+        result: {
+          article: {
+            url: ARTICLE_URL,
+            title: '저장할 건강 기사',
+            publisher: '테스트 언론사',
+          },
+          analyzedAt: '2026-09-20T00:00:03Z',
+          claims: [
+            {
+              order: 1,
+              claim: '저장할 건강 기사 주장',
+              status: 'INSUFFICIENT',
+              reason: '확인 가능한 외부 근거가 부족합니다.',
+              evidences: [],
+            },
+          ],
+        },
+      }),
+    }),
+  )
+  let requestedAnalysisId: string | undefined
+  await page.route('**/api/health-records', async (route) => {
+    const body = route.request().postDataJSON() as { analysisId?: string }
+    requestedAnalysisId = body.analysisId
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 31,
+        title: '저장할 건강 기사',
+        overallStatus: 'CAUTION',
+        analyzedAt: '2026-09-20T00:00:03Z',
+        expiresAt: '2026-10-20T00:00:03Z',
+      }),
+    })
+  })
+  await writeArticleUrl(page)
+
+  await page.getByRole('button', { name: '복사한 건강 기사 확인하기' }).click()
+  await page.getByRole('button', { name: '결과 저장' }).click()
+
+  await expect(page.getByRole('status')).toHaveText('결과가 저장되었습니다.')
+  expect(requestedAnalysisId).toBe('health-e2e-saved')
+})
+
+test('로그인 회원의 만료되지 않은 저장 기록을 목록에 표시한다', async ({
+  page,
+}) => {
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        userId: '42',
+        role: 'USER',
+        expiresInSeconds: 7200,
+      }),
+    }),
+  )
+  await page.route('**/api/health-records?page=0&size=20', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: 31,
+            title: '목록에 저장된 건강 기사',
+            overallStatus: 'CAUTION',
+            analyzedAt: '2026-09-20T00:00:03Z',
+            expiresAt: '2026-10-20T00:00:03Z',
+          },
+        ],
+        page: 0,
+        size: 20,
+        totalElements: 1,
+        totalPages: 1,
+        hasNext: false,
+      }),
+    }),
+  )
+
+  await page.goto('/saved')
+
+  await expect(
+    page.getByRole('heading', { name: '목록에 저장된 건강 기사' }),
+  ).toBeVisible()
+  await expect(page.getByText('남은 기록 1개')).toBeVisible()
 })
 
 test('건강 분야가 아닌 기사는 내부 상세 없이 중단 안내를 표시한다', async ({

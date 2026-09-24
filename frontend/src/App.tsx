@@ -9,6 +9,7 @@ import {
 } from './api/auth'
 import { analyzeHealthArticle } from './api/healthAnalysis'
 import { analyzeHeadline } from './api/headlineAnalysis'
+import { saveHealthRecord } from './api/healthRecords'
 import AdminReportsPage from './pages/AdminReportsPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import HealthAnalysisPage from './pages/HealthAnalysisPage'
@@ -198,6 +199,9 @@ function App() {
           <HealthResultPage
             {...(healthResultData ? { data: healthResultData } : {})}
             onNewArticle={() => goTo('/')}
+            onSave={async (analysisId) => {
+              await saveHealthRecord(analysisId)
+            }}
           />
         }
       />
