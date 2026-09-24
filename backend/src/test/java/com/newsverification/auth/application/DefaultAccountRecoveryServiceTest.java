@@ -25,6 +25,7 @@ class DefaultAccountRecoveryServiceTest {
     private final FakeMailSender mailSender = new FakeMailSender();
     private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
     private final List<Long> invalidatedUsers = new ArrayList<>();
+    private final List<String> executionOrder = new ArrayList<>();
     private DefaultAccountRecoveryService service;
 
     @BeforeEach
@@ -33,9 +34,13 @@ class DefaultAccountRecoveryServiceTest {
                 accounts,
                 verifications,
                 mailSender,
+                Runnable::run,
                 () -> "482916",
                 passwordEncoder,
-                invalidatedUsers::add,
+                userId -> {
+                    invalidatedUsers.add(userId);
+                    executionOrder.add("sessions");
+                },
                 "test-account-recovery-key".getBytes(StandardCharsets.UTF_8)
         );
     }
@@ -84,7 +89,80 @@ class DefaultAccountRecoveryServiceTest {
         assertThat(invalidatedUsers).containsExactly(42L);
         assertThat(accounts.changedUserId).isEqualTo(42L);
         assertThat(passwordEncoder.matches("ChangedPassword!23", accounts.changedPasswordHash)).isTrue();
+        assertThat(executionOrder).containsExactly("password", "sessions");
         assertThat(verifications.consumedPurpose).isEqualTo(Purpose.PASSWORD);
+    }
+
+    /** 인증번호 메일의 요청 Thread 외부 실행 */
+    @Test
+    void dispatchesVerificationEmailThroughExecutor() {
+        accounts.account = new AccountRecoveryAccountStore.Account(42L, "healthcheck26", "user@example.com");
+        List<Runnable> mailTasks = new ArrayList<>();
+        service = new DefaultAccountRecoveryService(
+                accounts,
+                verifications,
+                mailSender,
+                mailTasks::add,
+                () -> "482916",
+                passwordEncoder,
+                invalidatedUsers::add,
+                "test-account-recovery-key".getBytes(StandardCharsets.UTF_8)
+        );
+
+        service.requestPasswordCode("user@example.com");
+
+        assertThat(mailSender.codeMessages).isEmpty();
+        assertThat(mailTasks).hasSize(1);
+        mailTasks.get(0).run();
+        assertThat(mailSender.codeMessages).containsExactly("user@example.com:PASSWORD:482916");
+    }
+
+    /** 미등록 이메일과 등록 이메일의 동일한 비동기 경로 */
+    @Test
+    void dispatchesUnknownEmailThroughSameExecutor() {
+        List<Runnable> mailTasks = new ArrayList<>();
+        service = new DefaultAccountRecoveryService(
+                accounts,
+                verifications,
+                mailSender,
+                mailTasks::add,
+                () -> "482916",
+                passwordEncoder,
+                invalidatedUsers::add,
+                "test-account-recovery-key".getBytes(StandardCharsets.UTF_8)
+        );
+
+        service.requestPasswordCode("unknown@example.com");
+
+        assertThat(mailTasks).hasSize(1);
+        mailTasks.get(0).run();
+        assertThat(mailSender.codeMessages).isEmpty();
+    }
+
+    /** 비동기 발송 실패의 인증 상태 보상 삭제 */
+    @Test
+    void consumesVerificationStateWhenAsyncDeliveryFails() {
+        accounts.account = new AccountRecoveryAccountStore.Account(42L, "healthcheck26", "user@example.com");
+        mailSender.failCodeDelivery = true;
+        List<Runnable> mailTasks = new ArrayList<>();
+        service = new DefaultAccountRecoveryService(
+                accounts,
+                verifications,
+                mailSender,
+                mailTasks::add,
+                () -> "482916",
+                passwordEncoder,
+                invalidatedUsers::add,
+                "test-account-recovery-key".getBytes(StandardCharsets.UTF_8)
+        );
+
+        service.requestPasswordCode("user@example.com");
+        assertThat(verifications.consumedPurpose).isNull();
+
+        mailTasks.get(0).run();
+
+        assertThat(verifications.consumedPurpose).isEqualTo(Purpose.PASSWORD);
+        assertThat(verifications.conditionallyConsumedCode).isEqualTo("482916");
     }
 
     /** 잘못된 인증번호의 공통 오류 */
@@ -99,7 +177,7 @@ class DefaultAccountRecoveryServiceTest {
         assertThat(mailSender.usernames).isEmpty();
     }
 
-    private static final class FakeAccountStore implements AccountRecoveryAccountStore {
+    private final class FakeAccountStore implements AccountRecoveryAccountStore {
         private Account account;
         private long changedUserId;
         private String changedPasswordHash;
@@ -111,6 +189,7 @@ class DefaultAccountRecoveryServiceTest {
 
         @Override
         public void changePassword(long userId, String passwordHash) {
+            executionOrder.add("password");
             changedUserId = userId;
             changedPasswordHash = passwordHash;
         }
@@ -121,6 +200,7 @@ class DefaultAccountRecoveryServiceTest {
         private Purpose issuedPurpose;
         private String issuedCode;
         private Purpose consumedPurpose;
+        private String conditionallyConsumedCode;
 
         @Override
         public IssueResult issue(Purpose purpose, String lookupKey, String code) {
@@ -138,14 +218,24 @@ class DefaultAccountRecoveryServiceTest {
         public void consume(Purpose purpose, String lookupKey) {
             consumedPurpose = purpose;
         }
+
+        @Override
+        public void consumeIfCodeMatches(Purpose purpose, String lookupKey, String code) {
+            consumedPurpose = purpose;
+            conditionallyConsumedCode = code;
+        }
     }
 
     private static final class FakeMailSender implements AccountRecoveryMailSender {
         private final List<String> codeMessages = new ArrayList<>();
         private final List<String> usernames = new ArrayList<>();
+        private boolean failCodeDelivery;
 
         @Override
         public void sendVerificationCode(String email, Purpose purpose, String code) {
+            if (failCodeDelivery) {
+                throw new IllegalStateException("test mail delivery failure");
+            }
             codeMessages.add(email + ":" + purpose + ":" + code);
         }
 

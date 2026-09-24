@@ -16,6 +16,8 @@ import java.security.GeneralSecurityException;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.Executor;
 
 /** 계정 존재 여부를 숨기는 이메일 복구 흐름 */
 public class DefaultAccountRecoveryService implements AccountRecoveryService {
@@ -26,6 +28,7 @@ public class DefaultAccountRecoveryService implements AccountRecoveryService {
     private final AccountRecoveryAccountStore accountStore;
     private final AccountRecoveryVerificationStore verificationStore;
     private final AccountRecoveryMailSender mailSender;
+    private final Executor mailExecutor;
     private final VerificationCodeGenerator codeGenerator;
     private final PasswordEncoder passwordEncoder;
     private final AccountSessionInvalidator sessionInvalidator;
@@ -35,6 +38,7 @@ public class DefaultAccountRecoveryService implements AccountRecoveryService {
             AccountRecoveryAccountStore accountStore,
             AccountRecoveryVerificationStore verificationStore,
             AccountRecoveryMailSender mailSender,
+            Executor mailExecutor,
             VerificationCodeGenerator codeGenerator,
             PasswordEncoder passwordEncoder,
             AccountSessionInvalidator sessionInvalidator,
@@ -43,6 +47,7 @@ public class DefaultAccountRecoveryService implements AccountRecoveryService {
         this.accountStore = Objects.requireNonNull(accountStore);
         this.verificationStore = Objects.requireNonNull(verificationStore);
         this.mailSender = Objects.requireNonNull(mailSender);
+        this.mailExecutor = Objects.requireNonNull(mailExecutor);
         this.codeGenerator = Objects.requireNonNull(codeGenerator);
         this.passwordEncoder = Objects.requireNonNull(passwordEncoder);
         this.sessionInvalidator = Objects.requireNonNull(sessionInvalidator);
@@ -89,8 +94,8 @@ public class DefaultAccountRecoveryService implements AccountRecoveryService {
         requireVerified(Purpose.PASSWORD, lookupKey, command.code());
         AccountRecoveryAccountStore.Account account = accountStore.findActiveLocalByEmail(normalizedEmail)
                 .orElseThrow(this::invalidCode);
-        sessionInvalidator.invalidateAll(account.userId());
         accountStore.changePassword(account.userId(), passwordEncoder.encode(command.password()));
+        sessionInvalidator.invalidateAll(account.userId());
         verificationStore.consume(Purpose.PASSWORD, lookupKey);
     }
 
@@ -99,16 +104,44 @@ public class DefaultAccountRecoveryService implements AccountRecoveryService {
         String lookupKey = lookupKey(normalizedEmail);
         String code = codeGenerator.generate();
         AccountRecoveryVerificationStore.IssueResult issue = verificationStore.issue(purpose, lookupKey, code);
-        accountStore.findActiveLocalByEmail(normalizedEmail).ifPresent(account -> {
-            try {
-                mailSender.sendVerificationCode(account.email(), purpose, code);
-            } catch (RuntimeException exception) {
-                verificationStore.consume(purpose, lookupKey);
-                LOGGER.error("Account recovery email delivery failed. purpose={} cause={}",
-                        purpose, exception.getClass().getSimpleName());
-            }
-        });
+        dispatchCodeMail(
+                accountStore.findActiveLocalByEmail(normalizedEmail),
+                purpose,
+                code,
+                lookupKey
+        );
         return new RecoveryRequest(issue.remainingAttempts(), issue.resendAvailableInSeconds());
+    }
+
+    private void dispatchCodeMail(
+            Optional<AccountRecoveryAccountStore.Account> account,
+            Purpose purpose,
+            String code,
+            String lookupKey
+    ) {
+        Runnable delivery = () -> {
+            try {
+                account.ifPresent(existing -> mailSender.sendVerificationCode(existing.email(), purpose, code));
+            } catch (RuntimeException exception) {
+                compensateFailedDelivery(purpose, lookupKey, code, exception);
+            }
+        };
+        try {
+            mailExecutor.execute(delivery);
+        } catch (RuntimeException exception) {
+            compensateFailedDelivery(purpose, lookupKey, code, exception);
+        }
+    }
+
+    private void compensateFailedDelivery(
+            Purpose purpose,
+            String lookupKey,
+            String code,
+            RuntimeException exception
+    ) {
+        verificationStore.consumeIfCodeMatches(purpose, lookupKey, code);
+        LOGGER.error("Account recovery email delivery failed. purpose={} cause={}",
+                purpose, exception.getClass().getSimpleName());
     }
 
     private void requireVerified(Purpose purpose, String lookupKey, String code) {

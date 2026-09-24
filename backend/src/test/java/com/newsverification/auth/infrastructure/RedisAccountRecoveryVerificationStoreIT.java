@@ -12,6 +12,7 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 
 import java.time.Clock;
@@ -20,9 +21,16 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -100,6 +108,61 @@ class RedisAccountRecoveryVerificationStoreIT {
                 .isEqualTo(AccountRecoveryVerificationStore.VerificationResult.BLOCKED);
     }
 
+    /** 다섯 번째 올바른 인증번호 비교 허용 */
+    @Test
+    void allowsCorrectCodeOnFifthAttempt() {
+        RedisAccountRecoveryVerificationStore store = storeAt(now);
+        store.issue(AccountRecoveryVerificationStore.Purpose.PASSWORD, LOOKUP_KEY, "482916");
+
+        for (int attempt = 1; attempt < 5; attempt++) {
+            assertThat(store.verify(AccountRecoveryVerificationStore.Purpose.PASSWORD, LOOKUP_KEY, "000000"))
+                    .isEqualTo(AccountRecoveryVerificationStore.VerificationResult.INVALID);
+        }
+
+        assertThat(store.verify(AccountRecoveryVerificationStore.Purpose.PASSWORD, LOOKUP_KEY, "482916"))
+                .isEqualTo(AccountRecoveryVerificationStore.VerificationResult.VERIFIED);
+    }
+
+    /** 병렬 요청의 최대 다섯 번 Hash 비교 제한 */
+    @Test
+    void reservesAtMostFiveConcurrentAttempts() throws Exception {
+        CountingPasswordEncoder encoder = new CountingPasswordEncoder();
+        RedisAccountRecoveryVerificationStore store = storeAt(now, encoder);
+        store.issue(AccountRecoveryVerificationStore.Purpose.PASSWORD, LOOKUP_KEY, "482916");
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        CountDownLatch ready = new CountDownLatch(10);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<AccountRecoveryVerificationStore.VerificationResult>> results = new ArrayList<>();
+
+        try {
+            for (int index = 0; index < 10; index++) {
+                results.add(executor.submit(() -> {
+                    ready.countDown();
+                    start.await();
+                    return store.verify(
+                            AccountRecoveryVerificationStore.Purpose.PASSWORD,
+                            LOOKUP_KEY,
+                            "000000"
+                    );
+                }));
+            }
+            assertThat(ready.await(2, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            List<AccountRecoveryVerificationStore.VerificationResult> completed = new ArrayList<>();
+            for (Future<AccountRecoveryVerificationStore.VerificationResult> result : results) {
+                completed.add(result.get(5, TimeUnit.SECONDS));
+            }
+            assertThat(encoder.matchCount()).isEqualTo(5);
+            assertThat(completed).filteredOn(result -> result == AccountRecoveryVerificationStore.VerificationResult.INVALID)
+                    .hasSize(4);
+            assertThat(completed).filteredOn(result -> result == AccountRecoveryVerificationStore.VerificationResult.BLOCKED)
+                    .hasSize(6);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     /** 재발송 간격과 기존 인증번호 무효화 검증 */
     @Test
     void invalidatesPreviousCodeAfterAllowedResend() {
@@ -122,10 +185,32 @@ class RedisAccountRecoveryVerificationStoreIT {
                 .isEqualTo(AccountRecoveryVerificationStore.VerificationResult.VERIFIED);
     }
 
+    /** 이전 메일 실패 보상이 새 인증번호를 삭제하지 않음 */
+    @Test
+    void keepsNewCodeWhenOlderDeliveryFails() {
+        RedisAccountRecoveryVerificationStore initialStore = storeAt(now);
+        initialStore.issue(AccountRecoveryVerificationStore.Purpose.PASSWORD, LOOKUP_KEY, "482916");
+
+        RedisAccountRecoveryVerificationStore laterStore = storeAt(now.plusSeconds(61));
+        laterStore.issue(AccountRecoveryVerificationStore.Purpose.PASSWORD, LOOKUP_KEY, "135790");
+        laterStore.consumeIfCodeMatches(
+                AccountRecoveryVerificationStore.Purpose.PASSWORD,
+                LOOKUP_KEY,
+                "482916"
+        );
+
+        assertThat(laterStore.verify(AccountRecoveryVerificationStore.Purpose.PASSWORD, LOOKUP_KEY, "135790"))
+                .isEqualTo(AccountRecoveryVerificationStore.VerificationResult.VERIFIED);
+    }
+
     private RedisAccountRecoveryVerificationStore storeAt(Instant instant) {
+        return storeAt(instant, PasswordEncoderFactories.createDelegatingPasswordEncoder());
+    }
+
+    private RedisAccountRecoveryVerificationStore storeAt(Instant instant, PasswordEncoder encoder) {
         return new RedisAccountRecoveryVerificationStore(
                 redisTemplate,
-                PasswordEncoderFactories.createDelegatingPasswordEncoder(),
+                encoder,
                 keyPrefix,
                 KOREA,
                 Clock.fixed(instant, ZoneOffset.UTC)
@@ -147,5 +232,26 @@ class RedisAccountRecoveryVerificationStoreIT {
             throw new IllegalStateException(name + " is required");
         }
         return value;
+    }
+
+    /** 병렬 Hash 비교 횟수 기록용 Encoder */
+    private static final class CountingPasswordEncoder implements PasswordEncoder {
+
+        private final AtomicInteger matches = new AtomicInteger();
+
+        @Override
+        public String encode(CharSequence rawPassword) {
+            return "test-digest:" + rawPassword;
+        }
+
+        @Override
+        public boolean matches(CharSequence rawPassword, String encodedPassword) {
+            matches.incrementAndGet();
+            return encodedPassword.equals(encode(rawPassword));
+        }
+
+        int matchCount() {
+            return matches.get();
+        }
     }
 }
