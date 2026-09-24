@@ -1,4 +1,6 @@
 // 저장된 건강 뉴스 목록 화면
+import { useEffect, useState } from 'react'
+import { listHealthRecords } from '../api/healthRecords'
 import AppHeader from '../components/AppHeader'
 import type { SavedRecordViewData } from '../types/pageData'
 
@@ -15,12 +17,65 @@ const statusLabels: Record<SavedRecordViewData['overallStatus'], string> = {
   DOUBTFUL: '의심',
 }
 
+const formatDate = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((result, part) => {
+      result[part.type] = part.value
+      return result
+    }, {})
+  return `${parts.year}.${parts.month}.${parts.day}`
+}
+
 function SavedRecordsPage({
   records,
   onReanalyze,
   onDelete,
   onDeleteAll,
 }: SavedRecordsPageProps) {
+  const [loadedRecords, setLoadedRecords] = useState<
+    SavedRecordViewData[] | undefined
+  >()
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (records) {
+      return
+    }
+    let active = true
+    void listHealthRecords(0, 20)
+      .then((page) => {
+        if (active) {
+          setLoadedRecords(page.items)
+          setLoadError(null)
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setLoadedRecords([])
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : '저장 기록을 불러오지 못했습니다.',
+          )
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [records])
+
+  const visibleRecords = records ?? loadedRecords
+
   return (
     <div className="app-page saved-page">
       <AppHeader section="저장 기록">
@@ -46,13 +101,16 @@ function SavedRecordsPage({
               <p>사용자가 저장한 결과만 분석일로부터 30일 보관됩니다.</p>
             </div>
             <span>
-              {records ? `남은 기록 ${records.length}개` : '기록 확인 전'}
+              {visibleRecords
+                ? `남은 기록 ${visibleRecords.length}개`
+                : '기록 확인 중'}
             </span>
           </div>
 
           <div className="saved-records">
-            {records?.length ? (
-              records.map((record) => (
+            {loadError ? <div role="alert">{loadError}</div> : null}
+            {visibleRecords?.length ? (
+              visibleRecords.map((record) => (
                 <article className="saved-record" key={record.id}>
                   <div className="saved-record__content">
                     <span
@@ -62,7 +120,8 @@ function SavedRecordsPage({
                     </span>
                     <h2>{record.title}</h2>
                     <p>
-                      분석일 {record.analyzedAt} · {record.expiresAt} 삭제
+                      분석일 {formatDate(record.analyzedAt)} ·{' '}
+                      {formatDate(record.expiresAt)} 삭제
                     </p>
                   </div>
                   <div className="saved-record__actions">
@@ -85,9 +144,9 @@ function SavedRecordsPage({
               ))
             ) : (
               <div className="saved-records__empty" role="status">
-                {records
+                {visibleRecords
                   ? '저장한 건강 뉴스가 없습니다.'
-                  : '[저장 기록 목록 데이터가 필요합니다.]'}
+                  : '저장 기록을 불러오고 있습니다.'}
               </div>
             )}
           </div>
@@ -101,7 +160,7 @@ function SavedRecordsPage({
           <button
             className="text-action text-action--danger saved-delete-all"
             type="button"
-            disabled={!records?.length || !onDeleteAll}
+            disabled={!visibleRecords?.length || !onDeleteAll}
             onClick={onDeleteAll}
           >
             전체 기록 삭제

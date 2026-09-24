@@ -50,6 +50,7 @@ export interface EvidenceViewData {
 }
 
 export interface HealthResultViewData {
+  analysisId: string
   article: ArticleViewData
   analyzedAt: string
   claim: string
