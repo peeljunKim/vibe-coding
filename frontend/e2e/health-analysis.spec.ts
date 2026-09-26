@@ -231,8 +231,30 @@ test('로그인 회원의 만료되지 않은 저장 기록을 목록에 표시�
         ],
         page: 0,
         size: 20,
-        totalElements: 1,
-        totalPages: 1,
+        totalElements: 21,
+        totalPages: 2,
+        hasNext: true,
+      }),
+    }),
+  )
+  await page.route('**/api/health-records?page=1&size=20', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: 11,
+            title: '다음 페이지에 저장된 건강 기사',
+            overallStatus: 'RELIABLE',
+            analyzedAt: '2026-09-19T00:00:03Z',
+            expiresAt: '2026-10-19T00:00:03Z',
+          },
+        ],
+        page: 1,
+        size: 20,
+        totalElements: 21,
+        totalPages: 2,
         hasNext: false,
       }),
     }),
@@ -243,7 +265,13 @@ test('로그인 회원의 만료되지 않은 저장 기록을 목록에 표시�
   await expect(
     page.getByRole('heading', { name: '목록에 저장된 건강 기사' }),
   ).toBeVisible()
-  await expect(page.getByText('남은 기록 1개')).toBeVisible()
+  await expect(page.getByText('남은 기록 21개')).toBeVisible()
+  await page.getByRole('button', { name: '다음 페이지' }).click()
+  await expect(
+    page.getByRole('heading', { name: '다음 페이지에 저장된 건강 기사' }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: '이전 페이지' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
 })
 
 test('건강 분야가 아닌 기사는 내부 상세 없이 중단 안내를 표시한다', async ({
