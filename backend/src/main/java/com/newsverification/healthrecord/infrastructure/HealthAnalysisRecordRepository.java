@@ -4,6 +4,9 @@ package com.newsverification.healthrecord.infrastructure;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -22,4 +25,9 @@ public interface HealthAnalysisRecordRepository extends JpaRepository<HealthAnal
             Instant activeAt,
             Pageable pageable
     );
+
+    /** 기준 시각 이하 만료 기록 일괄 삭제 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from HealthAnalysisRecordEntity record where record.expiresAt <= :cutoff")
+    int deleteExpiredAtOrBefore(@Param("cutoff") Instant cutoff);
 }

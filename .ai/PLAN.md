@@ -229,7 +229,8 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 같은 회원·기사 URL Digest·분석 시각의 순차 중복 저장 방지: PASS
 - 저장 기록 Pagination: PASS (`page=0`, `size=20`, 최대 100, `analyzedAt`·ID 내림차순)
 - 만료 기록 조회 제외: PASS (분석 시각부터 30일)
-- 만료 기록 자동 삭제: NOT RUN (별도 후속 작업)
+- 만료 기록 자동 삭제 구현: PASS (한국시간 03:10, 현재 시각 이하 일괄 삭제, Application 단위·Backend 전체 회귀)
+- 만료 기록 Native MySQL Cascade 검증: PASS (3개, 실패·오류·Skip 0)
 - Frontend 결과 저장과 실제 저장 목록 API 연결: PASS
 - 제목 분석 저장 제외: PASS
 - Backend 단위·MVC 전체 회귀: PASS (163개, 실패·오류·Skip 0; `*IT` 제외)
@@ -252,7 +253,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Native MySQL 동시 저장 통합 테스트 실제 실행: PASS (V0003 UNIQUE 적용, 동시 요청 2개가 동일 저장 기록 반환)
 - CodeRabbit Docstring Coverage 경고: NOT APPLICABLE (필요한 주석만 작성하는 Repository 규칙 우선)
 
-## 다음 작업 계획 — 만료 건강 분석 저장 기록 자동 삭제
+## 만료 건강 분석 저장 기록 자동 삭제
 
 ### Task Understanding
 
@@ -265,7 +266,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 저장 시 분석 시각부터 30일인 `expires_at` 기록
 - 목록 조회에서 현재 시각 이전에 만료된 기록 제외
 - `expires_at` Index와 하위 Table의 Cascade Foreign Key 존재
-- 실제 만료 행을 삭제하는 Application Port·Scheduler는 없음
+- 실제 만료 행을 삭제하는 Application Port·Scheduler 구현 완료
 
 ### Expected Behavior
 
@@ -288,9 +289,9 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 
 ### Required
 
-- [만료 건강 분석 저장 기록의 일일 삭제 실행 시각 확정이 필요합니다.]
+- 없음
 
-추천 기본값은 기존 미인증 계정 정리 이후인 한국시간 매일 03:10이며 환경 변수로 변경 가능하게 한다.
+일일 실행 시각은 기존 미인증 계정 정리 이후인 한국시간 매일 03:10으로 확정했으며 `HEALTH_RECORD_CLEANUP_CRON` 환경 변수로 변경 가능하다.
 
 ### Relevant Context
 
@@ -306,7 +307,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 건강 저장 기록 Application Service: `Clock` 기준 정리 Use Case
 - 건강 저장 기록 Scheduler: 설정 가능한 일일 실행
 - 관련 단위 테스트와 `HealthRecordStoreIT`
-- `.env.example`: 문법이 허용하는 짧은 한국어 명사형 설정 주석과 Cron 자리
+- `.ai/MEMORY.md`, `.ai/PLAN.md`, Backend·Project Context 문서: 구현·검증 상태 동기화
 
 ### Risks
 
@@ -317,17 +318,18 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 
 ### Implementation Plan
 
-1. `HealthRecordStore` 만료 삭제 계약과 Application Service 단위 테스트 작성
-2. `Clock.instant()` 이하 삭제의 최소 구현
-3. 기존 Pattern을 따르는 일일 Scheduler와 환경 설정 추가
-4. Native MySQL Fixture로 만료·활성·다른 사용자 기록 구성
-5. 부모와 하위 행 삭제, 활성 기록 보존, 반복 실행 멱등성 검증
+1. `HealthRecordStore` 만료 삭제 계약과 Application Service 단위 테스트 작성: PASS
+2. `Clock.instant()` 이하 단일 삭제와 Application Transaction 구현: PASS
+3. 기존 Pattern을 따르는 한국시간 03:10 일일 Scheduler 추가: PASS
+4. Native MySQL Fixture로 만료·활성 기록 구성: PASS (테스트 소스)
+5. 부모와 하위 행 삭제, 활성 기록 보존, 반복 실행 멱등성 검증: PASS
 
 ### Verification Plan
 
-1. 관련 Application 단위 테스트
-2. Backend 전체 Maven 검증
-3. Native MySQL `HealthRecordStoreIT`
-4. 만료 부모·주장·근거·관계 행 삭제 확인
-5. 미만료 기록 보존과 두 번째 실행 삭제 건수 `0` 확인
-6. Harness·Secret·`git diff --check`·Self Review·Diff Review
+1. 정적 변경 범위 검증
+2. 관련 Application 단위 테스트: PASS
+3. Backend Test Compile·전체 Maven 검증: PASS (164개, 실패·오류·Skip 0)
+4. Native MySQL `HealthRecordStoreIT`: PASS (3개, 실패·오류·Skip 0)
+5. 만료 부모·주장·근거·관계·공유 링크 삭제 확인: PASS
+6. 미만료 기록 보존과 두 번째 실행 삭제 건수 `0` 확인: PASS
+7. Harness·Secret·`git diff --check`·Self Review·Diff Review

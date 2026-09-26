@@ -101,6 +101,12 @@ public class JpaHealthRecordStore implements HealthRecordStore {
         );
     }
 
+    /** 기준 시각 이하 만료 기록 일괄 삭제 */
+    @Override
+    public int deleteExpiredAtOrBefore(java.time.Instant cutoff) {
+        return recordRepository.deleteExpiredAtOrBefore(cutoff);
+    }
+
     private SavedRecord saveNew(SaveCommand command, byte[] articleDigest) {
         HealthAnalysisResult result = command.result();
         NewsPublisherDomain publisherDomain = publisherDomainRepository

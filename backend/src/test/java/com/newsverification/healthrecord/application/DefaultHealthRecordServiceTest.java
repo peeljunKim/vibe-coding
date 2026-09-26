@@ -183,5 +183,10 @@ class DefaultHealthRecordServiceTest {
             listedAt = activeAt;
             return pageResult;
         }
+
+        @Override
+        public int deleteExpiredAtOrBefore(Instant cutoff) {
+            throw new UnsupportedOperationException();
+        }
     }
 }
