@@ -53,7 +53,9 @@ class HealthRecordStoreIT {
 
     /** 같은 완료 결과의 1회 저장과 최신순 목록 조회 */
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void savesCompleteResultOnceAndListsIt() {
+        cleanupFixture();
         long userId = insertUser();
         insertPublisherDomain();
         HealthRecordStore.SaveCommand command = new HealthRecordStore.SaveCommand(
@@ -62,33 +64,37 @@ class HealthRecordStoreIT {
                 ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60)
         );
 
-        HealthRecordStore.SavedRecord first = store.save(command);
-        HealthRecordStore.SavedRecord duplicate = store.save(command);
-        HealthRecordStore.PageResult page = store.findAll(userId, ANALYZED_AT, 0, 20);
+        try {
+            HealthRecordStore.SavedRecord first = store.save(command);
+            HealthRecordStore.SavedRecord duplicate = store.save(command);
+            HealthRecordStore.PageResult page = store.findAll(userId, ANALYZED_AT, 0, 20);
 
-        assertThat(duplicate.id()).isEqualTo(first.id());
-        assertThat(page.items()).extracting(HealthRecordStore.SavedRecord::id)
-                .containsExactly(first.id());
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM health_claims WHERE health_analysis_record_id = ?",
-                Integer.class,
-                first.id()
-        )).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM health_evidences WHERE health_analysis_record_id = ?",
-                Integer.class,
-                first.id()
-        )).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                FROM health_claim_evidences relation
-                JOIN health_claims claim ON claim.id = relation.health_claim_id
-                WHERE claim.health_analysis_record_id = ?
-                """,
-                Integer.class,
-                first.id()
-        )).isEqualTo(1);
+            assertThat(duplicate.id()).isEqualTo(first.id());
+            assertThat(page.items()).extracting(HealthRecordStore.SavedRecord::id)
+                    .containsExactly(first.id());
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_claims WHERE health_analysis_record_id = ?",
+                    Integer.class,
+                    first.id()
+            )).isEqualTo(1);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_evidences WHERE health_analysis_record_id = ?",
+                    Integer.class,
+                    first.id()
+            )).isEqualTo(1);
+            assertThat(jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM health_claim_evidences relation
+                    JOIN health_claims claim ON claim.id = relation.health_claim_id
+                    WHERE claim.health_analysis_record_id = ?
+                    """,
+                    Integer.class,
+                    first.id()
+            )).isEqualTo(1);
+        } finally {
+            cleanupFixture();
+        }
     }
 
     /** 같은 완료 결과의 동시 저장 중복 방지 */

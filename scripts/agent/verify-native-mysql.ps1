@@ -89,7 +89,9 @@ function Invoke-MySql {
     $startInfo.ArgumentList.Add('--protocol=TCP')
     $startInfo.ArgumentList.Add('--port=3306')
     $startInfo.ArgumentList.Add("--user=$User")
+    $startInfo.ArgumentList.Add('--default-character-set=utf8mb4')
     $startInfo.ArgumentList.Add('--batch')
+    $startInfo.ArgumentList.Add('--raw')
     $startInfo.ArgumentList.Add('--skip-column-names')
     if ($Database) {
         $startInfo.ArgumentList.Add("--database=$Database")

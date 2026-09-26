@@ -97,13 +97,26 @@ function Assert-PublisherCategoryMetadata {
         throw 'Existing news_publishers.category CHECK metadata is missing or not enforced'
     }
 
-    $categoryValues = ($script:PublisherCategories | ForEach-Object { "(?:_utf8mb4)?'$_'" }) -join '\s*,\s*'
+    $normalizedCheckClause = $constraintParts[2] -replace "\\+'", "'"
+    $categoryValues = ($script:PublisherCategories | ForEach-Object { "(?:_(?:utf8mb4|euckr))?'$_'" }) -join '\s*,\s*'
     $checkClausePattern = [string]::Format(
         '(?is)^\s*\(*\s*`?category`?\s+in\s*\(\s*{0}\s*\)\s*\)*\s*$',
         $categoryValues
     )
-    if ($constraintParts[2] -cnotmatch $checkClausePattern) {
+    if ($normalizedCheckClause -cnotmatch $checkClausePattern) {
         throw 'Existing news_publishers.category CHECK values are invalid'
+    }
+}
+
+function Assert-HealthRecordUniqueIndexMetadata {
+    param(
+        [Parameter(Mandatory)]
+        [string] $IndexMetadata
+    )
+
+    $expectedMetadata = "0`tuser_id,normalized_url_digest,analyzed_at"
+    if ($IndexMetadata -cne $expectedMetadata) {
+        throw 'health_analysis_records duplicate prevention index metadata is invalid'
     }
 }
 
