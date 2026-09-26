@@ -40,7 +40,7 @@
 - 실행 코드의 화면 더미 데이터 제거와 화면별 입력 모델 정의: PASS
 - 데이터 미제공·빈 목록 상태의 Desktop 레이아웃 유지: PASS
 - 1024·1280·1440px에서 8개 Route 가로 넘침 검사: PASS
-- Backend API 실제 데이터 연결: NOT RUN
+- 주요 구현 화면의 Backend API 실제 데이터 연결: PASS (지원 언론사, 건강·제목 분석, 회원가입·로그인·계정 복구, 건강 분석 저장 기록)
 - Frontend Test 15개, TypeScript, Lint, 변경 파일 Format과 Build: PASS
 - Native MySQL 8.0.30 서비스 실행과 초기 Schema 파일 13개 Table 정적 확인: PASS
 - 빈 Local Database에 초기 Schema 실제 적용과 `information_schema` 확인: PASS
@@ -123,9 +123,17 @@
 
 ## Next Loop
 
-1. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-2. 도움말과 남은 저장·삭제·신고 동작 연결
-3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+1. 문제 신고·내 신고 내역·관리자 처리 Vertical Slice
+2. 건강·제목 분석 결과 공유와 해제·만료 처리
+3. 두 분석 기능의 분리된 3일 공용 Cache와 기사 변경 감지
+4. 회원 탈퇴 요청·복구·7일 후 삭제 처리
+5. 도움말 화면과 기존 사용자 흐름 연결
+6. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
+7. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
+8. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
+9. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+10. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+11. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -135,7 +143,7 @@
 - 명시적 Sol 모델 호출을 통한 교차 검토: PASS
 - Custom Agent 파일 자동 로딩·실행: NOT RUN (별도 CLI Sandbox의 인증·연결 환경 제약)
 - API 상세 계약·결정: Git 제외 Local 문서에서 관리
-- 지원 언론사 외 Backend 업무 구현·통합 테스트 환경 구성: NOT RUN (지원 언론사 Native MySQL 범위는 위 PASS 기록 참조)
+- 주요 Backend 업무 구현·통합 테스트 환경 구성: PASS (건강·제목 분석, 회원가입·인증·세션, 계정 복구, 건강 분석 저장 기록)
 - 기존 Frontend Target과 Next Loop 유지; Backend 작업 시 개발 표준과 관련 Local 계약 우선 확인
 
 ## Required Before Live OAuth
@@ -184,7 +192,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Frontend Test·Lint·TypeScript·Build: PASS (20개)
 - 변경 범위 Harness·Secret 후보·Diff 공백 검사: PASS
 - 실제 Gmail SMTP Full-stack HTTP E2E: PASS (`PENDING_EMAIL` 생성, Gmail 수신, `ACTIVE` 전환, Redis 상태 삭제, 공통 중복 오류, 테스트 데이터 정리)
-- Native MySQL 만료 계정 정리·중복 통합 테스트: NOT RUN (현재 Agent Process에 테스트 계정 비밀번호 없음)
+- Native MySQL 만료 계정 정리·중복 통합 테스트: PASS (`verify-publisher-native-mysql.ps1` 실제 실행)
 
 ## 이메일 기반 계정 복구 Vertical Slice
 

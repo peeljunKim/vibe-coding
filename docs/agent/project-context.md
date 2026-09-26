@@ -18,8 +18,8 @@
 | Architecture | React Page·API Adapter와 Spring Boot Domain별 API·Application·Infrastructure 계층 |
 | Domain Structure | 건강 뉴스·제목 확인, 일반 회원가입·이메일 인증·로그인·계정 복구와 건강 분석 저장·목록·만료 정리 구현; 소셜 가입·공유·신고는 아직 미구현 |
 | Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 지원 언론사·일반 회원·건강 분석 저장 기록 Entity와 Repository 존재 |
-| Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session, 3일 분석 Cache 설정 |
-| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock, PubMed 검색 Adapter 존재; Google/Kakao/Naver OAuth Provider 구현 없음 |
+| Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session 구현; 3일 분석 Cache는 환경 변수만 있고 기능은 미구현 |
+| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock 존재; 실제 PubMed·Gemini·Google/Kakao/Naver OAuth Provider Adapter는 미구현 |
 | Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구와 Redis Session 구현; 소셜 인증 흐름은 미구현 |
 | Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |

@@ -84,7 +84,7 @@ Frontend formatting은 `npm run format`으로 별도 확인한다. 현재 기준
 - Full-stack: Backend와 Infrastructure가 준비된 뒤 별도 Smoke Test
 - Failure Artifact: 첫 Retry Trace, Screenshot, 필요한 경우 Video
 
-현재는 Config와 E2E Test가 없으므로 `NOT RUN`이다. 첫 사용자 흐름 구현 시 해당 흐름의 Test와 함께 Config를 추가하고, 빈 E2E Scaffold만 미리 만들지 않는다.
+현재 `frontend/playwright.config.ts`와 사용자 흐름별 E2E Test가 존재한다. 변경한 흐름은 관련 E2E를 실행하고, 외부 AI·검색·OAuth Provider의 실제 호출은 별도 Smoke Test로 구분해 실행 상태를 기록한다.
 
 ## Git 추적 경계
 
