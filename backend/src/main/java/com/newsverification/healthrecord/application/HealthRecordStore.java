@@ -15,6 +15,9 @@ public interface HealthRecordStore {
     /** 회원별 최신 기록 페이지 조회 */
     PageResult findAll(long userId, Instant activeAt, int page, int size);
 
+    /** 기준 시각 이하 만료 기록 삭제 */
+    int deleteExpiredAtOrBefore(Instant cutoff);
+
     /** 건강 분석 저장 입력 */
     record SaveCommand(long userId, HealthAnalysisResult result, Instant expiresAt) {
     }

@@ -122,6 +122,12 @@ Assert-PublisherCategoryMetadata `
     -ColumnMetadata "varchar`tvarchar(30)`tNO`t30`tNULL`t3" `
     -ConstraintMetadata $validConstraintMetadata
 
+$escapedEuckrConstraintMetadata = 'ck_news_publishers_category' + "`tYES`t" +
+    "((``category`` in (_euckr\\'NEWS_AGENCY\\',_euckr\\'BROADCAST_NEWS\\',_euckr\\'GENERAL_NEWSPAPER\\',_euckr\\'BUSINESS_NEWSPAPER\\',_euckr\\'HEALTH_MEDICAL\\')))"
+Assert-PublisherCategoryMetadata `
+    -ColumnMetadata "varchar`tvarchar(30)`tNO`t30`tNULL`t3" `
+    -ConstraintMetadata $escapedEuckrConstraintMetadata
+
 Assert-Throws -Name 'old initial schema without publisher category is rejected' -Action {
     Assert-PublisherCategorySchemaDefinition -SchemaSql ($publisherCategoryDefinition -replace '(?m)^\s*category VARCHAR\(30\).+\r?\n', '')
 }
@@ -144,6 +150,13 @@ Assert-Throws -Name 'publisher category check with an extra value is rejected' -
     Assert-PublisherCategoryMetadata `
         -ColumnMetadata "varchar`tvarchar(30)`tNO`t30`tNULL`t3" `
         -ConstraintMetadata "ck_news_publishers_category`tYES`t(category in ('NEWS_AGENCY','BROADCAST_NEWS','GENERAL_NEWSPAPER','BUSINESS_NEWSPAPER','HEALTH_MEDICAL','OTHER'))"
+}
+
+Assert-HealthRecordUniqueIndexMetadata `
+    -IndexMetadata "0`tuser_id,normalized_url_digest,analyzed_at"
+Assert-Throws -Name 'health record duplicate prevention index with wrong column order is rejected' -Action {
+    Assert-HealthRecordUniqueIndexMetadata `
+        -IndexMetadata "0`tnormalized_url_digest,user_id,analyzed_at"
 }
 
 if ($failures.Count -gt 0) {

@@ -3,6 +3,7 @@ package com.newsverification.healthrecord.infrastructure;
 
 import com.newsverification.NewsVerificationApplication;
 import com.newsverification.health.application.HealthAnalysisResult;
+import com.newsverification.healthrecord.application.ExpiredHealthRecordCleanupService;
 import com.newsverification.healthrecord.application.HealthRecordStore;
 import com.newsverification.publisher.infrastructure.NativeMySqlTestConnectionGuard;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,9 @@ class HealthRecordStoreIT {
     private HealthRecordStore store;
 
     @Autowired
+    private ExpiredHealthRecordCleanupService cleanupService;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     /** 테스트 전용 DataSource 설정 */
@@ -53,7 +57,9 @@ class HealthRecordStoreIT {
 
     /** 같은 완료 결과의 1회 저장과 최신순 목록 조회 */
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void savesCompleteResultOnceAndListsIt() {
+        cleanupFixture();
         long userId = insertUser();
         insertPublisherDomain();
         HealthRecordStore.SaveCommand command = new HealthRecordStore.SaveCommand(
@@ -62,33 +68,37 @@ class HealthRecordStoreIT {
                 ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60)
         );
 
-        HealthRecordStore.SavedRecord first = store.save(command);
-        HealthRecordStore.SavedRecord duplicate = store.save(command);
-        HealthRecordStore.PageResult page = store.findAll(userId, ANALYZED_AT, 0, 20);
+        try {
+            HealthRecordStore.SavedRecord first = store.save(command);
+            HealthRecordStore.SavedRecord duplicate = store.save(command);
+            HealthRecordStore.PageResult page = store.findAll(userId, ANALYZED_AT, 0, 20);
 
-        assertThat(duplicate.id()).isEqualTo(first.id());
-        assertThat(page.items()).extracting(HealthRecordStore.SavedRecord::id)
-                .containsExactly(first.id());
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM health_claims WHERE health_analysis_record_id = ?",
-                Integer.class,
-                first.id()
-        )).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM health_evidences WHERE health_analysis_record_id = ?",
-                Integer.class,
-                first.id()
-        )).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                FROM health_claim_evidences relation
-                JOIN health_claims claim ON claim.id = relation.health_claim_id
-                WHERE claim.health_analysis_record_id = ?
-                """,
-                Integer.class,
-                first.id()
-        )).isEqualTo(1);
+            assertThat(duplicate.id()).isEqualTo(first.id());
+            assertThat(page.items()).extracting(HealthRecordStore.SavedRecord::id)
+                    .containsExactly(first.id());
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_claims WHERE health_analysis_record_id = ?",
+                    Integer.class,
+                    first.id()
+            )).isEqualTo(1);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_evidences WHERE health_analysis_record_id = ?",
+                    Integer.class,
+                    first.id()
+            )).isEqualTo(1);
+            assertThat(jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM health_claim_evidences relation
+                    JOIN health_claims claim ON claim.id = relation.health_claim_id
+                    WHERE claim.health_analysis_record_id = ?
+                    """,
+                    Integer.class,
+                    first.id()
+            )).isEqualTo(1);
+        } finally {
+            cleanupFixture();
+        }
     }
 
     /** 같은 완료 결과의 동시 저장 중복 방지 */
@@ -133,6 +143,90 @@ class HealthRecordStoreIT {
             start.countDown();
             executor.shutdownNow();
             executor.awaitTermination(5, TimeUnit.SECONDS);
+            cleanupFixture();
+        }
+    }
+
+    /** 만료 Aggregate 연쇄 삭제와 미만료 기록 유지 */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void deletesExpiredAggregateAndKeepsActiveRecord() {
+        cleanupFixture();
+        long userId = insertUser();
+        insertPublisherDomain();
+        Instant cleanupStartedAt = Instant.now();
+
+        try {
+            HealthRecordStore.SavedRecord expired = store.save(new HealthRecordStore.SaveCommand(
+                    userId,
+                    result("https://news.example/expired", ANALYZED_AT),
+                    cleanupStartedAt.minusSeconds(60)
+            ));
+            HealthRecordStore.SavedRecord active = store.save(new HealthRecordStore.SaveCommand(
+                    userId,
+                    result("https://news.example/active", ANALYZED_AT.plusSeconds(1)),
+                    cleanupStartedAt.plusSeconds(24 * 60 * 60)
+            ));
+            long expiredClaimId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM health_claims WHERE health_analysis_record_id = ?",
+                    Long.class,
+                    expired.id()
+            );
+            long expiredEvidenceId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM health_evidences WHERE health_analysis_record_id = ?",
+                    Long.class,
+                    expired.id()
+            );
+            jdbcTemplate.update("""
+                    INSERT INTO health_share_links (
+                        health_analysis_record_id, token_digest, short_summary, expires_at
+                    ) VALUES (?, UNHEX(SHA2('expired-record-it', 256)), ?, DATE_ADD(CURRENT_TIMESTAMP(6), INTERVAL 7 DAY))
+                    """,
+                    expired.id(),
+                    "만료 기록 공유 요약"
+            );
+
+            int firstDeletedCount = cleanupService.cleanupExpiredRecords();
+            int secondDeletedCount = cleanupService.cleanupExpiredRecords();
+
+            assertThat(firstDeletedCount).isEqualTo(1);
+            assertThat(secondDeletedCount).isZero();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_analysis_records WHERE id = ?",
+                    Integer.class,
+                    expired.id()
+            )).isZero();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_claims WHERE id = ?",
+                    Integer.class,
+                    expiredClaimId
+            )).isZero();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_evidences WHERE id = ?",
+                    Integer.class,
+                    expiredEvidenceId
+            )).isZero();
+            assertThat(jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM health_claim_evidences
+                    WHERE health_claim_id = ? OR health_evidence_id = ?
+                    """,
+                    Integer.class,
+                    expiredClaimId,
+                    expiredEvidenceId
+            )).isZero();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_share_links WHERE health_analysis_record_id = ?",
+                    Integer.class,
+                    expired.id()
+            )).isZero();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_analysis_records WHERE id = ?",
+                    Integer.class,
+                    active.id()
+            )).isEqualTo(1);
+        } finally {
             cleanupFixture();
         }
     }
@@ -189,6 +283,10 @@ class HealthRecordStoreIT {
     }
 
     private HealthAnalysisResult result() {
+        return result("https://news.example/article", ANALYZED_AT);
+    }
+
+    private HealthAnalysisResult result(String articleUrl, Instant analyzedAt) {
         HealthAnalysisResult.Evidence evidence = new HealthAnalysisResult.Evidence(
                 HealthAnalysisResult.EvidenceSourceKind.OFFICIAL,
                 "GUIDE-2026-1",
@@ -203,13 +301,13 @@ class HealthRecordStoreIT {
         );
         return new HealthAnalysisResult(
                 new HealthAnalysisResult.ArticleSummary(
-                        URI.create("https://news.example/article"),
+                        URI.create(articleUrl),
                         "건강 기사 제목",
                         "통합검증언론사",
                         OffsetDateTime.parse("2026-09-24T09:00:00+09:00"),
                         null
                 ),
-                ANALYZED_AT,
+                analyzedAt,
                 HealthAnalysisResult.OverallStatus.CAUTION,
                 new BigDecimal("0.00"),
                 0,

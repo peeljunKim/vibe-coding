@@ -95,7 +95,9 @@ function Invoke-MySql {
     if ($Database) {
         $startInfo.ArgumentList.Add("--database=$Database")
     }
+    $startInfo.ArgumentList.Add('--default-character-set=utf8mb4')
     $startInfo.ArgumentList.Add('--batch')
+    $startInfo.ArgumentList.Add('--raw')
     $startInfo.ArgumentList.Add('--skip-column-names')
     $startInfo.UseShellExecute = $false
     $startInfo.RedirectStandardInput = $true
@@ -245,6 +247,44 @@ WHERE tc.CONSTRAINT_SCHEMA = DATABASE()
         -ColumnMetadata $publisherCategoryColumn `
         -ConstraintMetadata $publisherCategoryConstraint
     Write-Host '[PASS] Test publisher category schema metadata'
+
+    $duplicatePreventionSchema = @($schemaFiles | Where-Object {
+            $_.Name -ceq 'V0003__prevent_duplicate_health_records.sql'
+        })
+    if ($duplicatePreventionSchema.Count -ne 1) {
+        throw 'Expected health record duplicate prevention schema file is missing'
+    }
+
+    $healthRecordUniqueIndexSql = @"
+SELECT NON_UNIQUE,
+       GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',')
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'health_analysis_records'
+  AND INDEX_NAME = 'uk_health_records_user_url_analyzed'
+GROUP BY INDEX_NAME, NON_UNIQUE;
+"@
+    $healthRecordUniqueIndex = (Invoke-MySql `
+            -Password $rootPassword `
+            -User 'root' `
+            -Database $testDatabase `
+            -Sql $healthRecordUniqueIndexSql).Output
+    if (-not $healthRecordUniqueIndex) {
+        $duplicatePreventionSql = Get-Content -LiteralPath $duplicatePreventionSchema[0].FullName -Raw
+        [void](Invoke-MySql `
+                -Password $rootPassword `
+                -User 'root' `
+                -Database $testDatabase `
+                -Sql $duplicatePreventionSql)
+        Write-Host '[PASS] Test database V0003 schema applied'
+        $healthRecordUniqueIndex = (Invoke-MySql `
+                -Password $rootPassword `
+                -User 'root' `
+                -Database $testDatabase `
+                -Sql $healthRecordUniqueIndexSql).Output
+    }
+    Assert-HealthRecordUniqueIndexMetadata -IndexMetadata $healthRecordUniqueIndex
+    Write-Host '[PASS] Test health record duplicate prevention index metadata'
 
     $sqlTestPassword = $testPassword.Replace("'", "''")
     [void](Invoke-MySql -Password $rootPassword -User 'root' -Sql @"

@@ -169,7 +169,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Docker Redis 8.8 이메일 인증 통합 테스트: PASS (3개, 평문 미저장·TTL·실패 제한·재발송 무효화)
 - Chrome 회원가입 Browser E2E: PASS (API Mock, Runtime·Console 오류 0건)
 - Native MySQL 회원가입 Repository 통합 테스트 소스와 Harness 연결: PASS
-- Native MySQL 회원가입 Repository 실제 실행: NOT RUN (현재 Agent Process에 테스트 계정 비밀번호 없음)
+- Native MySQL 회원가입 Repository 실제 실행: PASS (3개, 실패·오류·Skip 0)
 - 실제 Gmail SMTP 발송: PASS (HTML 메일 수신과 인증번호 확인)
 
 ## PR 22 CodeRabbit 보완
@@ -229,7 +229,8 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 같은 회원·기사 URL Digest·분석 시각의 순차 중복 저장 방지: PASS
 - 저장 기록 Pagination: PASS (`page=0`, `size=20`, 최대 100, `analyzedAt`·ID 내림차순)
 - 만료 기록 조회 제외: PASS (분석 시각부터 30일)
-- 만료 기록 자동 삭제: NOT RUN (별도 후속 작업)
+- 만료 기록 자동 삭제 구현: PASS (한국시간 03:10, 현재 시각 이하 일괄 삭제, Application 단위·Backend 전체 회귀)
+- 만료 기록 Native MySQL Cascade 검증: PASS (3개, 실패·오류·Skip 0)
 - Frontend 결과 저장과 실제 저장 목록 API 연결: PASS
 - 제목 분석 저장 제외: PASS
 - Backend 단위·MVC 전체 회귀: PASS (163개, 실패·오류·Skip 0; `*IT` 제외)
@@ -237,7 +238,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Chrome 건강 분석 저장·목록 Browser E2E: PASS (6개, Runtime·Console 오류 0건)
 - 전체 Frontend Browser 회귀: FAIL (9개 중 기존 회원가입 E2E 1개가 `/api/auth/session` 미Mock 상태에서 Backend 미실행 502 Console 오류)
 - Native MySQL 저장 기록 JPA 통합 테스트 소스와 Harness 연결: PASS
-- Native MySQL 저장 기록 실제 실행: NOT RUN (현재 Agent Process와 `.env`에 테스트 계정 비밀번호 없음)
+- Native MySQL 저장 기록 실제 실행: PASS (2개, 실패·오류·Skip 0)
 - Local API 계약 JSON 파싱·Git 제외 확인: PASS
 
 ## PR 26 CodeRabbit 보완
@@ -249,5 +250,86 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Chrome 건강 분석 저장·목록 Browser E2E: PASS (6개, Console·Runtime 오류 0건)
 - Backend 전체 Test·Package: PASS (163개, 실패·오류·Skip 0)
 - Native MySQL Schema·Harness 정적 검증: PASS
-- Native MySQL 동시 저장 통합 테스트 실제 실행: NOT RUN (`V0003` 테스트 DB 적용 필요)
+- Native MySQL 동시 저장 통합 테스트 실제 실행: PASS (V0003 UNIQUE 적용, 동시 요청 2개가 동일 저장 기록 반환)
 - CodeRabbit Docstring Coverage 경고: NOT APPLICABLE (필요한 주석만 작성하는 Repository 규칙 우선)
+
+## 만료 건강 분석 저장 기록 자동 삭제
+
+### Task Understanding
+
+- 조회에서 제외되는 `expires_at` 경과 건강 분석 저장 기록을 실제 MySQL에서도 자동 삭제
+- 저장 기록과 연결된 주장·근거·관계·공유 링크는 기존 Foreign Key `ON DELETE CASCADE`로 함께 정리
+- HTTP API와 새 Dependency는 추가하지 않음
+
+### Current Behavior
+
+- 저장 시 분석 시각부터 30일인 `expires_at` 기록
+- 목록 조회에서 현재 시각 이전에 만료된 기록 제외
+- `expires_at` Index와 하위 Table의 Cascade Foreign Key 존재
+- 실제 만료 행을 삭제하는 Application Port·Scheduler 구현 완료
+
+### Expected Behavior
+
+- 현재 시각 이하인 건강 분석 저장 기록만 삭제
+- 활성 기록과 다른 사용자의 미만료 기록 보존
+- 반복 실행과 Blue/Green 동시 실행에도 결과가 동일한 멱등 삭제
+- 삭제 건수만 내부 결과로 반환하고 기사·사용자 정보는 로그에 기록하지 않음
+
+### Confirmed
+
+- `health_analysis_records.expires_at`과 `idx_health_records_expires` 존재
+- 주장·근거·관계·건강 공유 링크는 저장 기록 삭제 시 Cascade 삭제
+- 미인증 계정 정리에 Application Service·JPA Adapter·일일 Scheduler Pattern 사용
+- 배포 목표는 동일 MySQL을 공유하는 단일 EC2 Blue/Green
+
+### Inferred
+
+- MVP 데이터 규모와 기존 정리 Pattern을 근거로 일일 단일 DELETE가 우선 구현에 충분함
+- 삭제 조건이 고정 시각 비교이므로 중복 Scheduler 실행도 별도 Lock 없이 멱등 처리 가능함
+
+### Required
+
+- 없음
+
+일일 실행 시각은 기존 미인증 계정 정리 이후인 한국시간 매일 03:10으로 확정했으며 `HEALTH_RECORD_CLEANUP_CRON` 환경 변수로 변경 가능하다.
+
+### Relevant Context
+
+- `backend/src/main/java/com/newsverification/healthrecord`
+- `backend/src/main/java/com/newsverification/signup/application/PendingSignupCleanupService.java`
+- `backend/src/main/java/com/newsverification/signup/infrastructure/PendingSignupCleanupScheduler.java`
+- `infra/mysql/schema/V0001__create_initial_domain_schema.sql`
+
+### Affected Files
+
+- `HealthRecordStore`: 만료 시각 기준 삭제 Port
+- `JpaHealthRecordStore` 또는 저장 기록 Repository: 단일 DELETE 구현
+- 건강 저장 기록 Application Service: `Clock` 기준 정리 Use Case
+- 건강 저장 기록 Scheduler: 설정 가능한 일일 실행
+- 관련 단위 테스트와 `HealthRecordStoreIT`
+- `.ai/MEMORY.md`, `.ai/PLAN.md`, Backend·Project Context 문서: 구현·검증 상태 동기화
+
+### Risks
+
+- 만료 조건의 `<`와 `<=` 경계 오류
+- Cascade 누락에 따른 Foreign Key 삭제 실패 또는 고아 데이터
+- 테스트가 개발 Database를 향하는 환경 격리 실패
+- 삭제 대상의 식별 정보나 기사 URL 로그 노출
+
+### Implementation Plan
+
+1. `HealthRecordStore` 만료 삭제 계약과 Application Service 단위 테스트 작성: PASS
+2. `Clock.instant()` 이하 단일 삭제와 Application Transaction 구현: PASS
+3. 기존 Pattern을 따르는 한국시간 03:10 일일 Scheduler 추가: PASS
+4. Native MySQL Fixture로 만료·활성 기록 구성: PASS (테스트 소스)
+5. 부모와 하위 행 삭제, 활성 기록 보존, 반복 실행 멱등성 검증: PASS
+
+### Verification Plan
+
+1. 정적 변경 범위 검증
+2. 관련 Application 단위 테스트: PASS
+3. Backend Test Compile·전체 Maven 검증: PASS (164개, 실패·오류·Skip 0)
+4. Native MySQL `HealthRecordStoreIT`: PASS (3개, 실패·오류·Skip 0)
+5. 만료 부모·주장·근거·관계·공유 링크 삭제 확인: PASS
+6. 미만료 기록 보존과 두 번째 실행 삭제 건수 `0` 확인: PASS
+7. Harness·Secret·`git diff --check`·Self Review·Diff Review

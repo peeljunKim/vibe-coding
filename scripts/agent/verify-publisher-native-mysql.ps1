@@ -63,6 +63,10 @@ $testUser = Get-ConfiguredValue -Values $localValues -Name 'MYSQL_TEST_USER' -Fa
 $testDatabaseUrl = Get-ConfiguredValue -Values $localValues -Name 'TEST_DB_URL' -Fallback "jdbc:mysql://127.0.0.1:3306/$testDatabase`?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC"
 $testDatabaseUsername = Get-ConfiguredValue -Values $localValues -Name 'TEST_DB_USERNAME' -Fallback $testUser
 $configuredTestPassword = Get-ConfiguredValue -Values $localValues -Name 'MYSQL_TEST_PASSWORD'
+$configuredRedisPassword = Get-ConfiguredValue -Values $localValues -Name 'REDIS_PASSWORD'
+if (-not $configuredRedisPassword) {
+    throw 'REDIS_PASSWORD must be configured in ignored .env for the Spring integration test context'
+}
 
 Assert-NativeMySqlTestConnection `
     -DatabaseUrl $testDatabaseUrl `
@@ -90,6 +94,9 @@ $environmentNames = @(
     'MYSQL_TEST_USER'
     'MYSQL_DATABASE'
     'MYSQL_USER'
+    'REDIS_PASSWORD'
+    'HEALTH_ANALYSIS_PROVIDER'
+    'LOOKUP_HMAC_KEY'
 )
 $environmentBackup = @{}
 foreach ($name in $environmentNames) {
@@ -112,6 +119,9 @@ try {
     $env:MYSQL_TEST_USER = $testUser
     $env:MYSQL_DATABASE = $developmentDatabase
     $env:MYSQL_USER = $developmentUser
+    $env:REDIS_PASSWORD = $configuredRedisPassword
+    $env:HEALTH_ANALYSIS_PROVIDER = 'mock'
+    $env:LOOKUP_HMAC_KEY = 'native-mysql-integration-test-only-lookup-key'
 
     Push-Location $backendRoot
     try {
@@ -136,6 +146,7 @@ finally {
     }
     $testPassword = $null
     $configuredTestPassword = $null
+    $configuredRedisPassword = $null
     if ($localValues) {
         $localValues.Clear()
     }
