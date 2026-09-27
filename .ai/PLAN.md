@@ -352,7 +352,8 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 처리 완료 후 30일 자동 삭제와 미처리 신고 보존: PASS (Application·JPA 구현과 통합 테스트 소스)
 - 관리자 목록 Pagination·현재 페이지 현황 갱신·신고 당시 Snapshot 조회: PASS
 - Backend 전체 Maven 회귀: PASS (183개, 실패·오류·Skip 0; `*IT` 제외)
-- Frontend Test·TypeScript·Lint·Build: PASS (54개)
+- Frontend Test·TypeScript·Lint·Build: PASS (10 files, 54 tests; TypeScript·Lint·Build PASS)
+- 최신 변경 범위 Harness 검증: PASS (`pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope changed`; Frontend 10 files, 54 tests)
 - Chrome 신고 접수·내 신고 내역·관리자 처리 Browser E2E: PASS (2개, Runtime·Console 오류 0건)
 - Native MySQL 신고 Repository 통합 테스트 소스와 Harness 연결: PASS
 - Native MySQL 신고 Repository 실제 실행: NOT RUN (별도 사용자 승인 대기)

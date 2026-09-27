@@ -48,6 +48,7 @@
 - 건강 분석 Worker는 Redis Streams 최대 대기 20개, 전역 동시 실행 1개, 자동 재시도 없음, 90초 Deadline과 늦은 결과 폐기를 적용
 - Local 건강 분석은 외부 API를 호출하지 않는 Mock 분야 판별·구조화 결과 Port를 사용
 - 건강 분석 저장 기록은 한국시간 매일 03:10에 `expires_at <= 현재 시각` 조건으로 삭제하며 하위 기록은 기존 Foreign Key Cascade를 사용
+- 문제 신고 Vertical Slice의 최신 변경 범위 Harness 검증은 PASS이며 Frontend 10개 Test File·54개 Test를 통과함; Native MySQL 신고 Repository 실제 실행은 별도 검증 대기
 
 ## Deferred
 
