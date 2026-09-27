@@ -1,10 +1,19 @@
 // 기사 제목 분석 결과 화면
+import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import type { ReportType } from '../api/reports'
 import AppHeader from '../components/AppHeader'
+import ReportDialog from '../components/ReportDialog'
 import type { HeadlineIssueType, TitleResultViewData } from '../types/pageData'
 
 interface TitleResultPageProps {
   data?: TitleResultViewData
+  authenticated?: boolean
+  onReport?: (
+    analysisId: string,
+    reportType: ReportType,
+    description: string,
+  ) => Promise<void>
 }
 
 const issueLabels: Record<HeadlineIssueType, string> = {
@@ -14,8 +23,14 @@ const issueLabels: Record<HeadlineIssueType, string> = {
   MISMATCH: '본문과 불일치',
 }
 
-function TitleResultPage({ data }: TitleResultPageProps) {
+function TitleResultPage({
+  data,
+  authenticated = false,
+  onReport,
+}: TitleResultPageProps) {
   const location = useLocation()
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportNotice, setReportNotice] = useState<string | null>(null)
   const routeData = (location.state as { result?: TitleResultViewData } | null)
     ?.result
   const resultData = data ?? routeData
@@ -32,7 +47,22 @@ function TitleResultPage({ data }: TitleResultPageProps) {
     <div className="app-page title-result-page">
       <AppHeader section="기사 제목 결과">
         <span>공유</span>
-        <span>문제 신고</span>
+        <button
+          type="button"
+          disabled={!resultData}
+          onClick={() => {
+            if (!authenticated) {
+              setReportNotice('로그인 후 신고할 수 있습니다.')
+              return
+            }
+            if (resultData?.analysisId) {
+              setReportNotice(null)
+              setReportOpen(true)
+            }
+          }}
+        >
+          문제 신고
+        </button>
       </AppHeader>
 
       <main className="title-result-content">
@@ -119,7 +149,16 @@ function TitleResultPage({ data }: TitleResultPageProps) {
           기사 제목 확인 결과는 히스토리에 저장되지 않으며, 공유 데이터만 7일
           동안 보관됩니다.
         </p>
+        {reportNotice ? <p role="status">{reportNotice}</p> : null}
       </main>
+      {reportOpen && resultData?.analysisId && onReport ? (
+        <ReportDialog
+          onClose={() => setReportOpen(false)}
+          onSubmit={(reportType, description) =>
+            onReport(resultData.analysisId!, reportType, description)
+          }
+        />
+      ) : null}
     </div>
   )
 }

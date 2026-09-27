@@ -25,6 +25,7 @@ interface HomePageProps {
   onStartHealthAnalysis: () => void
   onStartHeadlineAnalysis: () => void
   onOpenSavedRecords: () => void
+  onOpenReports?: () => void
   authenticated?: boolean
   onLogout?: () => void
   authError?: string | null
@@ -39,6 +40,7 @@ function HomePage({
   onStartHealthAnalysis,
   onStartHeadlineAnalysis,
   onOpenSavedRecords,
+  onOpenReports,
   authenticated = false,
   onLogout,
   authError,
@@ -109,7 +111,9 @@ function HomePage({
         <button type="button" onClick={onOpenSavedRecords}>
           저장 기록
         </button>
-        <span>내 신고</span>
+        <button type="button" onClick={onOpenReports} disabled={!onOpenReports}>
+          내 신고
+        </button>
         {authenticated ? (
           <button type="button" onClick={onLogout}>
             로그아웃

@@ -123,17 +123,16 @@
 
 ## Next Loop
 
-1. 문제 신고·내 신고 내역·관리자 처리 Vertical Slice
-2. 건강·제목 분석 결과 공유와 해제·만료 처리
-3. 두 분석 기능의 분리된 3일 공용 Cache와 기사 변경 감지
-4. 회원 탈퇴 요청·복구·7일 후 삭제 처리
-5. 도움말 화면과 기존 사용자 흐름 연결
-6. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
-7. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
-8. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
-9. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-10. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-11. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. 건강·제목 분석 결과 공유와 해제·만료 처리
+2. 두 분석 기능의 분리된 3일 공용 Cache와 기사 변경 감지
+3. 회원 탈퇴 요청·복구·7일 후 삭제 처리
+4. 도움말 화면과 기존 사용자 흐름 연결
+5. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
+6. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
+7. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
+8. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+9. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+10. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -341,3 +340,19 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 5. 만료 부모·주장·근거·관계·공유 링크 삭제 확인: PASS
 6. 미만료 기록 보존과 두 번째 실행 삭제 건수 `0` 확인: PASS
 7. Harness·Secret·`git diff --check`·Self Review·Diff Review
+
+## 문제 신고·내 신고 내역·관리자 처리 Vertical Slice
+
+- 건강·제목 완료 분석의 회원 신고와 불변 Snapshot 저장: PASS
+- 비로그인 신고 차단과 다른 사용자의 신고 조회 차단: PASS
+- 본인 신고 목록·상태·관리자 답변 조회: PASS
+- 관리자 목록·상세·단방향 상태 전환과 Version 충돌 보호: PASS
+- 모든 관리자 신고 API의 서버 측 `ADMIN` 권한 검사: PASS
+- 처리 완료 사용자 메일과 신규 신고 관리자 메일: PASS (기본 Mock, `smtp`·`prod` Gmail Adapter 구성·메일 생성 검증; 실제 SMTP 호출 없음)
+- 처리 완료 후 30일 자동 삭제와 미처리 신고 보존: PASS (Application·JPA 구현과 통합 테스트 소스)
+- 관리자 목록 Pagination·현재 페이지 현황 갱신·신고 당시 Snapshot 조회: PASS
+- Backend 전체 Maven 회귀: PASS (183개, 실패·오류·Skip 0; `*IT` 제외)
+- Frontend Test·TypeScript·Lint·Build: PASS (54개)
+- Chrome 신고 접수·내 신고 내역·관리자 처리 Browser E2E: PASS (2개, Runtime·Console 오류 0건)
+- Native MySQL 신고 Repository 통합 테스트 소스와 Harness 연결: PASS
+- Native MySQL 신고 Repository 실제 실행: NOT RUN (별도 사용자 승인 대기)

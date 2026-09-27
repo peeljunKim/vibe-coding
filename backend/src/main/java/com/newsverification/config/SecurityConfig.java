@@ -37,6 +37,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/recovery/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/session").permitAll()
+                        .requestMatchers("/api/admin/reports/**").hasRole("ADMIN")
                         .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors
