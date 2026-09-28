@@ -210,7 +210,10 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
   const selectedReport =
     visibleReports?.find((report) => report.id === selectedId) ??
     visibleReports?.[0]
-  const selectedDetail = selectedReport ? details[selectedReport.id] : undefined
+  const selectedReportId = selectedReport?.id
+  const selectedDetail = selectedReportId
+    ? details[selectedReportId]
+    : undefined
 
   useEffect(() => {
     if (reports) {
@@ -241,11 +244,11 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
   }, [currentPage, reports])
 
   useEffect(() => {
-    if (reports || !selectedReport || details[selectedReport.id]) {
+    if (reports || !selectedReportId || details[selectedReportId]) {
       return
     }
     let active = true
-    void getAdminReport(selectedReport.id)
+    void getAdminReport(selectedReportId)
       .then((detail) => {
         if (!active) {
           return
@@ -264,7 +267,7 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
     return () => {
       active = false
     }
-  }, [details, reports, selectedReport])
+  }, [details, reports, selectedReportId])
 
   const submit = (
     report: ReportSummaryViewData,
@@ -300,6 +303,11 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
         )
       })
       .catch((error: unknown) => {
+        setDetails((current) => {
+          const refreshed = { ...current }
+          delete refreshed[report.id]
+          return refreshed
+        })
         setSubmitError(
           error instanceof Error
             ? error.message

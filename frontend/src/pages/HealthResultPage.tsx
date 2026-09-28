@@ -1,13 +1,18 @@
 // 건강 뉴스 분석 결과 화면
 import { useState } from 'react'
+import type { CreatedShare } from '../api/shares'
+import type { HealthRecordSummary } from '../api/healthRecords'
 import type { ReportType } from '../api/reports'
 import AppHeader from '../components/AppHeader'
 import ReportDialog from '../components/ReportDialog'
+import ShareDialog from '../components/ShareDialog'
 import type { HealthClaimStatus, HealthResultViewData } from '../types/pageData'
 
 interface HealthResultPageProps {
   onNewArticle: () => void
-  onSave?: (analysisId: string) => Promise<void>
+  onSave?: (analysisId: string) => Promise<HealthRecordSummary>
+  onShare?: (recordId: string) => Promise<CreatedShare>
+  onRevokeShare?: (token: string) => Promise<void>
   onReport?: (
     analysisId: string,
     reportType: ReportType,
@@ -30,6 +35,8 @@ const claimStatus: Record<
 function HealthResultPage({
   onNewArticle,
   onSave,
+  onShare,
+  onRevokeShare,
   onReport,
   authenticated = false,
   data,
@@ -41,16 +48,21 @@ function HealthResultPage({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [reportNotice, setReportNotice] = useState<string | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareNotice, setShareNotice] = useState<string | null>(null)
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null)
 
   const save = async () => {
     if (!data || !onSave || saveStatus === 'saving' || saveStatus === 'saved') {
-      return
+      return savedRecordId
     }
     setSaveStatus('saving')
     setSaveError(null)
     try {
-      await onSave(data.analysisId)
+      const saved = await onSave(data.analysisId)
+      setSavedRecordId(saved.id)
       setSaveStatus('saved')
+      return saved.id
     } catch (error) {
       setSaveStatus('error')
       setSaveError(
@@ -58,7 +70,19 @@ function HealthResultPage({
           ? error.message
           : '결과를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.',
       )
+      return null
     }
+  }
+
+  const createShare = async () => {
+    if (!onShare) {
+      throw new Error('공유 링크를 만들 수 없습니다.')
+    }
+    const recordId = savedRecordId ?? (await save())
+    if (!recordId) {
+      throw new Error('결과를 저장한 뒤 공유해 주세요.')
+    }
+    return onShare(recordId)
   }
 
   return (
@@ -219,12 +243,28 @@ function HealthResultPage({
                   : '결과 저장'}
             </button>
             <button
+              className="secondary-button"
+              type="button"
+              disabled={!data || !onShare || !onRevokeShare}
+              onClick={() => {
+                if (!authenticated) {
+                  setShareNotice('로그인 후 결과를 공유할 수 있습니다.')
+                  return
+                }
+                setShareNotice(null)
+                setShareOpen(true)
+              }}
+            >
+              결과 공유
+            </button>
+            <button
               className="primary-button"
               type="button"
               onClick={onNewArticle}
             >
               새 기사 확인
             </button>
+            {shareNotice ? <span role="status">{shareNotice}</span> : null}
           </div>
         </section>
       </main>
@@ -234,6 +274,14 @@ function HealthResultPage({
           onSubmit={(reportType, description) =>
             onReport(data.analysisId, reportType, description)
           }
+        />
+      ) : null}
+      {shareOpen && data && onShare && onRevokeShare ? (
+        <ShareDialog
+          requiresSave={!savedRecordId}
+          onClose={() => setShareOpen(false)}
+          onCreate={createShare}
+          onRevoke={onRevokeShare}
         />
       ) : null}
     </div>

@@ -13,8 +13,20 @@ public record HeadlineAnalysisResult(
         ArticleSummary article,
         Instant analyzedAt,
         List<Issue> issues,
-        String alternativeHeadline
+        String alternativeHeadline,
+        String aiModelVersion,
+        String policyVersion
 ) {
+
+    /** 이전 저장 결과 호환 생성 */
+    public HeadlineAnalysisResult(
+            ArticleSummary article,
+            Instant analyzedAt,
+            List<Issue> issues,
+            String alternativeHeadline
+    ) {
+        this(article, analyzedAt, issues, alternativeHeadline, null, null);
+    }
 
     /** 결과 필드와 판정 조합 검증 */
     public HeadlineAnalysisResult {

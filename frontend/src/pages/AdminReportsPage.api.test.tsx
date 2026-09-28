@@ -129,6 +129,26 @@ describe('AdminReportsPage API', () => {
     await waitFor(() => expect(getAdminReport).toHaveBeenCalledWith('17'))
   })
 
+  it('같은 신고의 상세 요청을 렌더링마다 다시 시작하지 않는다', async () => {
+    vi.mocked(getAdminReport).mockReturnValue(new Promise(() => {}))
+    const { rerender } = render(
+      <MemoryRouter>
+        <AdminReportsPage />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('#17')
+    await waitFor(() => expect(getAdminReport).toHaveBeenCalledTimes(1))
+
+    rerender(
+      <MemoryRouter>
+        <AdminReportsPage />
+      </MemoryRouter>,
+    )
+
+    expect(getAdminReport).toHaveBeenCalledTimes(1)
+  })
+
   it('제목 분석 Snapshot의 문제와 대체 제목을 표시한다', async () => {
     vi.mocked(listAdminReports).mockResolvedValue({
       items: [
@@ -277,5 +297,65 @@ describe('AdminReportsPage API', () => {
         within(stats).getByText('처리 완료').closest('article')!,
       ).getByText('1건'),
     ).toBeInTheDocument()
+  })
+
+  it('상태 변경 충돌 후 최신 상세를 다시 불러와 재시도한다', async () => {
+    const initialDetail = {
+      id: '17',
+      analysisType: 'HEALTH' as const,
+      reportType: 'WRONG_JUDGMENT' as const,
+      articleTitle: '건강 기사 제목',
+      publisherName: '테스트 언론사',
+      status: 'OPEN' as const,
+      createdAt: '2026-09-26T01:00:00Z',
+      updatedAt: '2026-09-26T01:00:00Z',
+      completedAt: null,
+      adminReply: null,
+      description: '판정을 다시 확인해 주세요.',
+      articleUrl: 'https://news.example/article',
+      resultSnapshot: { schemaVersion: 1 },
+      version: 0,
+    }
+    vi.mocked(getAdminReport)
+      .mockResolvedValueOnce(initialDetail)
+      .mockResolvedValueOnce({
+        ...initialDetail,
+        status: 'IN_PROGRESS',
+        updatedAt: '2026-09-26T02:00:00Z',
+        version: 1,
+      })
+    vi.mocked(updateAdminReport).mockRejectedValueOnce(
+      new Error(
+        '다른 관리자가 먼저 처리했습니다. 최신 상태를 다시 확인해 주세요.',
+      ),
+    )
+
+    render(
+      <MemoryRouter>
+        <AdminReportsPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('판정을 다시 확인해 주세요.')
+    fireEvent.change(screen.getByLabelText('처리 상태'), {
+      target: { value: '처리 완료' },
+    })
+    fireEvent.change(screen.getByLabelText('관리자 답변'), {
+      target: { value: '신고 내용을 확인했습니다.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '상태와 답변 저장' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '다른 관리자가 먼저 처리했습니다.',
+    )
+    await waitFor(() => expect(getAdminReport).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole('button', { name: '상태와 답변 저장' }))
+
+    await waitFor(() =>
+      expect(updateAdminReport).toHaveBeenLastCalledWith('17', {
+        status: 'RESOLVED',
+        adminReply: '신고 내용을 확인했습니다.',
+        version: 1,
+      }),
+    )
   })
 })

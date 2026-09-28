@@ -126,7 +126,7 @@ try {
     Push-Location $backendRoot
     try {
         & $javaPath "-Dmaven.multiModuleProjectDirectory=$backendRoot" '-classpath' $wrapperJar `
-            'org.apache.maven.wrapper.MavenWrapperMain' '-q' '-Dtest=NewsPublisherRepositoryIT,SignupAccountStoreIT,HealthRecordStoreIT,ReportStoreIT' 'test'
+            'org.apache.maven.wrapper.MavenWrapperMain' '-q' '-Dtest=NewsPublisherRepositoryIT,SignupAccountStoreIT,HealthRecordStoreIT,ReportStoreIT,ShareStoreIT' 'test'
         if ($LASTEXITCODE -ne 0) {
             throw "Publisher Native MySQL integration test failed with exit code $LASTEXITCODE"
         }
@@ -135,7 +135,7 @@ try {
         Pop-Location
     }
 
-    Write-Host '[PASS] Publisher, signup account, health record and report Native MySQL integration tests'
+    Write-Host '[PASS] Publisher, signup account, health record, report and share Native MySQL integration tests'
 }
 finally {
     foreach ($name in $environmentNames) {

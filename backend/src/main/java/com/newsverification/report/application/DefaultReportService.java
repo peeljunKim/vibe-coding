@@ -7,6 +7,8 @@ import com.newsverification.health.application.HealthAnalysisResult;
 import com.newsverification.headline.application.HeadlineAnalysisJobService;
 import com.newsverification.headline.application.HeadlineAnalysisResult;
 import com.newsverification.report.domain.AnalysisReport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -19,6 +21,7 @@ import java.util.Map;
 @Service
 public class DefaultReportService implements ReportService {
 
+    private static final Logger log = LoggerFactory.getLogger(DefaultReportService.class);
     private static final Duration COMPLETED_RETENTION = Duration.ofDays(30);
 
     private final HealthAnalysisJobService healthJobs;
@@ -73,7 +76,7 @@ public class DefaultReportService implements ReportService {
                 snapshot.value(),
                 clock.instant()
         ));
-        mailPort.notifyNewReport(saved.id());
+        notifySafely("NEW_REPORT", saved.id(), () -> mailPort.notifyNewReport(saved.id()));
         return detail(saved);
     }
 
@@ -128,7 +131,11 @@ public class DefaultReportService implements ReportService {
                 command.version()
         ));
         if (updated.status() == AnalysisReport.Status.RESOLVED) {
-            mailPort.notifyResolved(updated.reporterEmail(), updated.id());
+            notifySafely(
+                    "REPORT_RESOLVED",
+                    updated.id(),
+                    () -> mailPort.notifyResolved(updated.reporterEmail(), updated.id())
+            );
         }
         return detail(updated);
     }
@@ -136,6 +143,19 @@ public class DefaultReportService implements ReportService {
     @Override
     public int cleanupExpiredReports() {
         return store.deleteResolvedCompletedAtOrBefore(clock.instant().minus(COMPLETED_RETENTION));
+    }
+
+    private static void notifySafely(String notificationType, long reportId, Runnable notification) {
+        try {
+            notification.run();
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "Report notification failed: type={}, reportId={}, cause={}",
+                    notificationType,
+                    reportId,
+                    exception.getClass().getSimpleName()
+            );
+        }
     }
 
     private Snapshot healthSnapshot(String memberId, String analysisId) {

@@ -2426,6 +2426,161 @@ input:focus-visible {
   color: #fff;
 }
 
+/* 공유 링크 대화상자와 공개 결과 화면 */
+.share-dialog__result {
+  display: grid;
+  gap: 10px;
+}
+
+.share-dialog__result input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #cddae0;
+  border-radius: 10px;
+  background: #edf3f6;
+  color: #16242b;
+}
+
+.shared-result-page {
+  min-height: 100vh;
+  background: #edf4f7;
+}
+
+.shared-result-content {
+  width: min(calc(100% - 112px), 1160px);
+  margin: 42px auto 80px;
+}
+
+.shared-result-heading,
+.shared-claim-card,
+.shared-headline-result,
+.shared-result-error {
+  border-radius: 18px;
+  background: #fff;
+}
+
+.shared-result-heading {
+  padding: 32px;
+}
+
+.shared-result-heading > span,
+.shared-claim-card > span,
+.shared-alternative-title > span {
+  color: #17637a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.shared-result-heading h1 {
+  margin: 10px 0;
+  font-size: clamp(26px, 3vw, 36px);
+  overflow-wrap: anywhere;
+}
+
+.shared-result-heading p,
+.shared-claim-card > p,
+.shared-headline-result p {
+  color: #5e7079;
+}
+
+.shared-result-verdict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24px 0;
+  padding: 22px 26px;
+  border-radius: 16px;
+  background: #dceff4;
+}
+
+.shared-result-verdict span {
+  color: #17637a;
+  font-weight: 800;
+}
+
+.shared-claim-list {
+  display: grid;
+  gap: 22px;
+}
+
+.shared-claim-card {
+  padding: 28px;
+}
+
+.shared-claim-card h2 {
+  margin: 10px 0;
+  font-size: 22px;
+}
+
+.shared-evidence-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.shared-evidence-list section,
+.shared-headline-issues article,
+.shared-alternative-title {
+  padding: 20px;
+  border-radius: 14px;
+  background: #edf3f6;
+}
+
+.shared-evidence-list h3,
+.shared-evidence-list p {
+  margin: 0 0 8px;
+}
+
+.shared-evidence-list a,
+.shared-headline-result > a {
+  color: #17637a;
+  font-weight: 700;
+}
+
+.shared-headline-result {
+  margin-top: 24px;
+  padding: 30px;
+}
+
+.shared-headline-result > h2 {
+  margin: 0 0 20px;
+}
+
+.shared-headline-issues {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.shared-alternative-title {
+  margin: 22px 0;
+  background: #dceff4;
+}
+
+.shared-alternative-title h3 {
+  margin: 10px 0 0;
+}
+
+.shared-result-login-notice,
+.shared-result-loading,
+.shared-result-error {
+  margin-top: 24px;
+  padding: 24px 28px;
+  color: #5e7079;
+  text-align: center;
+}
+
+.shared-result-error {
+  padding: 80px 32px;
+}
+
+.shared-result-error h1 {
+  margin: 0 0 12px;
+  color: #16242b;
+}
+
 /* 사용자 신고 내역 화면 스타일 */
 .my-reports-content {
   width: min(calc(100% - 112px), 1200px);
@@ -2517,7 +2672,8 @@ textarea:focus-visible {
   .health-result-content,
   .saved-layout,
   .admin-content,
-  .my-reports-content {
+  .my-reports-content,
+  .shared-result-content {
     width: calc(100% - 64px);
   }
 

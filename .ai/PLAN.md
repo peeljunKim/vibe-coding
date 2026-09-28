@@ -351,9 +351,29 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 처리 완료 사용자 메일과 신규 신고 관리자 메일: PASS (기본 Mock, `smtp`·`prod` Gmail Adapter 구성·메일 생성 검증; 실제 SMTP 호출 없음)
 - 처리 완료 후 30일 자동 삭제와 미처리 신고 보존: PASS (Application·JPA 구현과 통합 테스트 소스)
 - 관리자 목록 Pagination·현재 페이지 현황 갱신·신고 당시 Snapshot 조회: PASS
-- Backend 전체 Maven 회귀: PASS (183개, 실패·오류·Skip 0; `*IT` 제외)
-- Frontend Test·TypeScript·Lint·Build: PASS (10 files, 54 tests; TypeScript·Lint·Build PASS)
-- 최신 변경 범위 Harness 검증: PASS (`pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope changed`; Frontend 10 files, 54 tests)
+- Backend 전체 Maven 회귀: PASS (185개, 실패·오류·Skip 0; `*IT` 제외)
+- Frontend Test·TypeScript·Lint·Build: PASS (10 files, 57 tests; TypeScript·Lint·Build PASS)
+- 최신 변경 범위 Harness 검증: PASS (`pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope changed`; Backend 185 tests, Frontend 10 files·57 tests)
+- PR 29 리뷰 보완: PASS (메일 실패 격리, 신고 모달 포커스·Escape·복귀, 관리자 상세 요청 안정화, Version 충돌 후 최신 상세 재조회)
 - Chrome 신고 접수·내 신고 내역·관리자 처리 Browser E2E: PASS (2개, Runtime·Console 오류 0건)
 - Native MySQL 신고 Repository 통합 테스트 소스와 Harness 연결: PASS
-- Native MySQL 신고 Repository 실제 실행: NOT RUN (별도 사용자 승인 대기)
+- Native MySQL 신고 Repository 실제 실행: PASS (`verify-publisher-native-mysql.ps1`; 언론사·회원가입·건강 저장 기록·신고 통합 테스트)
+
+## 건강·제목 분석 결과 공유 Vertical Slice
+
+- ACTIVE 회원의 건강 저장 기록·완료 제목 분석 공유 생성: PASS
+- 256bit Base64URL Token 생성과 SHA-256 Digest 저장 경계: PASS
+- 생성 후 7일 만료, 사용자 해제, 공개 조회 즉시 차단: PASS
+- 건강 기록 삭제 Foreign Key Cascade: PASS (기존 Schema·통합 테스트 소스)
+- 제목 최소 Snapshot 저장과 해제·만료 물리 삭제: PASS
+- 비로그인 공개 읽기 전용 조회와 생성·해제 인증·CSRF 보호: PASS
+- 만료·해제·없는 Token의 동일 404 응답과 Token 비노출: PASS
+- 공개 조회의 `no-store`·검색엔진 수집 차단: PASS
+- Frontend 저장 후 공유·링크 복사·직접 복사·해제·공개 오류 화면: PASS
+- Backend 전체 Maven 회귀: PASS (196개, 실패·오류·Skip 0; `*IT` 제외)
+- Frontend Test·TypeScript·Lint·Build: PASS (13 files, 67 tests)
+- Chrome 공유 생성·공개 조회와 1024·1280·1440px 가로 넘침 E2E: PASS (4개)
+- Native MySQL `ShareStoreIT` 소스와 검증 Script 연결: PASS
+- Native MySQL `ShareStoreIT` 실제 실행: PASS (`verify-publisher-native-mysql.ps1`; 언론사·회원가입·건강 저장 기록·신고·공유 통합 테스트)
+- 건강 기록 삭제·재분석 교체 기능과 재분석 시 기존 링크 만료: NOT APPLICABLE (사용자 요청으로 이번 범위 제외)
+- 실제 외부 AI·검색 호출: NOT APPLICABLE (공유 조회는 저장 Snapshot만 사용)

@@ -2,8 +2,10 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import type { ReportType } from '../api/reports'
+import type { CreatedShare } from '../api/shares'
 import AppHeader from '../components/AppHeader'
 import ReportDialog from '../components/ReportDialog'
+import ShareDialog from '../components/ShareDialog'
 import type { HeadlineIssueType, TitleResultViewData } from '../types/pageData'
 
 interface TitleResultPageProps {
@@ -14,6 +16,8 @@ interface TitleResultPageProps {
     reportType: ReportType,
     description: string,
   ) => Promise<void>
+  onShare?: (analysisId: string) => Promise<CreatedShare>
+  onRevokeShare?: (token: string) => Promise<void>
 }
 
 const issueLabels: Record<HeadlineIssueType, string> = {
@@ -27,9 +31,12 @@ function TitleResultPage({
   data,
   authenticated = false,
   onReport,
+  onShare,
+  onRevokeShare,
 }: TitleResultPageProps) {
   const location = useLocation()
   const [reportOpen, setReportOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [reportNotice, setReportNotice] = useState<string | null>(null)
   const routeData = (location.state as { result?: TitleResultViewData } | null)
     ?.result
@@ -46,7 +53,20 @@ function TitleResultPage({
   return (
     <div className="app-page title-result-page">
       <AppHeader section="기사 제목 결과">
-        <span>공유</span>
+        <button
+          type="button"
+          disabled={!resultData?.analysisId || !onShare || !onRevokeShare}
+          onClick={() => {
+            if (!authenticated) {
+              setReportNotice('로그인 후 결과를 공유할 수 있습니다.')
+              return
+            }
+            setReportNotice(null)
+            setShareOpen(true)
+          }}
+        >
+          공유
+        </button>
         <button
           type="button"
           disabled={!resultData}
@@ -157,6 +177,13 @@ function TitleResultPage({
           onSubmit={(reportType, description) =>
             onReport(resultData.analysisId!, reportType, description)
           }
+        />
+      ) : null}
+      {shareOpen && resultData?.analysisId && onShare && onRevokeShare ? (
+        <ShareDialog
+          onClose={() => setShareOpen(false)}
+          onCreate={() => onShare(resultData.analysisId!)}
+          onRevoke={onRevokeShare}
         />
       ) : null}
     </div>

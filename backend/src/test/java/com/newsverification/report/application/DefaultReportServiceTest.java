@@ -68,6 +68,18 @@ class DefaultReportServiceTest {
     }
 
     @Test
+    void returnsCreatedReportWhenNotificationFails() {
+        mailPort.failNewReport = true;
+
+        ReportService.Detail created = service.create("42", new ReportService.CreateCommand(
+                "HEALTH", "health-1", "WRONG_JUDGMENT", "판정을 확인해 주세요."
+        ));
+
+        assertThat(created.id()).isEqualTo(91L);
+        assertThat(store.savedReport).isNotNull();
+    }
+
+    @Test
     void rejectsMissingOrIncompleteOwnedAnalysisWithoutLeakingOwnership() {
         assertThatThrownBy(() -> service.create("99", new ReportService.CreateCommand(
                 "HEALTH", "health-1", "WRONG_JUDGMENT", "판정을 확인해 주세요."
@@ -111,6 +123,19 @@ class DefaultReportServiceTest {
                 "IN_PROGRESS", "다시 확인합니다.", 2L
         ))).isInstanceOf(ReportException.class).hasMessage("REPORT_STATE_CONFLICT");
         assertThat(mailPort.resolvedRecipients).hasSize(1);
+    }
+
+    @Test
+    void returnsResolvedReportWhenNotificationFails() {
+        store.savedReport = report(93L, 42L, AnalysisReport.Status.IN_PROGRESS, null, 1L);
+        mailPort.failResolved = true;
+
+        ReportService.Detail resolved = service.updateAsAdmin("7", 93L, new ReportService.UpdateCommand(
+                "RESOLVED", "신고 내용을 확인했습니다.", 1L
+        ));
+
+        assertThat(resolved.status()).isEqualTo(AnalysisReport.Status.RESOLVED);
+        assertThat(store.savedReport.status()).isEqualTo(AnalysisReport.Status.RESOLVED);
     }
 
     @Test
@@ -275,14 +300,22 @@ class DefaultReportServiceTest {
     private static final class CapturingMailPort implements ReportMailPort {
         private final List<Long> newReportIds = new ArrayList<>();
         private final List<String> resolvedRecipients = new ArrayList<>();
+        private boolean failNewReport;
+        private boolean failResolved;
 
         @Override
         public void notifyNewReport(long reportId) {
+            if (failNewReport) {
+                throw new IllegalStateException("SMTP unavailable");
+            }
             newReportIds.add(reportId);
         }
 
         @Override
         public void notifyResolved(String recipientEmail, long reportId) {
+            if (failResolved) {
+                throw new IllegalStateException("SMTP unavailable");
+            }
             resolvedRecipients.add(recipientEmail);
         }
     }
