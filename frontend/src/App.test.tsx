@@ -12,6 +12,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSession, login, logout } from './api/auth'
 import { listHealthRecords, saveHealthRecord } from './api/healthRecords'
 import {
+  createReport,
+  getAdminReport,
+  listAdminReports,
+  listMyReports,
+  updateAdminReport,
+} from './api/reports'
+import {
   requestRecoveryCode,
   verifyUsernameRecovery,
 } from './api/accountRecovery'
@@ -40,6 +47,14 @@ vi.mock('./api/healthRecords', () => ({
   saveHealthRecord: vi.fn(),
 }))
 
+vi.mock('./api/reports', () => ({
+  createReport: vi.fn(),
+  getAdminReport: vi.fn(),
+  listAdminReports: vi.fn(),
+  listMyReports: vi.fn(),
+  updateAdminReport: vi.fn(),
+}))
+
 beforeEach(() => {
   vi.mocked(getSession).mockReset()
   vi.mocked(login).mockReset()
@@ -48,6 +63,11 @@ beforeEach(() => {
   vi.mocked(verifyUsernameRecovery).mockReset()
   vi.mocked(listHealthRecords).mockReset()
   vi.mocked(saveHealthRecord).mockReset()
+  vi.mocked(createReport).mockReset()
+  vi.mocked(getAdminReport).mockReset()
+  vi.mocked(listAdminReports).mockReset()
+  vi.mocked(listMyReports).mockReset()
+  vi.mocked(updateAdminReport).mockReset()
   vi.mocked(getSession).mockResolvedValue({ authenticated: false })
   vi.mocked(logout).mockResolvedValue(undefined)
   vi.mocked(listHealthRecords).mockResolvedValue({
@@ -58,6 +78,16 @@ beforeEach(() => {
     totalPages: 0,
     hasNext: false,
   })
+  const emptyReports = {
+    items: [],
+    page: 0,
+    size: 20,
+    totalElements: 0,
+    totalPages: 0,
+    hasNext: false,
+  }
+  vi.mocked(listMyReports).mockResolvedValue(emptyReports)
+  vi.mocked(listAdminReports).mockResolvedValue(emptyReports)
 })
 
 afterEach(() => {
@@ -702,6 +732,7 @@ describe('App', () => {
     ['/results/health', '[핵심 주장 데이터가 필요합니다.]'],
     ['/results/title', '[기사 제목 분석 결과 데이터가 필요합니다.]'],
     ['/saved', '저장한 건강 뉴스'],
+    ['/reports', '내 신고 내역'],
     ['/admin/reports', '신고 관리'],
   ])('%s Route에 대상 화면을 표시한다', (path, heading) => {
     renderApp(path)

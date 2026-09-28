@@ -92,7 +92,7 @@ const pollHeadlineAnalysis = async (
 
     const progress = await readJson<ProgressResponse>(response)
     if (progress.status === 'COMPLETED' && progress.result) {
-      return progress.result
+      return { ...progress.result, analysisId: accepted.analysisId }
     }
     if (progress.status === 'FAILED') {
       throw new Error(

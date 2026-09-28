@@ -6,6 +6,7 @@ import type { SavedRecordViewData } from '../types/pageData'
 
 interface SavedRecordsPageProps {
   records?: SavedRecordViewData[]
+  onOpenReports?: () => void
   onReanalyze?: (recordId: string) => void
   onDelete?: (recordId: string) => void
   onDeleteAll?: () => void
@@ -38,6 +39,7 @@ const formatDate = (value: string) => {
 
 function SavedRecordsPage({
   records,
+  onOpenReports,
   onReanalyze,
   onDelete,
   onDeleteAll,
@@ -79,7 +81,9 @@ function SavedRecordsPage({
   return (
     <div className="app-page saved-page">
       <AppHeader section="저장 기록">
-        <span>내 신고 내역</span>
+        <button type="button" onClick={onOpenReports} disabled={!onOpenReports}>
+          내 신고 내역
+        </button>
         <span>설정</span>
       </AppHeader>
 
@@ -88,7 +92,9 @@ function SavedRecordsPage({
           <h2>마이페이지</h2>
           <nav aria-label="마이페이지 메뉴">
             <span className="saved-sidebar__active">저장한 건강 뉴스</span>
-            <span>내 신고 내역</span>
+            <button type="button" onClick={onOpenReports} disabled={!onOpenReports}>
+              내 신고 내역
+            </button>
             <span>연결된 소셜 계정</span>
             <span>계정 설정</span>
           </nav>

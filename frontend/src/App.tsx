@@ -10,12 +10,14 @@ import {
 import { analyzeHealthArticle } from './api/healthAnalysis'
 import { analyzeHeadline } from './api/headlineAnalysis'
 import { saveHealthRecord } from './api/healthRecords'
+import { createReport } from './api/reports'
 import AdminReportsPage from './pages/AdminReportsPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import HealthAnalysisPage from './pages/HealthAnalysisPage'
 import HealthResultPage from './pages/HealthResultPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import MyReportsPage from './pages/MyReportsPage'
 import SavedRecordsPage from './pages/SavedRecordsPage'
 import SignupFlowPage from './pages/SignupFlowPage'
 import TitleResultPage from './pages/TitleResultPage'
@@ -174,6 +176,7 @@ function App() {
             onStartHealthAnalysis={() => void startHealthAnalysis()}
             onStartHeadlineAnalysis={() => void startHeadlineAnalysis()}
             onOpenSavedRecords={() => goTo('/saved')}
+            onOpenReports={() => goTo('/reports')}
             authenticated={authSession.authenticated}
             onLogout={() => void endSession()}
             authError={authError}
@@ -202,16 +205,44 @@ function App() {
             onSave={async (analysisId) => {
               await saveHealthRecord(analysisId)
             }}
+            authenticated={authSession.authenticated}
+            onReport={async (analysisId, reportType, description) => {
+              await createReport({
+                analysisType: 'HEALTH',
+                analysisId,
+                reportType,
+                description,
+              })
+            }}
           />
         }
       />
-      <Route path="/results/title" element={<TitleResultPage />} />
+      <Route
+        path="/results/title"
+        element={
+          <TitleResultPage
+            authenticated={authSession.authenticated}
+            onReport={async (analysisId, reportType, description) => {
+              await createReport({
+                analysisType: 'HEADLINE',
+                analysisId,
+                reportType,
+                description,
+              })
+            }}
+          />
+        }
+      />
       <Route
         path="/saved"
         element={
-          <SavedRecordsPage onReanalyze={() => goTo('/analysis/health')} />
+          <SavedRecordsPage
+            onReanalyze={() => goTo('/analysis/health')}
+            onOpenReports={() => goTo('/reports')}
+          />
         }
       />
+      <Route path="/reports" element={<MyReportsPage />} />
       <Route
         path="/login"
         element={

@@ -2046,6 +2046,12 @@ input:focus-visible {
   gap: 24px;
 }
 
+.report-stats-note {
+  margin: 8px 0 0;
+  color: #5e7079;
+  font-size: 12px;
+}
+
 .report-stat {
   display: flex;
   height: 104px;
@@ -2203,6 +2209,61 @@ input:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.report-snapshot {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #d7e2e7;
+  border-radius: 14px;
+}
+
+.report-snapshot__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.report-snapshot__heading h3 {
+  margin: 0;
+  color: #334f5b;
+  font-size: 14px;
+}
+
+.report-snapshot a {
+  color: #17637a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.report-snapshot__items {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.report-snapshot__items article {
+  padding: 14px;
+  border-radius: 10px;
+  background: #edf3f6;
+}
+
+.report-snapshot__items strong,
+.report-snapshot__items p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.report-snapshot__items p,
+.report-snapshot__items ul {
+  margin-top: 8px;
+}
+
+.report-snapshot__items ul {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+}
+
 .report-detail form {
   display: flex;
   flex-direction: column;
@@ -2269,6 +2330,183 @@ input:focus-visible {
   margin: 0;
 }
 
+/* 분석 결과 신고 입력창 스타일 */
+.report-dialog-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgb(22 36 43 / 52%);
+}
+
+.report-dialog {
+  width: min(100%, 560px);
+  padding: 30px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgb(22 36 43 / 20%);
+}
+
+.report-dialog h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.report-dialog > p {
+  margin: 8px 0 26px;
+  color: #5e7079;
+  font-size: 14px;
+}
+
+.report-dialog form {
+  display: grid;
+  gap: 10px;
+}
+
+.report-dialog label {
+  margin-top: 8px;
+  color: #334f5b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.report-dialog select,
+.report-dialog textarea {
+  width: 100%;
+  border: 1px solid #cddae0;
+  border-radius: 10px;
+  background: #edf3f6;
+  color: #16242b;
+}
+
+.report-dialog select {
+  height: 48px;
+  padding: 0 14px;
+}
+
+.report-dialog textarea {
+  padding: 14px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.report-dialog small {
+  color: #5e7079;
+}
+
+.report-dialog [role='alert'] {
+  margin: 4px 0 0;
+  color: #b33c4a;
+  font-size: 13px;
+}
+
+.report-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.report-dialog__actions button {
+  min-width: 112px;
+  height: 44px;
+  border: 1px solid #b9ccd3;
+  border-radius: 10px;
+  background: #fff;
+  color: #334f5b;
+  font-weight: 700;
+}
+
+.report-dialog__actions .primary-button {
+  border-color: #17637a;
+  background: #17637a;
+  color: #fff;
+}
+
+/* 사용자 신고 내역 화면 스타일 */
+.my-reports-content {
+  width: min(calc(100% - 112px), 1200px);
+  margin: 32px auto 76px;
+}
+
+.my-reports-content > header h1 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.my-reports-content > header p {
+  margin: 8px 0 28px;
+  color: #5e7079;
+}
+
+.my-report-list {
+  display: grid;
+  gap: 20px;
+}
+
+.my-report-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.7fr);
+  gap: 28px;
+  padding: 26px;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.my-report-card .report-status {
+  position: static;
+  display: inline-flex;
+  margin-right: 12px;
+}
+
+.my-report-card small,
+.my-report-card > div > p {
+  color: #5e7079;
+}
+
+.my-report-card h2 {
+  margin: 14px 0 8px;
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.my-report-card > div > p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.my-report-card > section {
+  padding: 18px;
+  border-radius: 14px;
+  background: #edf3f6;
+}
+
+.my-report-card > section h3 {
+  margin: 0 0 10px;
+  color: #334f5b;
+  font-size: 14px;
+}
+
+.my-report-card > section p {
+  margin: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.my-report-list > [role='status'] {
+  display: flex;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border-radius: 18px;
+  background: #fff;
+  color: #5e7079;
+}
+
 select:focus-visible,
 textarea:focus-visible {
   outline: 3px solid rgb(23 99 122 / 30%);
@@ -2278,7 +2516,8 @@ textarea:focus-visible {
 @media (max-width: 1200px) {
   .health-result-content,
   .saved-layout,
-  .admin-content {
+  .admin-content,
+  .my-reports-content {
     width: calc(100% - 64px);
   }
 
@@ -2313,5 +2552,9 @@ textarea:focus-visible {
 
   .report-list button small {
     right: 14px;
+  }
+
+  .my-report-card {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.75fr);
   }
 }

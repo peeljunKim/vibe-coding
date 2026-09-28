@@ -1,11 +1,19 @@
 // 건강 뉴스 분석 결과 화면
 import { useState } from 'react'
+import type { ReportType } from '../api/reports'
 import AppHeader from '../components/AppHeader'
+import ReportDialog from '../components/ReportDialog'
 import type { HealthClaimStatus, HealthResultViewData } from '../types/pageData'
 
 interface HealthResultPageProps {
   onNewArticle: () => void
   onSave?: (analysisId: string) => Promise<void>
+  onReport?: (
+    analysisId: string,
+    reportType: ReportType,
+    description: string,
+  ) => Promise<void>
+  authenticated?: boolean
   data?: HealthResultViewData
 }
 
@@ -22,6 +30,8 @@ const claimStatus: Record<
 function HealthResultPage({
   onNewArticle,
   onSave,
+  onReport,
+  authenticated = false,
   data,
 }: HealthResultPageProps) {
   const status = data ? claimStatus[data.claimStatus] : undefined
@@ -29,6 +39,8 @@ function HealthResultPage({
     'idle' | 'saving' | 'saved' | 'error'
   >('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportNotice, setReportNotice] = useState<string | null>(null)
 
   const save = async () => {
     if (!data || !onSave || saveStatus === 'saving' || saveStatus === 'saved') {
@@ -171,9 +183,18 @@ function HealthResultPage({
               className="text-action text-action--danger"
               type="button"
               disabled={!data}
+              onClick={() => {
+                if (!authenticated) {
+                  setReportNotice('로그인 후 신고할 수 있습니다.')
+                  return
+                }
+                setReportNotice(null)
+                setReportOpen(true)
+              }}
             >
               문제가 있다면 결과 신고
             </button>
+            {reportNotice ? <span role="status">{reportNotice}</span> : null}
           </div>
           <div className="result-actions__buttons">
             {saveError ? <span role="alert">{saveError}</span> : null}
@@ -207,6 +228,14 @@ function HealthResultPage({
           </div>
         </section>
       </main>
+      {reportOpen && data && onReport ? (
+        <ReportDialog
+          onClose={() => setReportOpen(false)}
+          onSubmit={(reportType, description) =>
+            onReport(data.analysisId, reportType, description)
+          }
+        />
+      ) : null}
     </div>
   )
 }

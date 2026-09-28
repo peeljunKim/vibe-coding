@@ -68,6 +68,7 @@ export interface HeadlineIssueViewData {
 }
 
 export interface TitleResultViewData {
+  analysisId?: string
   article: ArticleViewData
   analyzedAt: string
   issues: HeadlineIssueViewData[]
