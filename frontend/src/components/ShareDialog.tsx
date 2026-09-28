@@ -16,6 +16,7 @@ function ShareDialog({
   onRevoke,
 }: ShareDialogProps) {
   const actionRef = useRef<HTMLButtonElement>(null)
+  const shareUrlRef = useRef<HTMLInputElement>(null)
   const [created, setCreated] = useState<CreatedShare | null>(null)
   const [pending, setPending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -27,6 +28,12 @@ function ShareDialog({
     actionRef.current?.focus()
     return () => previousFocus?.focus()
   }, [])
+
+  useEffect(() => {
+    if (created) {
+      shareUrlRef.current?.focus()
+    }
+  }, [created])
 
   const create = async () => {
     if (pending) return
@@ -96,6 +103,7 @@ function ShareDialog({
               id="share-url"
               onFocus={(event) => event.currentTarget.select()}
               readOnly
+              ref={shareUrlRef}
               value={shareUrl}
             />
             <div className="report-dialog__actions">

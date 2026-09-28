@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,6 +60,10 @@ class ShareStoreIT {
             store.saveHealth(recordId, digest, "CAUTION", NOW, NOW.plusSeconds(604_800));
 
             assertThat(source.claims()).hasSize(1);
+            assertThat(source.article().publishedAt())
+                    .isEqualTo(NOW.minusSeconds(3_600).atOffset(ZoneOffset.UTC));
+            assertThat(source.article().modifiedAt())
+                    .isEqualTo(NOW.minusSeconds(1_800).atOffset(ZoneOffset.UTC));
             assertThat(store.findHealth(digest, NOW)).get()
                     .extracting(ShareService.HealthResult::overallStatus)
                     .isEqualTo("CAUTION");
@@ -157,14 +162,16 @@ class ShareStoreIT {
         jdbc.update("""
                 INSERT INTO health_analysis_records (
                     user_id, publisher_domain_id, article_url, normalized_url_digest, article_title,
-                    analyzed_at, expires_at, overall_status, total_claim_count, supported_claim_count,
+                    article_published_at, article_modified_at, analyzed_at, expires_at,
+                    overall_status, total_claim_count, supported_claim_count,
                     verification_rate, expert_review_status, ai_model_version, policy_version,
                     evidence_allowlist_version
-                ) VALUES (?, ?, 'https://share.example/article', ?, '공유 건강 기사', ?, ?, 'CAUTION',
+                ) VALUES (?, ?, 'https://share.example/article', ?, '공유 건강 기사', ?, ?, ?, ?, 'CAUTION',
                           1, 0, 0.00, 'NOT_REVIEWED', 'mock-health-analysis-v1',
                           'health-analysis-policy-v1', 'evidence-allowlist-v1')
                 """,
-                userId, domainId, digest("https://share.example/article"), NOW, NOW.plusSeconds(2_592_000)
+                userId, domainId, digest("https://share.example/article"),
+                NOW.minusSeconds(3_600), NOW.minusSeconds(1_800), NOW, NOW.plusSeconds(2_592_000)
         );
         long recordId = jdbc.queryForObject(
                 "SELECT id FROM health_analysis_records WHERE user_id = ?", Long.class, userId
