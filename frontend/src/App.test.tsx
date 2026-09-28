@@ -19,6 +19,14 @@ import {
   updateAdminReport,
 } from './api/reports'
 import {
+  createHeadlineShare,
+  createHealthShare,
+  getSharedHeadlineResult,
+  getSharedHealthResult,
+  revokeHeadlineShare,
+  revokeHealthShare,
+} from './api/shares'
+import {
   requestRecoveryCode,
   verifyUsernameRecovery,
 } from './api/accountRecovery'
@@ -55,6 +63,17 @@ vi.mock('./api/reports', () => ({
   updateAdminReport: vi.fn(),
 }))
 
+vi.mock('./api/shares', () => ({
+  createHealthShare: vi.fn(),
+  createHeadlineShare: vi.fn(),
+  getSharedHealthResult: vi.fn(),
+  getSharedHeadlineResult: vi.fn(),
+  revokeHealthShare: vi.fn(),
+  revokeHeadlineShare: vi.fn(),
+  buildShareUrl: (share: { shareType: string; shareToken: string }) =>
+    `http://localhost:3000/share/${share.shareType === 'HEALTH' ? 'health' : 'headline'}#${share.shareToken}`,
+}))
+
 beforeEach(() => {
   vi.mocked(getSession).mockReset()
   vi.mocked(login).mockReset()
@@ -68,6 +87,12 @@ beforeEach(() => {
   vi.mocked(listAdminReports).mockReset()
   vi.mocked(listMyReports).mockReset()
   vi.mocked(updateAdminReport).mockReset()
+  vi.mocked(createHealthShare).mockReset()
+  vi.mocked(createHeadlineShare).mockReset()
+  vi.mocked(getSharedHealthResult).mockReset()
+  vi.mocked(getSharedHeadlineResult).mockReset()
+  vi.mocked(revokeHealthShare).mockReset()
+  vi.mocked(revokeHeadlineShare).mockReset()
   vi.mocked(getSession).mockResolvedValue({ authenticated: false })
   vi.mocked(logout).mockResolvedValue(undefined)
   vi.mocked(listHealthRecords).mockResolvedValue({
@@ -794,7 +819,13 @@ describe('App', () => {
       reasons: ['근거가 부족합니다.'],
       evidences: [],
     }
-    const onSave = vi.fn().mockResolvedValue(undefined)
+    const onSave = vi.fn().mockResolvedValue({
+      id: '31',
+      title: result.article.title,
+      overallStatus: 'CAUTION' as const,
+      analyzedAt: result.analyzedAt,
+      expiresAt: '2026-10-24T01:00:00Z',
+    })
 
     render(
       <MemoryRouter>
@@ -829,7 +860,13 @@ describe('App', () => {
     const onSave = vi
       .fn()
       .mockRejectedValueOnce(new Error('결과를 저장하지 못했습니다.'))
-      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        id: '32',
+        title: result.article.title,
+        overallStatus: 'CAUTION' as const,
+        analyzedAt: result.analyzedAt,
+        expiresAt: '2026-10-24T01:00:00Z',
+      })
 
     render(
       <MemoryRouter>

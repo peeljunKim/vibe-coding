@@ -16,7 +16,7 @@
 | Dependency Management | `frontend/package-lock.json`, `backend/pom.xml` |
 | Configuration | Root·Frontend `.env.example`, Spring `application.yml`/`application-prod.yml`, Docker Compose |
 | Architecture | React Page·API Adapter와 Spring Boot Domain별 API·Application·Infrastructure 계층 |
-| Domain Structure | 건강 뉴스·제목 확인, 일반 회원가입·이메일 인증·로그인·계정 복구, 건강 분석 저장·목록·만료 정리와 문제 신고·관리자 처리 구현; 소셜 가입·공유는 아직 미구현 |
+| Domain Structure | 건강 뉴스·제목 확인, 일반 회원가입·이메일 인증·로그인·계정 복구, 건강 분석 저장·목록·만료 정리, 문제 신고·관리자 처리와 건강·제목 결과 공유 구현; 소셜 가입은 아직 미구현 |
 | Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 지원 언론사·일반 회원·건강 분석 저장 기록 Entity와 Repository 존재 |
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session 구현; 3일 분석 Cache는 환경 변수만 있고 기능은 미구현 |
 | External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock 존재; 실제 PubMed·Gemini·Google/Kakao/Naver OAuth Provider Adapter는 미구현 |

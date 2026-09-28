@@ -11,6 +11,12 @@ import { analyzeHealthArticle } from './api/healthAnalysis'
 import { analyzeHeadline } from './api/headlineAnalysis'
 import { saveHealthRecord } from './api/healthRecords'
 import { createReport } from './api/reports'
+import {
+  createHeadlineShare,
+  createHealthShare,
+  revokeHeadlineShare,
+  revokeHealthShare,
+} from './api/shares'
 import AdminReportsPage from './pages/AdminReportsPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import HealthAnalysisPage from './pages/HealthAnalysisPage'
@@ -20,6 +26,7 @@ import LoginPage from './pages/LoginPage'
 import MyReportsPage from './pages/MyReportsPage'
 import SavedRecordsPage from './pages/SavedRecordsPage'
 import SignupFlowPage from './pages/SignupFlowPage'
+import SharedResultPage from './pages/SharedResultPage'
 import TitleResultPage from './pages/TitleResultPage'
 import type {
   HealthAnalysisViewData,
@@ -202,9 +209,9 @@ function App() {
           <HealthResultPage
             {...(healthResultData ? { data: healthResultData } : {})}
             onNewArticle={() => goTo('/')}
-            onSave={async (analysisId) => {
-              await saveHealthRecord(analysisId)
-            }}
+            onSave={saveHealthRecord}
+            onShare={createHealthShare}
+            onRevokeShare={revokeHealthShare}
             authenticated={authSession.authenticated}
             onReport={async (analysisId, reportType, description) => {
               await createReport({
@@ -222,6 +229,8 @@ function App() {
         element={
           <TitleResultPage
             authenticated={authSession.authenticated}
+            onShare={createHeadlineShare}
+            onRevokeShare={revokeHeadlineShare}
             onReport={async (analysisId, reportType, description) => {
               await createReport({
                 analysisType: 'HEADLINE',
@@ -268,6 +277,14 @@ function App() {
         }
       />
       <Route path="/admin/reports" element={<AdminReportsPage />} />
+      <Route
+        path="/share/health"
+        element={<SharedResultPage type="health" />}
+      />
+      <Route
+        path="/share/headline"
+        element={<SharedResultPage type="headline" />}
+      />
     </Routes>
   )
 }

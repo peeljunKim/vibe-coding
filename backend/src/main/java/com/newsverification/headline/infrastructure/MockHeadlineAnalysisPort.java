@@ -38,7 +38,9 @@ public class MockHeadlineAnalysisPort implements HeadlineAnalysisPort {
                         HeadlineAnalysisResult.IssueType.NO_ISSUE,
                         "Mock 분석에서는 제목과 본문의 핵심 내용이 일치하는 것으로 처리합니다."
                 )),
-                null
+                null,
+                "mock-headline-analysis-v1",
+                "headline-analysis-policy-v1"
         );
     }
 }

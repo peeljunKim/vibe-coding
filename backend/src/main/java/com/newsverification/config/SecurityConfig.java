@@ -30,6 +30,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/analyses/health/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/analyses/headline").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/analyses/headline/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/shares/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/shares/headline").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/signup").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/signup/email-verification").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/signup/email-verification/resend").permitAll()
