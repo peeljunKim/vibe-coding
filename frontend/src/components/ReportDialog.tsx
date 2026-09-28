@@ -1,5 +1,5 @@
 // 분석 결과 문제 신고 입력창
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReportType } from '../api/reports'
 
 interface ReportDialogProps {
@@ -21,6 +21,13 @@ const reportTypes: Array<{ value: ReportType; label: string }> = [
 function ReportDialog({ onClose, onSubmit }: ReportDialogProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const reportTypeRef = useRef<HTMLSelectElement>(null)
+
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null
+    reportTypeRef.current?.focus()
+    return () => previousFocus?.focus()
+  }, [])
 
   return (
     <div className="report-dialog-backdrop" role="presentation">
@@ -29,6 +36,11 @@ function ReportDialog({ onClose, onSubmit }: ReportDialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-dialog-heading"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && !submitting) {
+            onClose()
+          }
+        }}
       >
         <h2 id="report-dialog-heading">문제 신고</h2>
         <p>신고 당시 분석 결과와 근거 링크가 함께 저장됩니다.</p>
@@ -62,7 +74,12 @@ function ReportDialog({ onClose, onSubmit }: ReportDialogProps) {
           }}
         >
           <label htmlFor="report-type">문제 유형</label>
-          <select id="report-type" name="reportType" defaultValue="WRONG_JUDGMENT">
+          <select
+            ref={reportTypeRef}
+            id="report-type"
+            name="reportType"
+            defaultValue="WRONG_JUDGMENT"
+          >
             {reportTypes.map((type) => (
               <option key={type.value} value={type.value}>
                 {type.label}
@@ -84,7 +101,11 @@ function ReportDialog({ onClose, onSubmit }: ReportDialogProps) {
             <button type="button" onClick={onClose} disabled={submitting}>
               취소
             </button>
-            <button className="primary-button" type="submit" disabled={submitting}>
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={submitting}
+            >
               {submitting ? '접수 중' : '신고 접수'}
             </button>
           </div>
