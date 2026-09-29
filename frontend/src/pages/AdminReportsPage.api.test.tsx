@@ -348,6 +348,10 @@ describe('AdminReportsPage API', () => {
       '다른 관리자가 먼저 처리했습니다.',
     )
     await waitFor(() => expect(getAdminReport).toHaveBeenCalledTimes(2))
+    expect(screen.getByLabelText('처리 상태')).toHaveValue('확인 중')
+    fireEvent.change(screen.getByLabelText('처리 상태'), {
+      target: { value: '처리 완료' },
+    })
     fireEvent.click(screen.getByRole('button', { name: '상태와 답변 저장' }))
 
     await waitFor(() =>
@@ -357,5 +361,59 @@ describe('AdminReportsPage API', () => {
         version: 1,
       }),
     )
+  })
+
+  it('충돌 후 최신 상세 조회가 실패하면 사용자가 다시 요청한다', async () => {
+    const initialDetail = {
+      id: '17',
+      analysisType: 'HEALTH' as const,
+      reportType: 'WRONG_JUDGMENT' as const,
+      articleTitle: '건강 기사 제목',
+      publisherName: '테스트 언론사',
+      status: 'OPEN' as const,
+      createdAt: '2026-09-26T01:00:00Z',
+      updatedAt: '2026-09-26T01:00:00Z',
+      completedAt: null,
+      adminReply: null,
+      description: '판정을 다시 확인해 주세요.',
+      articleUrl: 'https://news.example/article',
+      resultSnapshot: { schemaVersion: 1 },
+      version: 0,
+    }
+    vi.mocked(getAdminReport)
+      .mockResolvedValueOnce(initialDetail)
+      .mockRejectedValueOnce(new Error('최신 신고 상세를 불러오지 못했습니다.'))
+      .mockResolvedValueOnce({
+        ...initialDetail,
+        status: 'IN_PROGRESS',
+        updatedAt: '2026-09-26T02:00:00Z',
+        version: 1,
+      })
+    vi.mocked(updateAdminReport).mockRejectedValueOnce(
+      new Error(
+        '다른 관리자가 먼저 처리했습니다. 최신 상태를 다시 확인해 주세요.',
+      ),
+    )
+
+    render(
+      <MemoryRouter>
+        <AdminReportsPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('판정을 다시 확인해 주세요.')
+    fireEvent.change(screen.getByLabelText('처리 상태'), {
+      target: { value: '처리 완료' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '상태와 답변 저장' }))
+
+    expect(
+      await screen.findByText('최신 신고 상세를 불러오지 못했습니다.'),
+    ).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: '신고 상세 다시 불러오기' }),
+    )
+
+    await waitFor(() => expect(getAdminReport).toHaveBeenCalledTimes(3))
+    expect(screen.getByLabelText('처리 상태')).toHaveValue('확인 중')
   })
 })

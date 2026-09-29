@@ -14,7 +14,6 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -344,8 +343,7 @@ public class JdbcShareStore implements ShareStore {
         if (value == null) {
             return null;
         }
-        LocalDateTime local = value.toLocalDateTime();
-        return local.atOffset(ZoneOffset.UTC);
+        return value.toInstant().atOffset(ZoneOffset.UTC);
     }
 
     private static byte[] digest(String value) {

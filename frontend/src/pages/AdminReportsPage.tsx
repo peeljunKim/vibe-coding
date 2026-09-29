@@ -52,7 +52,7 @@ const toViewReport = (
   return {
     id: report.id,
     title: typeLabels[report.reportType],
-    status: statusLabels[report.status],
+    status: statusLabels[detail?.status ?? report.status],
     reportedAt: new Date(report.createdAt).toLocaleDateString('ko-KR'),
     publisher: report.publisherName,
     analysisType:
@@ -187,6 +187,8 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
   const [currentPage, setCurrentPage] = useState(0)
   const [details, setDetails] = useState<Record<string, ReportDetail>>({})
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [detailLoadError, setDetailLoadError] = useState<string | null>(null)
+  const [detailReloadVersion, setDetailReloadVersion] = useState(0)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const visibleReports =
@@ -228,6 +230,7 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
         setLoadedPage(page)
         setSelectedId(undefined)
         setLoadError(null)
+        setDetailLoadError(null)
       })
       .catch((error: unknown) => {
         if (active) {
@@ -254,10 +257,11 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
           return
         }
         setDetails((current) => ({ ...current, [detail.id]: detail }))
+        setDetailLoadError(null)
       })
       .catch((error: unknown) => {
         if (active) {
-          setLoadError(
+          setDetailLoadError(
             error instanceof Error
               ? error.message
               : '신고 상세를 불러오지 못했습니다.',
@@ -267,7 +271,7 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
     return () => {
       active = false
     }
-  }, [details, reports, selectedReportId])
+  }, [detailReloadVersion, details, reports, selectedReportId])
 
   const submit = (
     report: ReportSummaryViewData,
@@ -360,7 +364,10 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
                   <button
                     type="button"
                     key={report.id}
-                    onClick={() => setSelectedId(report.id)}
+                    onClick={() => {
+                      setDetailLoadError(null)
+                      setSelectedId(report.id)
+                    }}
                     aria-pressed={selectedReport?.id === report.id}
                   >
                     <span className="report-list__id">#{report.id}</span>
@@ -435,6 +442,21 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
                   <ReportSnapshot detail={selectedDetail} />
                 ) : null}
 
+                {detailLoadError ? (
+                  <div className="report-detail__retry">
+                    <p role="alert">{detailLoadError}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailLoadError(null)
+                        setDetailReloadVersion((version) => version + 1)
+                      }}
+                    >
+                      신고 상세 다시 불러오기
+                    </button>
+                  </div>
+                ) : null}
+
                 <form
                   onSubmit={(event) => {
                     event.preventDefault()
@@ -455,7 +477,7 @@ function AdminReportsPage({ stats, reports, onSubmit }: AdminReportsPageProps) {
                   <select
                     id="report-status"
                     name="status"
-                    key={selectedReport.id}
+                    key={`${selectedReport.id}-${selectedDetail?.version ?? 'loading'}`}
                     defaultValue={selectedReport.status}
                   >
                     <option>확인 전</option>

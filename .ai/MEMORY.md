@@ -51,7 +51,8 @@
 - 문제 신고 Vertical Slice의 최신 변경 범위 Harness 검증은 PASS이며 Backend 185개 Test와 Frontend 10개 Test File·57개 Test를 통과함; Native MySQL 신고 Repository 실제 실행도 PASS
 - 공유 Token은 256bit Base64URL 원문을 URL Fragment와 Header로만 전달하고 MySQL에는 SHA-256 Digest만 저장함
 - 공개 공유 조회는 비로그인 읽기 전용·`no-store`·검색 수집 차단이며 AI·검색·기사 추출·이용량 Port를 호출하지 않음
-- 공유 Vertical Slice의 Backend 전체 196개 Test, Frontend 13개 Test File·67개 Test, Chrome 공유 E2E 4개와 Native MySQL ShareStoreIT 실제 실행은 PASS
+- 공유 Open Graph는 Fragment Token 보안을 유지하는 공통 메타데이터와 1200×630 대표 이미지를 사용하며 결과별 동적 미리보기는 제공하지 않음
+- 공유 Vertical Slice의 Backend 전체 196개 Test, Frontend 14개 Test File·70개 Test, Chrome 공유 E2E 4개와 Native MySQL ShareStoreIT 실제 실행은 PASS이며 기사 게시·수정 시각 UTC 변환 회귀도 실제 MySQL에서 검증함
 
 ## Deferred
 
