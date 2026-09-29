@@ -4,6 +4,7 @@ package com.newsverification.config;
 import com.newsverification.article.application.PublisherArticleReader;
 import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
+import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.health.application.HealthAnalysisJobIdentityService;
 import com.newsverification.health.application.HealthAnalysisPort;
 import com.newsverification.health.application.HealthAnalysisQueue;
@@ -12,6 +13,7 @@ import com.newsverification.health.application.HealthAnalysisWorker;
 import com.newsverification.health.application.HealthArticleTopicClassifier;
 import com.newsverification.health.application.DefaultHealthAnalysisJobService;
 import com.newsverification.health.application.HealthAnalysisJobService;
+import com.newsverification.health.application.HealthAnalysisResultCache;
 import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -37,6 +39,8 @@ class HealthAnalysisConfigTest {
                     () -> mock(AnalysisJobOutcomeStore.class)
             )
             .withBean(HealthAnalysisQueue.class, () -> mock(HealthAnalysisQueue.class))
+            .withBean(HealthAnalysisResultCache.class, HealthAnalysisResultCache::disabled)
+            .withBean(AnalysisCacheVersions.class, AnalysisCacheVersions::mockDefaults)
             .withBean(PublisherArticleReader.class, () -> mock(PublisherArticleReader.class))
             .withBean(
                     HealthTopicFailureUsagePolicy.class,

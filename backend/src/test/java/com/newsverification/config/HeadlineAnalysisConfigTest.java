@@ -4,12 +4,14 @@ package com.newsverification.config;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
 import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.application.AnalysisJobLifecycleService;
+import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.article.application.PublisherArticleReader;
 import com.newsverification.headline.application.DefaultHeadlineAnalysisJobService;
 import com.newsverification.headline.application.HeadlineAnalysisJobIdentityService;
 import com.newsverification.headline.application.HeadlineAnalysisJobService;
 import com.newsverification.headline.application.HeadlineAnalysisPort;
 import com.newsverification.headline.application.HeadlineAnalysisQueue;
+import com.newsverification.headline.application.HeadlineAnalysisResultCache;
 import com.newsverification.headline.application.HeadlineAnalysisUsagePolicy;
 import com.newsverification.headline.application.HeadlineAnalysisUseCase;
 import com.newsverification.headline.application.HeadlineAnalysisWorker;
@@ -39,6 +41,8 @@ class HeadlineAnalysisConfigTest {
             .withBean(AnalysisJobStore.class, () -> mock(AnalysisJobStore.class))
             .withBean(AnalysisJobOutcomeStore.class, () -> mock(AnalysisJobOutcomeStore.class))
             .withBean(HeadlineAnalysisQueue.class, () -> mock(HeadlineAnalysisQueue.class))
+            .withBean(HeadlineAnalysisResultCache.class, HeadlineAnalysisResultCache::disabled)
+            .withBean(AnalysisCacheVersions.class, AnalysisCacheVersions::mockDefaults)
             .withBean(HeadlineAnalysisUsagePolicy.class, () -> mock(HeadlineAnalysisUsagePolicy.class))
             .withBean(PublisherArticleReader.class, () -> mock(PublisherArticleReader.class))
             .withBean(ObjectMapper.class, ObjectMapper::new)

@@ -30,7 +30,7 @@
 - 회원가입 이메일 발송: 기본 Profile은 Mock, `smtp`·`prod` Profile은 Gmail SMTP Adapter 사용
 - 미인증 일반 계정: 가입 후 7일 경과 시 일일 정리, 공개 중복 오류는 계정 정보 단일 코드 사용
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
-- 현재 구현: Frontend Desktop 화면과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유
+- 현재 구현: Frontend Desktop 화면과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유와 분리된 3일 공용 Cache
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
 - 프로젝트 구조·위험: `docs/agent/project-context.md`
 - Backend 구현 표준: `docs/agent/backend-development.md` (채택 기준, 업무 기능 구현 완료 아님)
@@ -53,6 +53,10 @@
 - 공개 공유 조회는 비로그인 읽기 전용·`no-store`·검색 수집 차단이며 AI·검색·기사 추출·이용량 Port를 호출하지 않음
 - 공유 Open Graph는 Fragment Token 보안을 유지하는 공통 메타데이터와 1200×630 대표 이미지를 사용하며 결과별 동적 미리보기는 제공하지 않음
 - 공유 Vertical Slice의 Backend 전체 196개 Test, Frontend 14개 Test File·70개 Test, Chrome 공유 E2E 4개와 Native MySQL ShareStoreIT 실제 실행은 PASS이며 기사 게시·수정 시각 UTC 변환 회귀도 실제 MySQL에서 검증함
+- 건강·제목 공용 Cache는 정규화 URL·기능·모델·정책·언론사 정책 Version을 SHA-256 Key로 분리하고 건강 기능에는 근거 허용 목록 Version도 포함함
+- Redis Cache에는 구조화 결과와 만료 시각만 저장하고 기본 3일에서 Key 기반 최대 30분 감산 지터를 적용하며 조회로 TTL을 연장하지 않음
+- Cache Hit은 기사 수집·검색·AI Port를 호출하지 않으며 원 분석 회원의 재조회는 Cache 수명 동안, 비회원은 날짜별 식별 경계 안에서 미차감하고 다른 사용자의 최초 열람만 원자적으로 차감함
+- 공용 Cache Backend 전체 202개 Test와 Docker Redis 통합 40개 Test는 PASS이며 기사 변경 감지와 건강 근거 링크 재검증은 아직 미구현
 
 ## Deferred
 

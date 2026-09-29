@@ -9,6 +9,11 @@ import com.newsverification.analysis.domain.AnalysisJob;
 import com.newsverification.analysis.domain.AnalysisJobOwner;
 import com.newsverification.analysis.domain.AnalysisJobOwnerType;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
+import com.newsverification.analysiscache.application.AnalysisCacheVersions;
+import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingError;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.article.domain.ExtractedArticle;
@@ -53,7 +58,10 @@ class HealthAnalysisWorkerTest {
         var queue = new SingleTaskQueue(task, true);
         HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
         HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthAnalysisResultCache cache = mock(HealthAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
         ExtractedArticle article = article();
+        HealthAnalysisResult result = result(article);
         HealthArticleScreeningResult screening = new HealthArticleScreeningResult(
                 article,
                 HealthArticleTopicDecision.HEALTH_RELATED
@@ -65,9 +73,22 @@ class HealthAnalysisWorkerTest {
                 .thenReturn(new HealthAnalysisRoutingResult(
                         HealthAnalysisRoutingStatus.ANALYSIS_STARTED,
                         Optional.empty(),
-                        Optional.of(result(article))
+                        Optional.of(result)
                 ));
-        HealthAnalysisWorker worker = worker(store, queue, useCase, usagePolicy, NOW);
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        HealthAnalysisWorker worker = new HealthAnalysisWorker(
+                queue,
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "test-worker"
+        );
 
         assertThat(worker.runOnce()).isTrue();
 
@@ -79,6 +100,69 @@ class HealthAnalysisWorkerTest {
         assertThat(worker.runOnce()).isFalse();
         verify(useCase).screen(task.articleUrl(), task.usageSubject());
         verify(usagePolicy).recordAnalysisStart(task.usageSubject());
+        verify(cache).saveHealth(
+                AnalysisCacheKeyFactory.health(task.articleUrl(), versions).orElseThrow(),
+                result,
+                AnalysisCacheViewer.fingerprint(
+                        task.userType().name(),
+                        task.usageIdentifierKeys()
+                )
+        );
+    }
+
+    /** Cache Hit의 기사 수집·분야 판별·근거 분석 미호출 */
+    @Test
+    void completesFromCacheWithoutCallingArticleOrAnalysisPorts() {
+        var store = new InMemoryJobStore();
+        AnalysisJobLifecycleService lifecycle = lifecycle(store, NOW);
+        AnalysisJob accepted = lifecycle.accept("analysis-cached", OWNER);
+        HealthAnalysisTask task = task(accepted.id());
+        HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthAnalysisResultCache cache = mock(HealthAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.health(task.articleUrl(), versions)
+                .orElseThrow();
+        String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                task.userType().name(),
+                task.usageIdentifierKeys()
+        );
+        HealthAnalysisResult cachedResult = result(article());
+        when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                cachedResult,
+                NOW.plus(Duration.ofDays(3))
+        )));
+        when(usagePolicy.recordCacheAccess(
+                task.usageSubject(), cacheKey, viewerFingerprint
+        )).thenReturn(Optional.of(new HealthTopicFailureUsageResult(false, 1, 5)));
+        Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
+        HealthAnalysisWorker worker = new HealthAnalysisWorker(
+                new SingleTaskQueue(task, true),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "test-worker"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        AnalysisJobOutcome outcome = store.findOutcome(accepted.id()).orElseThrow();
+        assertThat(outcome.type()).isEqualTo(AnalysisJobOutcome.Type.RESULT);
+        assertThat(store.findById(accepted.id()).orElseThrow().status())
+                .isEqualTo(AnalysisJobStatus.COMPLETED);
+        verify(useCase, never()).screen(task.articleUrl(), task.usageSubject());
+        verify(useCase, never()).continueAfterScreening(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+        verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
     }
 
     /** 기사 수집 실패의 종료 상태와 무재시도 */

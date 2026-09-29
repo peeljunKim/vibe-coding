@@ -1,6 +1,10 @@
 /* 기사 제목 분석 이용량 Port */
 package com.newsverification.headline.application;
 
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+
+import java.util.Optional;
+
 /** 제목 분석 접수 한도와 실제 분석 시작 차감 경계 */
 public interface HeadlineAnalysisUsagePolicy {
 
@@ -12,4 +16,13 @@ public interface HeadlineAnalysisUsagePolicy {
 
     /** 실제 제목 분석 시작의 이용 횟수 차감 */
     HeadlineAnalysisUsageResult recordAnalysisStart(HeadlineAnalysisUsageSubject subject);
+
+    /** Cache 유효성과 동일 열람자를 포함한 최초 접근 원자 차감 */
+    default Optional<HeadlineAnalysisCacheUsageResult> recordCacheAccess(
+            HeadlineAnalysisUsageSubject subject,
+            AnalysisCacheKey cacheKey,
+            String viewerFingerprint
+    ) {
+        return Optional.empty();
+    }
 }

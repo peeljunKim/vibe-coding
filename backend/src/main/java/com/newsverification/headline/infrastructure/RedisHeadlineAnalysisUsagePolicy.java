@@ -1,6 +1,10 @@
 /* Redis 기사 제목 분석 이용량 Adapter */
 package com.newsverification.headline.infrastructure;
 
+import com.newsverification.analysiscache.application.AnalysisCacheFeature;
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.infrastructure.RedisAnalysisCacheKeys;
+import com.newsverification.headline.application.HeadlineAnalysisCacheUsageResult;
 import com.newsverification.headline.application.HeadlineAnalysisUsagePolicy;
 import com.newsverification.headline.application.HeadlineAnalysisUsageResult;
 import com.newsverification.headline.application.HeadlineAnalysisUsageSubject;
@@ -19,14 +23,18 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 
 /** 한국시간 일일 Key와 원자적 제목 이용량 차감 */
 @Repository
 public class RedisHeadlineAnalysisUsagePolicy implements HeadlineAnalysisUsagePolicy {
+
+    private static final long CACHE_MISS = -1_000_000L;
 
     private static final RedisScript<Long> VERIFY_SCRIPT = new DefaultRedisScript<>("""
             local usedCount = 0
@@ -59,8 +67,29 @@ public class RedisHeadlineAnalysisUsagePolicy implements HeadlineAnalysisUsagePo
             end
             return usedCount
             """, Long.class);
+    private static final RedisScript<Long> RECORD_CACHE_ACCESS_SCRIPT = new DefaultRedisScript<>("""
+            if redis.call('EXISTS', KEYS[1]) == 0 then return -1000000 end
+            local cacheTtl = redis.call('PTTL', KEYS[1])
+            if cacheTtl <= 0 then return -1000000 end
+            local usedCount = 0
+            for index = 3, #KEYS do
+                local current = tonumber(redis.call('GET', KEYS[index]) or '0')
+                if current > usedCount then usedCount = current end
+            end
+            if redis.call('EXISTS', KEYS[2]) == 1 then return usedCount * 2 end
+            local dailyLimit = tonumber(ARGV[1])
+            if usedCount >= dailyLimit then return -(usedCount + 1) end
+            usedCount = usedCount + 1
+            for index = 3, #KEYS do
+                redis.call('SET', KEYS[index], usedCount)
+                redis.call('PEXPIREAT', KEYS[index], ARGV[2])
+            end
+            redis.call('SET', KEYS[2], '1', 'PX', cacheTtl)
+            return usedCount * 2 + 1
+            """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
+    private final String redisKeyPrefix;
     private final String keyPrefix;
     private final ZoneId resetZone;
     private final Clock clock;
@@ -86,6 +115,7 @@ public class RedisHeadlineAnalysisUsagePolicy implements HeadlineAnalysisUsagePo
         if (keyPrefix == null || keyPrefix.isBlank()) {
             throw new IllegalArgumentException("Redis key prefix is required");
         }
+        this.redisKeyPrefix = keyPrefix;
         this.keyPrefix = keyPrefix + ":headline-usage:v1:";
         this.resetZone = Objects.requireNonNull(resetZone);
         this.clock = Objects.requireNonNull(clock);
@@ -132,6 +162,50 @@ public class RedisHeadlineAnalysisUsagePolicy implements HeadlineAnalysisUsagePo
             throw new HeadlineDailyUsageLimitExceededException(Math.toIntExact(-result - 1), dailyLimit);
         }
         return new HeadlineAnalysisUsageResult(Math.toIntExact(result), dailyLimit);
+    }
+
+    /** Cache 존재·열람 Marker·일일 이용량의 원자 처리 */
+    @Override
+    public Optional<HeadlineAnalysisCacheUsageResult> recordCacheAccess(
+            HeadlineAnalysisUsageSubject subject,
+            AnalysisCacheKey cacheKey,
+            String viewerFingerprint
+    ) {
+        Objects.requireNonNull(subject);
+        Objects.requireNonNull(cacheKey);
+        if (cacheKey.feature() != AnalysisCacheFeature.HEADLINE) {
+            throw new IllegalArgumentException("Headline cache key is required");
+        }
+        List<String> keys = new ArrayList<>();
+        keys.add(RedisAnalysisCacheKeys.cacheKey(redisKeyPrefix, cacheKey));
+        keys.add(RedisAnalysisCacheKeys.viewerKey(
+                redisKeyPrefix,
+                cacheKey.feature(),
+                cacheKey.id(),
+                viewerFingerprint
+        ));
+        keys.addAll(keysFor(subject));
+        int dailyLimit = subject.userType().dailyLimit();
+        Long result = redisTemplate.execute(
+                RECORD_CACHE_ACCESS_SCRIPT,
+                keys,
+                Integer.toString(dailyLimit),
+                Long.toString(nextResetAt().toEpochMilli())
+        );
+        if (result == null) {
+            throw new IllegalStateException("Redis headline cache usage result is missing");
+        }
+        if (result == CACHE_MISS) {
+            return Optional.empty();
+        }
+        if (result < 0) {
+            throw new HeadlineDailyUsageLimitExceededException(Math.toIntExact(-result - 1), dailyLimit);
+        }
+        return Optional.of(new HeadlineAnalysisCacheUsageResult(
+                result % 2 == 1,
+                Math.toIntExact(result / 2),
+                dailyLimit
+        ));
     }
 
     /** 복수 식별 신호의 Redis Key 변환 */

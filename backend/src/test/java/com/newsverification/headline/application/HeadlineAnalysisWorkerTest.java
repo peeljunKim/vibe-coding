@@ -8,6 +8,11 @@ import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.domain.AnalysisJob;
 import com.newsverification.analysis.domain.AnalysisJobOwner;
 import com.newsverification.analysis.domain.AnalysisJobOwnerType;
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
+import com.newsverification.analysiscache.application.AnalysisCacheVersions;
+import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ExtractedArticle;
 import com.newsverification.article.domain.ArticleProcessingError;
 import com.newsverification.article.domain.ArticleProcessingException;
@@ -55,6 +60,8 @@ class HeadlineAnalysisWorkerTest {
         RecordingQueue queue = new RecordingQueue(task);
         HeadlineAnalysisUseCase useCase = mock(HeadlineAnalysisUseCase.class);
         HeadlineAnalysisUsagePolicy usagePolicy = mock(HeadlineAnalysisUsagePolicy.class);
+        HeadlineAnalysisResultCache cache = mock(HeadlineAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
         ExtractedArticle article = article();
         HeadlineAnalysisResult result = result(article);
         when(useCase.read(task.articleUrl())).thenReturn(article);
@@ -69,6 +76,8 @@ class HeadlineAnalysisWorkerTest {
                 store,
                 useCase,
                 usagePolicy,
+                cache,
+                versions,
                 new ObjectMapper(),
                 Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC),
                 "worker-1"
@@ -83,6 +92,75 @@ class HeadlineAnalysisWorkerTest {
         verify(usagePolicy).recordAnalysisStart(task.usageSubject());
         verify(useCase).read(task.articleUrl());
         verify(useCase).analyze(article, job.deadlineAt());
+        verify(cache).saveHeadline(
+                AnalysisCacheKeyFactory.headline(task.articleUrl(), versions).orElseThrow(),
+                result,
+                AnalysisCacheViewer.fingerprint(
+                        task.userType().name(),
+                        task.usageIdentifierKeys()
+                )
+        );
+    }
+
+    /** Cache Hit의 기사 추출과 제목 분석 미호출 */
+    @Test
+    void completesFromCacheWithoutCallingArticleOrAnalysisPorts() {
+        InMemoryStore store = new InMemoryStore();
+        AnalysisJob job = AnalysisJob.queued(
+                "headline-cached",
+                new AnalysisJobOwner(AnalysisJobOwnerType.MEMBER, "owner-hash"),
+                NOW
+        );
+        store.create(job);
+        HeadlineAnalysisTask task = new HeadlineAnalysisTask(
+                job.id(),
+                "https://news.example/general",
+                HeadlineAnalysisUserType.MEMBER,
+                List.of("member-key")
+        );
+        HeadlineAnalysisUseCase useCase = mock(HeadlineAnalysisUseCase.class);
+        HeadlineAnalysisUsagePolicy usagePolicy = mock(HeadlineAnalysisUsagePolicy.class);
+        HeadlineAnalysisResultCache cache = mock(HeadlineAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.headline(task.articleUrl(), versions)
+                .orElseThrow();
+        String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                task.userType().name(),
+                task.usageIdentifierKeys()
+        );
+        HeadlineAnalysisResult cachedResult = result(article());
+        when(cache.findHeadline(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                cachedResult,
+                NOW.plus(Duration.ofDays(3))
+        )));
+        when(usagePolicy.recordCacheAccess(
+                task.usageSubject(), cacheKey, viewerFingerprint
+        )).thenReturn(Optional.of(new HeadlineAnalysisCacheUsageResult(false, 1, 10)));
+        Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
+        HeadlineAnalysisWorker worker = new HeadlineAnalysisWorker(
+                new RecordingQueue(task),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "worker-1"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        assertThat(store.findById(job.id()).orElseThrow().status().name())
+                .isEqualTo("COMPLETED");
+        verify(useCase, never()).read(task.articleUrl());
+        verify(useCase, never()).analyze(
+                org.mockito.ArgumentMatchers.any(ExtractedArticle.class),
+                org.mockito.ArgumentMatchers.any()
+        );
+        verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
     }
 
     /** 기사 수집 실패의 무차감 종료 */
@@ -199,7 +277,9 @@ class HeadlineAnalysisWorkerTest {
                         HeadlineAnalysisResult.IssueType.NO_ISSUE,
                         "제목과 본문의 핵심 내용이 일치합니다."
                 )),
-                null
+                null,
+                "mock-headline-analysis-v1",
+                "headline-analysis-policy-v1"
         );
     }
 
