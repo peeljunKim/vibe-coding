@@ -17,11 +17,23 @@ describe('공유 링크 Open Graph 메타데이터', () => {
     )
     expect(indexHtml).toContain('property="og:description"')
     expect(indexHtml).toContain(
-      '<meta name="twitter:card" content="summary" />',
+      '<meta property="og:image" content="/og-share.png" />',
+    )
+    expect(indexHtml).toContain(
+      '<meta property="og:image:width" content="1200" />',
+    )
+    expect(indexHtml).toContain(
+      '<meta property="og:image:height" content="630" />',
+    )
+    expect(indexHtml).toContain(
+      '<meta name="twitter:card" content="summary_large_image" />',
     )
     expect(indexHtml).toContain(
       '<meta name="twitter:title" content="기사체크 분석 결과" />',
     )
     expect(indexHtml).toContain('name="twitter:description"')
+    expect(indexHtml).toContain(
+      '<meta name="twitter:image" content="/og-share.png" />',
+    )
   })
 })

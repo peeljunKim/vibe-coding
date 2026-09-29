@@ -375,6 +375,6 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Chrome 공유 생성·공개 조회와 1024·1280·1440px 가로 넘침 E2E: PASS (4개)
 - Native MySQL `ShareStoreIT` 소스와 검증 Script 연결: PASS
 - Native MySQL `ShareStoreIT` 실제 실행: PASS (`verify-publisher-native-mysql.ps1`; 언론사·회원가입·건강 저장 기록·신고·공유 통합 테스트, 기사 게시·수정 시각 UTC 변환 회귀 포함)
-- 공유 URL 공통 Open Graph·Twitter 메타데이터: PASS (Fragment Token과 검색 수집 차단 유지, 결과별 동적 미리보기 제외)
+- 공유 URL 공통 Open Graph·Twitter 메타데이터와 1200×630 대표 이미지: PASS (Fragment Token과 검색 수집 차단 유지, 결과별 동적 미리보기 제외)
 - 건강 기록 삭제·재분석 교체 기능과 재분석 시 기존 링크 만료: NOT APPLICABLE (사용자 요청으로 이번 범위 제외)
 - 실제 외부 AI·검색 호출: NOT APPLICABLE (공유 조회는 저장 Snapshot만 사용)

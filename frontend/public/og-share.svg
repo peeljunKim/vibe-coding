@@ -1,0 +1,19 @@
+<!-- Open Graph 대표 이미지 원본 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">기사체크 분석 결과 공유</title>
+  <desc id="description">건강 의학 뉴스와 기사 제목 분석 결과를 안내하는 기사체크 대표 이미지</desc>
+  <rect width="1200" height="630" fill="#edf3f6" />
+  <rect x="64" y="56" width="1072" height="518" rx="36" fill="#ffffff" />
+  <text x="112" y="132" fill="#17637a" font-family="Malgun Gothic, sans-serif" font-size="38" font-weight="700">기사체크</text>
+  <rect x="112" y="172" width="206" height="46" rx="23" fill="#dff0f5" />
+  <text x="215" y="203" fill="#17637a" font-family="Malgun Gothic, sans-serif" font-size="20" font-weight="700" text-anchor="middle">분석 결과 공유</text>
+  <text x="112" y="305" fill="#16242b" font-family="Malgun Gothic, sans-serif" font-size="54" font-weight="700">기사의 주장과 제목을</text>
+  <text x="112" y="378" fill="#16242b" font-family="Malgun Gothic, sans-serif" font-size="54" font-weight="700">쉽게 확인해 보세요</text>
+  <text x="112" y="437" fill="#5e7079" font-family="Malgun Gothic, sans-serif" font-size="23">건강·의학 뉴스와 기사 제목 분석 결과를 읽기 전용으로 확인합니다</text>
+  <rect x="112" y="490" width="274" height="54" rx="16" fill="#dff0e8" />
+  <text x="249" y="525" fill="#237a60" font-family="Malgun Gothic, sans-serif" font-size="20" font-weight="700" text-anchor="middle">건강·의학 뉴스 확인</text>
+  <rect x="410" y="490" width="238" height="54" rx="16" fill="#dff0f5" />
+  <text x="529" y="525" fill="#17637a" font-family="Malgun Gothic, sans-serif" font-size="20" font-weight="700" text-anchor="middle">기사 제목 확인</text>
+  <circle cx="1008" cy="208" r="78" fill="#dff0e8" />
+  <path d="M972 209 L999 236 L1048 177" fill="none" stroke="#237a60" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
