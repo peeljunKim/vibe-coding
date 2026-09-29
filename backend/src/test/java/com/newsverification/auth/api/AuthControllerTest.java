@@ -17,6 +17,8 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.time.Instant;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -120,6 +122,25 @@ class AuthControllerTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("Retry-After", "1800"))
                 .andExpect(jsonPath("$.code").value("LOGIN_LOCKED"));
+    }
+
+    /** 탈퇴 유예 계정의 복구 확인 응답 */
+    @Test
+    void returnsWithdrawalRecoveryRequirement() throws Exception {
+        Instant recoveryDeadline = Instant.parse("2026-10-06T00:00:00Z");
+        when(loginService.authenticate(any())).thenThrow(
+                new LoginException("WITHDRAWAL_RECOVERY_REQUIRED", recoveryDeadline)
+        );
+
+        mockMvc.perform(post("/api/auth/login")
+                        .with(csrf())
+                        .contentType("application/json")
+                        .content("""
+                                {"username":"health26","password":"Password!23","rememberMe":false}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("WITHDRAWAL_RECOVERY_REQUIRED"))
+                .andExpect(jsonPath("$.recoveryDeadline").value("2026-10-06T00:00:00Z"));
     }
 
     /** 로그아웃의 Session 무효화 */

@@ -18,6 +18,7 @@ import {
   revokeHealthShare,
 } from './api/shares'
 import AdminReportsPage from './pages/AdminReportsPage'
+import AccountSettingsPage from './pages/AccountSettingsPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import HealthAnalysisPage from './pages/HealthAnalysisPage'
 import HealthResultPage from './pages/HealthResultPage'
@@ -248,6 +249,22 @@ function App() {
           <SavedRecordsPage
             onReanalyze={() => goTo('/analysis/health')}
             onOpenReports={() => goTo('/reports')}
+            onOpenAccountSettings={() => goTo('/settings/account')}
+          />
+        }
+      />
+      <Route
+        path="/settings/account"
+        element={
+          <AccountSettingsPage
+            onHome={() => goTo('/')}
+            onSavedRecords={() => goTo('/saved')}
+            onOpenReports={() => goTo('/reports')}
+            onLogin={() => goTo('/login')}
+            onWithdrawalRequested={() => {
+              authRevision.current += 1
+              setAuthSession({ authenticated: false })
+            }}
           />
         }
       />

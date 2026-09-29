@@ -14,12 +14,25 @@ export interface LoginRequest {
   username: string
   password: string
   rememberMe: boolean
+  cancelWithdrawal?: boolean
+}
+
+export class LoginApiError extends Error {
+  code: string | undefined
+  recoveryDeadline: string | undefined
+
+  constructor(message: string, code?: string, recoveryDeadline?: string) {
+    super(message)
+    this.code = code
+    this.recoveryDeadline = recoveryDeadline
+  }
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
   INVALID_CREDENTIALS: '아이디 또는 비밀번호를 확인해 주세요.',
   INVALID_LOGIN_REQUEST: '아이디와 비밀번호를 입력해 주세요.',
   LOGIN_LOCKED: '로그인이 일시 제한되었습니다. 30분 후 이용 가능합니다.',
+  WITHDRAWAL_RECOVERY_REQUIRED: '탈퇴 취소 여부를 확인해 주세요.',
 }
 
 const readCookie = (name: string) => {
@@ -51,8 +64,13 @@ const refreshCsrfTokenAfterAuthChange = async () => {
 const parseError = async (response: Response, fallback: string) => {
   const problem = (await response.json().catch(() => ({}))) as {
     code?: string
+    recoveryDeadline?: string
   }
-  return (problem.code ? ERROR_MESSAGES[problem.code] : undefined) ?? fallback
+  return new LoginApiError(
+    (problem.code ? ERROR_MESSAGES[problem.code] : undefined) ?? fallback,
+    problem.code,
+    problem.recoveryDeadline,
+  )
 }
 
 export const login = async (request: LoginRequest): Promise<LoginResponse> => {
@@ -64,14 +82,15 @@ export const login = async (request: LoginRequest): Promise<LoginResponse> => {
       'Content-Type': 'application/json',
       'X-XSRF-TOKEN': csrfToken,
     },
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      ...request,
+      cancelWithdrawal: request.cancelWithdrawal ?? false,
+    }),
   })
   if (!response.ok) {
-    throw new Error(
-      await parseError(
-        response,
-        '로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-      ),
+    throw await parseError(
+      response,
+      '로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
     )
   }
   const authenticated = (await response.json()) as LoginResponse

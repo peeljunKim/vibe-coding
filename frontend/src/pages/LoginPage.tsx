@@ -46,14 +46,34 @@ function LoginPage({
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
+  const [recoveryDeadline, setRecoveryDeadline] = useState<string | null>(null)
 
-  const submitLogin = async () => {
+  const submitLogin = async (cancelWithdrawal = false) => {
     setSubmitting(true)
     setError(null)
     try {
-      const session = await login({ username, password, rememberMe })
+      const session = await login({
+        username,
+        password,
+        rememberMe,
+        cancelWithdrawal,
+      })
+      setRecoveryDeadline(null)
       onAuthenticated(session)
     } catch (submitError) {
+      if (
+        submitError instanceof Error &&
+        'code' in submitError &&
+        submitError.code === 'WITHDRAWAL_RECOVERY_REQUIRED'
+      ) {
+        setRecoveryDeadline(
+          'recoveryDeadline' in submitError &&
+            typeof submitError.recoveryDeadline === 'string'
+            ? submitError.recoveryDeadline
+            : '',
+        )
+        return
+      }
       setError(
         submitError instanceof Error
           ? submitError.message
@@ -212,6 +232,47 @@ function LoginPage({
           </p>
         </aside>
       </main>
+
+      {recoveryDeadline !== null ? (
+        <div className="report-dialog-backdrop" role="presentation">
+          <section
+            className="report-dialog withdrawal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="withdrawal-recovery-heading"
+          >
+            <h2 id="withdrawal-recovery-heading">탈퇴를 취소하시겠어요?</h2>
+            <p>
+              이 계정은 탈퇴 대기 중입니다. 계정을 복구하면 저장된 기록과
+              설정을 다시 이용할 수 있습니다.
+            </p>
+            {recoveryDeadline ? (
+              <p className="withdrawal-dialog__deadline">
+                복구 가능 기한 {new Date(recoveryDeadline).toLocaleDateString('ko-KR')}
+              </p>
+            ) : null}
+            <div className="report-dialog__actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setRecoveryDeadline(null)
+                  setPassword('')
+                }}
+              >
+                탈퇴 유지
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => void submitLogin(true)}
+              >
+                계정 복구 후 로그인
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -12,12 +12,15 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Objects;
 
 /** 일반 회원의 이메일 인증 상태 */
 @Entity
 @Table(name = "users")
 public class UserAccount {
+
+    private static final Duration WITHDRAWAL_RECOVERY_PERIOD = Duration.ofDays(7);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -113,6 +116,10 @@ public class UserAccount {
         return status == UserStatus.PENDING_EMAIL;
     }
 
+    public boolean withdrawalPending() {
+        return status == UserStatus.WITHDRAWAL_PENDING;
+    }
+
     public boolean localAccount() {
         return "LOCAL".equals(accountType);
     }
@@ -131,6 +138,16 @@ public class UserAccount {
 
     public Instant loginLockedUntil() {
         return loginLockedUntil;
+    }
+
+    public Instant scheduledDeletionAt() {
+        return scheduledDeletionAt;
+    }
+
+    public Instant withdrawalRecoveryDeadline() {
+        return withdrawalRequestedAt == null
+                ? null
+                : withdrawalRequestedAt.plus(WITHDRAWAL_RECOVERY_PERIOD);
     }
 
     /** 로그인 잠금 상태 확인 */
@@ -173,6 +190,31 @@ public class UserAccount {
             emailVerifiedAt = verifiedAt;
             status = UserStatus.ACTIVE;
         }
+    }
+
+    /** 탈퇴와 물리 삭제 대기 상태 전환 */
+    public void requestWithdrawal(Instant requestedAt, Instant deletionAt) {
+        if (status != UserStatus.ACTIVE || !deletionAt.isAfter(requestedAt)) {
+            throw new IllegalStateException("ACCOUNT_NOT_ACTIVE");
+        }
+        status = UserStatus.WITHDRAWAL_PENDING;
+        withdrawalRequestedAt = Objects.requireNonNull(requestedAt);
+        scheduledDeletionAt = Objects.requireNonNull(deletionAt);
+    }
+
+    /** 7일 이내 탈퇴 취소 */
+    public boolean recoverWithdrawal(Instant now) {
+        Instant recoveryDeadline = withdrawalRecoveryDeadline();
+        if (!withdrawalPending()
+                || recoveryDeadline == null
+                || !now.isBefore(recoveryDeadline)) {
+            return false;
+        }
+        status = UserStatus.ACTIVE;
+        withdrawalRequestedAt = null;
+        scheduledDeletionAt = null;
+        resetLoginFailures();
+        return true;
     }
 
     public enum UserStatus {

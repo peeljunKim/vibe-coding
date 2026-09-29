@@ -92,7 +92,7 @@ class AuthFullStackIT {
                         .header("Content-Type", "application/json")
                         .header("X-XSRF-TOKEN", csrfToken)
                         .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(
-                                new AuthController.LoginRequest(username, TEST_PASSWORD, false)
+                                new AuthController.LoginRequest(username, TEST_PASSWORD, false, false)
                         )))
                         .build(),
                 HttpResponse.BodyHandlers.ofString()

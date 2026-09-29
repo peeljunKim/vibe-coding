@@ -2,6 +2,8 @@
 package com.newsverification.signup.infrastructure;
 
 import com.newsverification.NewsVerificationApplication;
+import com.newsverification.account.application.AccountWithdrawalService;
+import com.newsverification.auth.application.AccountSessionInvalidator;
 import com.newsverification.publisher.infrastructure.NativeMySqlTestConnectionGuard;
 import com.newsverification.signup.application.SignupAccountStore;
 import com.newsverification.signup.application.SignupException;
@@ -14,9 +16,12 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 /** 실제 MySQL 계정 생성과 활성화 검증 */
 @SpringBootTest(classes = NewsVerificationApplication.class)
@@ -115,5 +120,71 @@ class SignupAccountStoreIT {
         repository.flush();
 
         assertThat(repository.findById(pending.id())).isEmpty();
+    }
+
+    /** 탈퇴 7일 복구와 완료 후 30일 보관 뒤 CASCADE 삭제 */
+    @Test
+    void recoversWithinSevenDaysAndDeletesAfterThirtyDayRetention() {
+        Instant requestedAt = Instant.parse("2026-09-29T00:00:00Z");
+        SignupAccountStore.Account created = accountStore.create(new SignupAccountStore.NewAccount(
+                "withdraw26",
+                "{bcrypt}$2a$10$withdrawal-hash",
+                "withdraw26@example.com",
+                "01077778888",
+                requestedAt.minusSeconds(120)
+        ));
+        accountStore.activate(created.id(), requestedAt.minusSeconds(60));
+
+        var sessionInvalidator = mock(AccountSessionInvalidator.class);
+        var requestService = new AccountWithdrawalService(
+                repository,
+                sessionInvalidator,
+                Clock.fixed(requestedAt, ZoneOffset.UTC)
+        );
+        AccountWithdrawalService.Withdrawal firstSchedule = requestService.request(Long.toString(created.id()));
+        repository.flush();
+
+        assertThat(firstSchedule.recoveryDeadline()).isEqualTo(requestedAt.plusSeconds(7L * 24 * 60 * 60));
+        assertThat(firstSchedule.scheduledDeletionAt()).isEqualTo(requestedAt.plusSeconds(37L * 24 * 60 * 60));
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT status, withdrawal_requested_at, scheduled_deletion_at FROM users WHERE id = ?",
+                created.id()
+        )).containsEntry("status", "WITHDRAWAL_PENDING");
+
+        var account = repository.findByIdForWithdrawal(created.id()).orElseThrow();
+        assertThat(account.recoverWithdrawal(requestedAt.plusSeconds(24 * 60 * 60))).isTrue();
+        repository.flush();
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT status, withdrawal_requested_at, scheduled_deletion_at FROM users WHERE id = ?",
+                created.id()
+        )).containsEntry("status", "ACTIVE")
+                .containsEntry("withdrawal_requested_at", null)
+                .containsEntry("scheduled_deletion_at", null);
+
+        Instant secondRequestAt = requestedAt.plusSeconds(2L * 24 * 60 * 60);
+        new AccountWithdrawalService(
+                repository,
+                sessionInvalidator,
+                Clock.fixed(secondRequestAt, ZoneOffset.UTC)
+        ).request(Long.toString(created.id()));
+        jdbcTemplate.update("""
+                INSERT INTO user_social_accounts (
+                    user_id, provider, provider_subject, provider_email, is_signup_identity
+                ) VALUES (?, 'GOOGLE', ?, ?, FALSE)
+                """, created.id(), "withdraw-subject-" + created.id(), "linked-withdraw@example.com");
+
+        int deleted = new AccountWithdrawalService(
+                repository,
+                sessionInvalidator,
+                Clock.fixed(secondRequestAt.plusSeconds(37L * 24 * 60 * 60), ZoneOffset.UTC)
+        ).cleanupExpiredAccounts();
+
+        assertThat(deleted).isEqualTo(1);
+        assertThat(repository.findById(created.id())).isEmpty();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM user_social_accounts WHERE user_id = ?",
+                Integer.class,
+                created.id()
+        )).isZero();
     }
 }

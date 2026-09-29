@@ -116,7 +116,7 @@ public record InviteProperties(String code) {}
 
 ### 테이블: 사용자 (`users`)
 
-역할: 일반·소셜 회원의 공통 계정, 서버 권한, 이메일 확인, 로그인 잠금과 7일 탈퇴 유예를 관리한다. 탈퇴 유예는 soft delete가 아니라 복구 가능한 업무 상태다.
+역할: 일반·소셜 회원의 공통 계정, 서버 권한, 이메일 확인, 로그인 잠금과 탈퇴 수명주기를 관리한다. `WITHDRAWAL_PENDING`은 7일 복구 유예와 이후 30일 물리 삭제 대기를 함께 나타내며 단계는 신청 시각으로 구분한다.
 
 | 컬럼명 | 타입 | PK | FK | NULL | UNIQUE | DEFAULT | 설명 / 참조 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -133,7 +133,7 @@ public record InviteProperties(String code) {}
 | `failed_login_count` | INT UNSIGNED | N | N | N | N | `0` | 연속 실패 횟수 |
 | `login_locked_until` | TIMESTAMP(6) | N | N | Y | N | - | 잠금 종료 일시 |
 | `withdrawal_requested_at` | TIMESTAMP(6) | N | N | Y | N | - | 탈퇴 신청 일시 |
-| `scheduled_deletion_at` | TIMESTAMP(6) | N | N | Y | N | - | 탈퇴 확정 예정 일시 |
+| `scheduled_deletion_at` | TIMESTAMP(6) | N | N | Y | N | - | 탈퇴 신청 37일 후 물리 삭제 예정 일시 |
 | `created_at` | TIMESTAMP(6) | N | N | N | N | CURRENT_TIMESTAMP | 생성 일시 |
 | `updated_at` | TIMESTAMP(6) | N | N | N | N | CURRENT_TIMESTAMP | 수정 일시 |
 | `version` | BIGINT UNSIGNED | N | N | N | N | `0` | 낙관적 잠금 |
@@ -354,7 +354,7 @@ PK를 제외한 주요 UNIQUE와 조회 인덱스를 정리한다.
 
 | 테이블 | INDEX | 컬럼 | UNIQUE | 설계 이유 |
 | --- | --- | --- | --- | --- |
-| `users` | `idx_users_status_deletion` | `status, scheduled_deletion_at` | N | 7일 탈퇴 확정 배치 후보 조회 |
+| `users` | `idx_users_status_deletion` | `status, scheduled_deletion_at` | N | 탈퇴 완료 후 30일 보관이 끝난 삭제 후보 조회 |
 | `users` | `idx_users_status_created` | `status, created_at` | N | 7일 미인증 계정 삭제 배치 후보 조회 |
 | `news_publishers` | `idx_news_publishers_status` | `status, name` | N | 화면의 지원/일시 중단 목록 분리 |
 | `news_publisher_domains` | `idx_publisher_domains_publisher_status` | `publisher_id, status` | N | 언론사별 활성 허용 호스트 로딩 |
@@ -382,14 +382,14 @@ PK를 제외한 주요 UNIQUE와 조회 인덱스를 정리한다.
 
 | 테이블/데이터 | 정책 | 이력·Audit | 이유 |
 | --- | --- | --- | --- |
-| `users` | 탈퇴 신청 7일간 상태 보존 후 Physical Delete | 일반 상태 이력 없음 | 사용자 복구 요구는 상태로 충족하며 확정 뒤 개인정보 최소화 |
+| `users` | 탈퇴 신청 7일간 복구 가능, 탈퇴 완료 후 30일 보관 뒤 Physical Delete | 일반 상태 이력 없음 | 신청 시각으로 복구 마감을 계산하고 삭제 예정 시각에 개인정보 제거 |
 | 미인증 일반 회원 | 생성 7일 후 Physical Delete | 없음 | 요구사항의 관련 데이터 삭제 |
 | `user_social_accounts` | 사용자와 CASCADE | 없음 | 독립 보존 가치 없음 |
 | 언론사·도메인 | Physical Delete 금지, 상태 전환 | `status_reason`, 상태 시각 | 저장 결과 FK와 허용 목록 운영 일관성 |
 | 건강 분석 기록·자식 | 30일 또는 사용자 삭제 시 Physical Delete | 재분석 과거 버전 미보관 | 요구사항이 이전 결과와 변경 내역 미보관 명시 |
 | 건강 공유 링크 | 즉시 접근 해제, 7일 만료 정리 또는 부모와 CASCADE | `revoked_at` | 재분석·삭제 시 즉시 만료 확인 |
-| 제목 공유 결과·문제 | 해제/7일 만료/탈퇴 시 Physical Delete | 없음 | 공유 최소 데이터만 7일 저장 |
-| 신고 | 미처리는 보존, 완료 30일 후 또는 탈퇴 확정 시 Physical Delete | 상태 이력 보관 | 신고 당시 내용 유지와 보존 기한 동시 충족 |
+| 제목 공유 결과·문제 | 해제/7일 만료/탈퇴 완료 후 30일 중 먼저 도래한 시점에 Physical Delete | 없음 | 공유 최소 데이터와 탈퇴 보관 기한 동시 적용 |
+| 신고 | 완료 30일 후 또는 탈퇴 완료 후 30일 중 먼저 도래한 시점에 Physical Delete | 상태 이력 보관 | 신고 당시 내용 유지와 보존 기한 동시 충족 |
 | 신고 상태 이력 | 신고와 CASCADE | 전용 Audit | 상태와 답변 변경 추적 |
 | 세션·인증번호·이용량·캐시 | Redis TTL Physical Expiry | 운영 메트릭만 비식별 집계 | 짧은 수명, 원문·개인정보 최소화 |
 
@@ -426,7 +426,7 @@ DDL은 13개 `CREATE TABLE`, PK, FK 삭제 정책, UNIQUE, NOT NULL, DEFAULT, CH
 
 ### 확인 필요사항
 
-- 탈퇴 취소 후 `WITHDRAWAL_PENDING` 이전 상태가 항상 `ACTIVE`인지 확인이 필요하다. 미인증 계정의 탈퇴 흐름은 정의되지 않았다.
+- 탈퇴 신청은 인증된 `ACTIVE` 계정만 허용하므로 7일 이내 취소 시 `ACTIVE`로 복구한다. 미인증 계정은 기존 미인증 계정 만료 정책을 따른다.
 - 사용자 이메일 변경 기능과 변경 시 재인증 정책이 범위에 포함되는지 확인이 필요하다.
 - 전문가 검토 도입 시 리뷰어가 서비스 사용자 계정인지 별도 전문가 명부인지 결정이 필요하다.
 - 신고 JSON 스냅샷의 정확한 API 스키마와 최대 바이트 제한이 필요하다.

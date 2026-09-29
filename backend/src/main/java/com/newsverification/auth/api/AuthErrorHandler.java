@@ -18,6 +18,18 @@ public class AuthErrorHandler {
 
     @ExceptionHandler(LoginException.class)
     public ResponseEntity<ProblemDetail> handleLoginFailure(LoginException exception) {
+        if ("WITHDRAWAL_RECOVERY_REQUIRED".equals(exception.code())) {
+            ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.CONFLICT,
+                    "탈퇴 취소 여부를 확인해 주세요."
+            );
+            problem.setTitle("Withdrawal recovery confirmation required");
+            problem.setProperty("code", exception.code());
+            problem.setProperty("recoveryDeadline", exception.recoveryDeadline());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                    .body(problem);
+        }
         if ("LOGIN_LOCKED".equals(exception.code())) {
             return problem(
                     HttpStatus.TOO_MANY_REQUESTS,

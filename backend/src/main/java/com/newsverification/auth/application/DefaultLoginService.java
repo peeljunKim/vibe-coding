@@ -52,13 +52,34 @@ public class DefaultLoginService implements LoginService {
                 && account.passwordHash() != null
                 && passwordEncoder.matches(command.password(), account.passwordHash());
         if (account.loginLockedAt(now)) {
-            if (account.active() && passwordMatches) {
+            if ((account.active() || account.withdrawalPending()) && passwordMatches) {
                 throw locked(account.loginLockedUntil(), now);
             }
             throw invalidCredentials();
         }
 
-        if (!account.active() || !passwordMatches) {
+        if (!passwordMatches) {
+            account.recordLoginFailure(
+                    now,
+                    MAXIMUM_FAILURES,
+                    LOCK_DURATION.toSeconds()
+            );
+            throw invalidCredentials();
+        }
+
+        if (account.withdrawalPending()) {
+            Instant recoveryDeadline = account.withdrawalRecoveryDeadline();
+            if (recoveryDeadline == null || !now.isBefore(recoveryDeadline)) {
+                throw invalidCredentials();
+            }
+            if (!command.cancelWithdrawal()) {
+                account.resetLoginFailures();
+                throw new LoginException("WITHDRAWAL_RECOVERY_REQUIRED", recoveryDeadline);
+            }
+            if (!account.recoverWithdrawal(now)) {
+                throw invalidCredentials();
+            }
+        } else if (!account.active()) {
             account.recordLoginFailure(
                     now,
                     MAXIMUM_FAILURES,
