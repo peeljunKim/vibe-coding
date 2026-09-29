@@ -1,6 +1,12 @@
 /* Redis 기사 제목 분석 Queue와 이용량 통합 검증 */
 package com.newsverification.headline.infrastructure;
 
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
+import com.newsverification.analysiscache.application.AnalysisCacheVersions;
+import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.infrastructure.RedisAnalysisCacheKeys;
+import com.newsverification.headline.application.HeadlineAnalysisCacheUsageResult;
 import com.newsverification.headline.application.HeadlineAnalysisTask;
 import com.newsverification.headline.application.HeadlineAnalysisUsageSubject;
 import com.newsverification.headline.application.HeadlineAnalysisUserType;
@@ -109,6 +115,74 @@ class RedisHeadlineAnalysisInfrastructureIT {
         assertThat(usagePolicy.currentUsage(member).usedCount()).isEqualTo(10);
         assertThatThrownBy(() -> usagePolicy.recordAnalysisStart(member))
                 .isInstanceOf(HeadlineDailyUsageLimitExceededException.class);
+    }
+
+    /** 제목 Cache 원 분석 사용자 미차감과 다른 사용자 최초 열람 단일 차감 */
+    @Test
+    void chargesOnlyFirstHeadlineCacheAccessForDifferentViewer() {
+        HeadlineAnalysisUsageSubject origin = track(
+                HeadlineAnalysisUserType.MEMBER,
+                List.of("cache-origin-member")
+        );
+        HeadlineAnalysisUsageSubject other = track(
+                HeadlineAnalysisUserType.MEMBER,
+                List.of("cache-member")
+        );
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.headline(
+                "https://news.example/headline-cache",
+                AnalysisCacheVersions.mockDefaults()
+        ).orElseThrow();
+        String cacheRedisKey = RedisAnalysisCacheKeys.cacheKey(
+                requiredEnvironment("REDIS_TEST_NAMESPACE"),
+                cacheKey
+        );
+        redisTemplate.opsForHash().put(cacheRedisKey, "resultJson", "{}");
+        redisTemplate.expire(cacheRedisKey, Duration.ofHours(1));
+        createdKeys.add(cacheRedisKey);
+        String originFingerprint = AnalysisCacheViewer.fingerprint(
+                origin.userType().name(),
+                origin.identifierKeys()
+        );
+        String otherFingerprint = AnalysisCacheViewer.fingerprint(
+                other.userType().name(),
+                other.identifierKeys()
+        );
+        String originViewerKey = RedisAnalysisCacheKeys.viewerKey(
+                requiredEnvironment("REDIS_TEST_NAMESPACE"),
+                cacheKey.feature(),
+                cacheKey.id(),
+                originFingerprint
+        );
+        String otherViewerKey = RedisAnalysisCacheKeys.viewerKey(
+                requiredEnvironment("REDIS_TEST_NAMESPACE"),
+                cacheKey.feature(),
+                cacheKey.id(),
+                otherFingerprint
+        );
+        redisTemplate.opsForValue().set(originViewerKey, "1", Duration.ofHours(1));
+        createdKeys.add(originViewerKey);
+        createdKeys.add(otherViewerKey);
+
+        HeadlineAnalysisCacheUsageResult originAccess = usagePolicy.recordCacheAccess(
+                origin,
+                cacheKey,
+                originFingerprint
+        ).orElseThrow();
+        HeadlineAnalysisCacheUsageResult first = usagePolicy.recordCacheAccess(
+                other,
+                cacheKey,
+                otherFingerprint
+        ).orElseThrow();
+        HeadlineAnalysisCacheUsageResult repeated = usagePolicy.recordCacheAccess(
+                other,
+                cacheKey,
+                otherFingerprint
+        ).orElseThrow();
+
+        assertThat(originAccess).isEqualTo(new HeadlineAnalysisCacheUsageResult(false, 0, 10));
+        assertThat(first).isEqualTo(new HeadlineAnalysisCacheUsageResult(true, 1, 10));
+        assertThat(repeated).isEqualTo(new HeadlineAnalysisCacheUsageResult(false, 1, 10));
+        assertThat(usagePolicy.currentUsage(other).usedCount()).isEqualTo(1);
     }
 
     /** 테스트 정리 대상 이용량 Key 등록 */

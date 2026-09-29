@@ -1,6 +1,11 @@
 /* Redis 건강 분야 판별 실패 이용량 통합 검증 */
 package com.newsverification.health.infrastructure;
 
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
+import com.newsverification.analysiscache.application.AnalysisCacheVersions;
+import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.infrastructure.RedisAnalysisCacheKeys;
 import com.newsverification.health.application.HealthAnalysisUsageSubject;
 import com.newsverification.health.application.HealthAnalysisUserType;
 import com.newsverification.health.application.HealthDailyUsageLimitExceededException;
@@ -144,6 +149,87 @@ class RedisHealthTopicFailureUsagePolicyIT {
         assertThat(second.dailyLimit()).isEqualTo(5);
         assertThat(policy.currentUsage(subject))
                 .isEqualTo(new HealthTopicFailureUsageResult(false, 2, 5));
+    }
+
+    /** 원 분석 사용자 미차감과 다른 사용자 최초 열람 단일 차감 */
+    @Test
+    void chargesOnlyFirstHealthCacheAccessForDifferentViewer() {
+        HealthAnalysisUsageSubject origin = track(
+                HealthAnalysisUserType.MEMBER,
+                "cache-origin-member-key"
+        );
+        HealthAnalysisUsageSubject other = track(
+                HealthAnalysisUserType.MEMBER,
+                "cache-member-key"
+        );
+        AnalysisCacheKey cacheKey = createCache("https://news.example/health-cache");
+        String originFingerprint = AnalysisCacheViewer.fingerprint(
+                origin.userType().name(),
+                origin.identifierKeys()
+        );
+        String otherFingerprint = AnalysisCacheViewer.fingerprint(
+                other.userType().name(),
+                other.identifierKeys()
+        );
+        String originViewerKey = RedisAnalysisCacheKeys.viewerKey(
+                requiredEnvironment("REDIS_TEST_NAMESPACE"),
+                cacheKey.feature(),
+                cacheKey.id(),
+                originFingerprint
+        );
+        String otherViewerKey = RedisAnalysisCacheKeys.viewerKey(
+                requiredEnvironment("REDIS_TEST_NAMESPACE"),
+                cacheKey.feature(),
+                cacheKey.id(),
+                otherFingerprint
+        );
+        redisTemplate.opsForValue().set(originViewerKey, "1", Duration.ofHours(1));
+        createdKeys.add(originViewerKey);
+        createdKeys.add(otherViewerKey);
+
+        HealthTopicFailureUsageResult originAccess = policy.recordCacheAccess(
+                origin,
+                cacheKey,
+                originFingerprint
+        ).orElseThrow();
+        HealthTopicFailureUsageResult first = policy.recordCacheAccess(
+                other,
+                cacheKey,
+                otherFingerprint
+        ).orElseThrow();
+        HealthTopicFailureUsageResult repeated = policy.recordCacheAccess(
+                other,
+                cacheKey,
+                otherFingerprint
+        ).orElseThrow();
+
+        assertThat(originAccess).isEqualTo(new HealthTopicFailureUsageResult(false, 0, 5));
+        assertThat(first).isEqualTo(new HealthTopicFailureUsageResult(true, 1, 5));
+        assertThat(repeated).isEqualTo(new HealthTopicFailureUsageResult(false, 1, 5));
+        assertThat(policy.currentUsage(other).usedCount()).isEqualTo(1);
+    }
+
+    /** 만료된 Cache 경쟁 시 이용량 미차감 */
+    @Test
+    void doesNotChargeWhenHealthCacheDisappearsBeforeAccess() {
+        HealthAnalysisUsageSubject subject = track(
+                HealthAnalysisUserType.MEMBER,
+                "missing-cache-member-key"
+        );
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.health(
+                "https://news.example/missing-health-cache",
+                AnalysisCacheVersions.mockDefaults()
+        ).orElseThrow();
+
+        assertThat(policy.recordCacheAccess(
+                subject,
+                cacheKey,
+                AnalysisCacheViewer.fingerprint(
+                        subject.userType().name(),
+                        subject.identifierKeys()
+                )
+        )).isEmpty();
+        assertThat(policy.currentUsage(subject).usedCount()).isZero();
     }
 
     /** 기존 정상 이용량과 무관한 첫 분야 실패 무료 처리 */
@@ -349,6 +435,22 @@ class RedisHealthTopicFailureUsagePolicyIT {
         HealthAnalysisUsageSubject subject = new HealthAnalysisUsageSubject(type, identifierKeys);
         createdKeys.addAll(policy.keysFor(subject));
         return subject;
+    }
+
+    /** 테스트용 건강 Cache Key 생성 */
+    private AnalysisCacheKey createCache(String articleUrl) {
+        AnalysisCacheKey key = AnalysisCacheKeyFactory.health(
+                articleUrl,
+                AnalysisCacheVersions.mockDefaults()
+        ).orElseThrow();
+        String redisKey = RedisAnalysisCacheKeys.cacheKey(
+                requiredEnvironment("REDIS_TEST_NAMESPACE"),
+                key
+        );
+        redisTemplate.opsForHash().put(redisKey, "resultJson", "{}");
+        redisTemplate.expire(redisKey, Duration.ofHours(1));
+        createdKeys.add(redisKey);
+        return key;
     }
 
     /** 필수 테스트 환경 변수 조회 */

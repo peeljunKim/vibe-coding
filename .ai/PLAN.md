@@ -123,16 +123,15 @@
 
 ## Next Loop
 
-1. 건강·제목 분석 결과 공유와 해제·만료 처리
-2. 두 분석 기능의 분리된 3일 공용 Cache와 기사 변경 감지
-3. 회원 탈퇴 요청·복구·7일 후 삭제 처리
-4. 도움말 화면과 기존 사용자 흐름 연결
-5. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
-6. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
-7. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
-8. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-9. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-10. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. 공용 Cache 기사 변경 감지와 건강 근거 링크 재검증
+2. 회원 탈퇴 요청·복구·7일 후 삭제 처리
+3. 도움말 화면과 기존 사용자 흐름 연결
+4. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
+5. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
+6. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
+7. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+8. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+9. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -378,3 +377,20 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 공유 URL 공통 Open Graph·Twitter 메타데이터와 1200×630 대표 이미지: PASS (Fragment Token과 검색 수집 차단 유지, 결과별 동적 미리보기 제외)
 - 건강 기록 삭제·재분석 교체 기능과 재분석 시 기존 링크 만료: NOT APPLICABLE (사용자 요청으로 이번 범위 제외)
 - 실제 외부 AI·검색 호출: NOT APPLICABLE (공유 조회는 저장 Snapshot만 사용)
+
+## 건강·제목 분석 3일 공용 Cache 1단계 Vertical Slice
+
+- 건강·제목 기능별 Redis Cache Namespace와 SHA-256 Key 분리: PASS
+- 정규화 URL·기능·모델·판정 정책·언론사 정책 Version Key 반영: PASS
+- 건강 Cache의 근거 허용 목록 Version 추가 반영: PASS
+- 구조화 결과·만료 시각만 저장하고 기사 원문·사용자 개인정보 미저장: PASS
+- 기본 3일에서 Key 기반 최대 30분 감산 지터와 조회 TTL 무연장: PASS
+- Cache Hit의 기사 추출·검색·AI 분석 Port 미호출: PASS
+- 원 분석 사용자 재조회 미차감, 다른 사용자 최초 열람 1회 차감과 이후 미차감: PASS
+- 회원은 Cache 수명 동안 동일 식별, 비회원은 한국시간 날짜별 식별 경계 적용: PASS
+- Cache Miss의 기존 분석 흐름과 현재 Version 결과 저장: PASS
+- Docker Redis 8.8 통합 검증: PASS (40개, 실패·오류·Skip 0)
+- Backend 전체 Maven 회귀: PASS (202개, 실패·오류·Skip 0; Redis IT 별도 실행)
+- 실제 Gemini·PubMed·외부 검색 호출: NOT APPLICABLE (기존 Mock Adapter 사용)
+- Frontend 변경: NOT APPLICABLE
+- 기사 변경 감지와 건강 근거 링크 재검증: NOT APPLICABLE (이번 1단계 범위 제외)

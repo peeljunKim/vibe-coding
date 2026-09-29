@@ -1,6 +1,9 @@
 /* Redis 건강 분야 판별 실패 이용량 Adapter */
 package com.newsverification.health.infrastructure;
 
+import com.newsverification.analysiscache.application.AnalysisCacheFeature;
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.infrastructure.RedisAnalysisCacheKeys;
 import com.newsverification.health.application.HealthAnalysisUsageSubject;
 import com.newsverification.health.application.HealthDailyUsageLimitExceededException;
 import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
@@ -19,14 +22,18 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 
 /** 한국시간 일일 Key와 Lua 원자 처리 기반 이용량 정책 */
 @Repository
 public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsagePolicy {
+
+    private static final long CACHE_MISS = -1_000_000L;
 
     private static final RedisScript<Long> VERIFY_USAGE_SCRIPT = new DefaultRedisScript<>("""
             local usedCount = 0
@@ -113,8 +120,34 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
             end
             return usedCount
             """, Long.class);
+    private static final RedisScript<Long> RECORD_CACHE_ACCESS_SCRIPT = new DefaultRedisScript<>("""
+            if redis.call('EXISTS', KEYS[1]) == 0 then return -1000000 end
+            local cacheTtl = redis.call('PTTL', KEYS[1])
+            if cacheTtl <= 0 then return -1000000 end
+            local usedCount = 0
+            local failureCount = 0
+            for index = 3, #KEYS do
+                local currentUsed = tonumber(redis.call('HGET', KEYS[index], 'usedCount') or '0')
+                local currentFailure = tonumber(redis.call('HGET', KEYS[index], 'topicFailureCount') or '0')
+                if currentUsed > usedCount then usedCount = currentUsed end
+                if currentFailure > failureCount then failureCount = currentFailure end
+            end
+            if redis.call('EXISTS', KEYS[2]) == 1 then return usedCount * 2 end
+            local dailyLimit = tonumber(ARGV[1])
+            if usedCount >= dailyLimit then return -(usedCount + 1) end
+            usedCount = usedCount + 1
+            for index = 3, #KEYS do
+                redis.call('HSET', KEYS[index],
+                    'usedCount', usedCount,
+                    'topicFailureCount', failureCount)
+                redis.call('PEXPIREAT', KEYS[index], ARGV[2])
+            end
+            redis.call('SET', KEYS[2], '1', 'PX', cacheTtl)
+            return usedCount * 2 + 1
+            """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
+    private final String redisKeyPrefix;
     private final String keyPrefix;
     private final ZoneId resetZone;
     private final Clock clock;
@@ -140,6 +173,7 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
         if (keyPrefix == null || keyPrefix.isBlank()) {
             throw new IllegalArgumentException("Redis key prefix is required");
         }
+        this.redisKeyPrefix = keyPrefix;
         this.keyPrefix = keyPrefix + ":health-usage:v1:";
         this.resetZone = Objects.requireNonNull(resetZone);
         this.clock = Objects.requireNonNull(clock);
@@ -211,6 +245,50 @@ public class RedisHealthTopicFailureUsagePolicy implements HealthTopicFailureUsa
             throw new HealthDailyUsageLimitExceededException(Math.toIntExact(-result - 1), dailyLimit);
         }
         return new HealthTopicFailureUsageResult(true, Math.toIntExact(result), dailyLimit);
+    }
+
+    /** Cache 존재·열람 Marker·일일 이용량의 원자 처리 */
+    @Override
+    public Optional<HealthTopicFailureUsageResult> recordCacheAccess(
+            HealthAnalysisUsageSubject subject,
+            AnalysisCacheKey cacheKey,
+            String viewerFingerprint
+    ) {
+        Objects.requireNonNull(subject);
+        Objects.requireNonNull(cacheKey);
+        if (cacheKey.feature() != AnalysisCacheFeature.HEALTH) {
+            throw new IllegalArgumentException("Health cache key is required");
+        }
+        List<String> keys = new ArrayList<>();
+        keys.add(RedisAnalysisCacheKeys.cacheKey(redisKeyPrefix, cacheKey));
+        keys.add(RedisAnalysisCacheKeys.viewerKey(
+                redisKeyPrefix,
+                cacheKey.feature(),
+                cacheKey.id(),
+                viewerFingerprint
+        ));
+        keys.addAll(keysFor(subject));
+        int dailyLimit = subject.userType().dailyLimit();
+        Long result = redisTemplate.execute(
+                RECORD_CACHE_ACCESS_SCRIPT,
+                keys,
+                Integer.toString(dailyLimit),
+                Long.toString(nextResetAt().toEpochMilli())
+        );
+        if (result == null) {
+            throw new IllegalStateException("Redis health cache usage result is missing");
+        }
+        if (result == CACHE_MISS) {
+            return Optional.empty();
+        }
+        if (result < 0) {
+            throw new HealthDailyUsageLimitExceededException(Math.toIntExact(-result - 1), dailyLimit);
+        }
+        return Optional.of(new HealthTopicFailureUsageResult(
+                result % 2 == 1,
+                Math.toIntExact(result / 2),
+                dailyLimit
+        ));
     }
 
     /** 이용자 유형과 일자 및 비식별 식별값 기반 Key */

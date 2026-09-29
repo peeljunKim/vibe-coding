@@ -8,6 +8,11 @@ import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.domain.AnalysisJob;
 import com.newsverification.analysis.domain.AnalysisJobStage;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
+import com.newsverification.analysiscache.application.AnalysisCacheVersions;
+import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.article.domain.ExtractedArticle;
 import org.slf4j.Logger;
@@ -36,6 +41,8 @@ public class HeadlineAnalysisWorker {
     private final AnalysisJobOutcomeStore outcomeStore;
     private final HeadlineAnalysisUseCase useCase;
     private final HeadlineAnalysisUsagePolicy usagePolicy;
+    private final HeadlineAnalysisResultCache resultCache;
+    private final AnalysisCacheVersions cacheVersions;
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final String leaseOwnerId;
@@ -49,11 +56,13 @@ public class HeadlineAnalysisWorker {
             AnalysisJobOutcomeStore outcomeStore,
             HeadlineAnalysisUseCase useCase,
             HeadlineAnalysisUsagePolicy usagePolicy,
+            HeadlineAnalysisResultCache resultCache,
+            AnalysisCacheVersions cacheVersions,
             ObjectMapper objectMapper,
             Clock clock
     ) {
         this(queue, lifecycleService, jobStore, outcomeStore, useCase, usagePolicy,
-                objectMapper, clock, UUID.randomUUID().toString());
+                resultCache, cacheVersions, objectMapper, clock, UUID.randomUUID().toString());
     }
 
     /** 테스트 제어용 Worker Token 포함 구성 */
@@ -68,12 +77,43 @@ public class HeadlineAnalysisWorker {
             Clock clock,
             String leaseOwnerId
     ) {
+        this(
+                queue,
+                lifecycleService,
+                jobStore,
+                outcomeStore,
+                useCase,
+                usagePolicy,
+                HeadlineAnalysisResultCache.disabled(),
+                AnalysisCacheVersions.mockDefaults(),
+                objectMapper,
+                clock,
+                leaseOwnerId
+        );
+    }
+
+    /** Cache 경계를 포함한 테스트 제어용 Worker Token 구성 */
+    HeadlineAnalysisWorker(
+            HeadlineAnalysisQueue queue,
+            AnalysisJobLifecycleService lifecycleService,
+            AnalysisJobStore jobStore,
+            AnalysisJobOutcomeStore outcomeStore,
+            HeadlineAnalysisUseCase useCase,
+            HeadlineAnalysisUsagePolicy usagePolicy,
+            HeadlineAnalysisResultCache resultCache,
+            AnalysisCacheVersions cacheVersions,
+            ObjectMapper objectMapper,
+            Clock clock,
+            String leaseOwnerId
+    ) {
         this.queue = queue;
         this.lifecycleService = lifecycleService;
         this.jobStore = jobStore;
         this.outcomeStore = outcomeStore;
         this.useCase = useCase;
         this.usagePolicy = usagePolicy;
+        this.resultCache = resultCache;
+        this.cacheVersions = cacheVersions;
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.leaseOwnerId = leaseOwnerId;
@@ -119,6 +159,41 @@ public class HeadlineAnalysisWorker {
 
         HeadlineAnalysisJobService.Usage chargedUsage = null;
         try {
+            Optional<AnalysisCacheKey> cacheKey = AnalysisCacheKeyFactory.headline(
+                    task.articleUrl(),
+                    cacheVersions
+            );
+            if (cacheKey.isPresent()) {
+                Optional<CachedAnalysisResult<HeadlineAnalysisResult>> cached = resultCache
+                        .findHeadline(cacheKey.orElseThrow());
+                if (cached.isPresent()) {
+                    String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                            task.userType().name(),
+                            task.usageIdentifierKeys()
+                    );
+                    Optional<HeadlineAnalysisCacheUsageResult> cacheUsage = usagePolicy
+                            .recordCacheAccess(
+                                    task.usageSubject(),
+                                    cacheKey.orElseThrow(),
+                                    viewerFingerprint
+                            );
+                    if (cacheUsage.isPresent()) {
+                        HeadlineAnalysisCacheUsageResult cachedUsage = cacheUsage.orElseThrow();
+                        completeCached(
+                                task.analysisId(),
+                                cached.orElseThrow().result(),
+                                new HeadlineAnalysisJobService.Usage(
+                                        cachedUsage.dailyLimit(),
+                                        cachedUsage.usedCount(),
+                                        Math.max(0, cachedUsage.dailyLimit() - cachedUsage.usedCount()),
+                                        cachedUsage.charged()
+                                )
+                        );
+                        return;
+                    }
+                }
+            }
+
             usagePolicy.verifyCanStart(task.usageSubject());
             AnalysisJob checkingJob = lifecycleService.advance(
                     task.analysisId(), AnalysisJobStage.CHECKING_ARTICLE
@@ -138,7 +213,9 @@ public class HeadlineAnalysisWorker {
             );
             chargedUsage = usage;
             HeadlineAnalysisResult result = useCase.analyze(article, checkingJob.deadlineAt());
-            complete(task.analysisId(), result, usage);
+            if (complete(task.analysisId(), result, usage)) {
+                cacheResult(cacheKey, task, result);
+            }
         } catch (ArticleProcessingException exception) {
             fail(task.analysisId(), exception.error().name(), "기사 내용을 확인하지 못했습니다.", null);
         } catch (HeadlineDailyUsageLimitExceededException exception) {
@@ -162,7 +239,7 @@ public class HeadlineAnalysisWorker {
     }
 
     /** 결과와 완료 상태의 원자 저장 */
-    private void complete(
+    private boolean complete(
             String analysisId,
             HeadlineAnalysisResult result,
             HeadlineAnalysisJobService.Usage usage
@@ -171,7 +248,7 @@ public class HeadlineAnalysisWorker {
         AnalysisJob completed = current.complete(clock.instant());
         if (completed.equals(current)) {
             fail(analysisId, "ANALYSIS_DEADLINE_EXCEEDED", "분석 제한 시간을 초과했습니다.", usage);
-            return;
+            return false;
         }
         outcomeStore.replaceWithOutcome(
                 analysisId,
@@ -179,6 +256,44 @@ public class HeadlineAnalysisWorker {
                 completed,
                 AnalysisJobOutcome.completed(serialize(result), serialize(usage))
         );
+        return true;
+    }
+
+    /** 외부 처리 없는 Cache 결과 단계 전환과 완료 */
+    private void completeCached(
+            String analysisId,
+            HeadlineAnalysisResult result,
+            HeadlineAnalysisJobService.Usage usage
+    ) {
+        lifecycleService.advance(analysisId, AnalysisJobStage.CHECKING_ARTICLE);
+        lifecycleService.advance(analysisId, AnalysisJobStage.GENERATING_RESULT);
+        complete(analysisId, result, usage);
+    }
+
+    /** 현재 Version 일치 결과의 Cache 저장 */
+    private void cacheResult(
+            Optional<AnalysisCacheKey> cacheKey,
+            HeadlineAnalysisTask task,
+            HeadlineAnalysisResult result
+    ) {
+        if (cacheKey.isEmpty() || !cacheVersions.matchesHeadline(
+                result.aiModelVersion(),
+                result.policyVersion()
+        )) {
+            return;
+        }
+        try {
+            resultCache.saveHeadline(
+                    cacheKey.orElseThrow(),
+                    result,
+                    AnalysisCacheViewer.fingerprint(
+                            task.userType().name(),
+                            task.usageIdentifierKeys()
+                    )
+            );
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Headline analysis cache write failed: {}", exception.getClass().getSimpleName());
+        }
     }
 
     /** 실패와 오류 응답의 원자 저장 */

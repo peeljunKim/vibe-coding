@@ -8,6 +8,11 @@ import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.domain.AnalysisJob;
 import com.newsverification.analysis.domain.AnalysisJobStage;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
+import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
+import com.newsverification.analysiscache.application.AnalysisCacheVersions;
+import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +40,8 @@ public class HealthAnalysisWorker {
     private final AnalysisJobOutcomeStore outcomeStore;
     private final HealthAnalysisUseCase useCase;
     private final HealthTopicFailureUsagePolicy usagePolicy;
+    private final HealthAnalysisResultCache resultCache;
+    private final AnalysisCacheVersions cacheVersions;
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final String leaseOwnerId;
@@ -48,6 +55,8 @@ public class HealthAnalysisWorker {
             AnalysisJobOutcomeStore outcomeStore,
             HealthAnalysisUseCase useCase,
             HealthTopicFailureUsagePolicy usagePolicy,
+            HealthAnalysisResultCache resultCache,
+            AnalysisCacheVersions cacheVersions,
             ObjectMapper objectMapper,
             Clock clock
     ) {
@@ -58,6 +67,8 @@ public class HealthAnalysisWorker {
                 outcomeStore,
                 useCase,
                 usagePolicy,
+                resultCache,
+                cacheVersions,
                 objectMapper,
                 clock,
                 UUID.randomUUID().toString()
@@ -76,12 +87,43 @@ public class HealthAnalysisWorker {
             Clock clock,
             String leaseOwnerId
     ) {
+        this(
+                queue,
+                lifecycleService,
+                jobStore,
+                outcomeStore,
+                useCase,
+                usagePolicy,
+                HealthAnalysisResultCache.disabled(),
+                AnalysisCacheVersions.mockDefaults(),
+                objectMapper,
+                clock,
+                leaseOwnerId
+        );
+    }
+
+    /** Cache 경계를 포함한 테스트 제어용 Worker Token 구성 */
+    HealthAnalysisWorker(
+            HealthAnalysisQueue queue,
+            AnalysisJobLifecycleService lifecycleService,
+            AnalysisJobStore jobStore,
+            AnalysisJobOutcomeStore outcomeStore,
+            HealthAnalysisUseCase useCase,
+            HealthTopicFailureUsagePolicy usagePolicy,
+            HealthAnalysisResultCache resultCache,
+            AnalysisCacheVersions cacheVersions,
+            ObjectMapper objectMapper,
+            Clock clock,
+            String leaseOwnerId
+    ) {
         this.queue = queue;
         this.lifecycleService = lifecycleService;
         this.jobStore = jobStore;
         this.outcomeStore = outcomeStore;
         this.useCase = useCase;
         this.usagePolicy = usagePolicy;
+        this.resultCache = resultCache;
+        this.cacheVersions = cacheVersions;
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.leaseOwnerId = leaseOwnerId;
@@ -127,6 +169,35 @@ public class HealthAnalysisWorker {
 
         HealthAnalysisJobService.Usage chargedUsage = null;
         try {
+            Optional<AnalysisCacheKey> cacheKey = AnalysisCacheKeyFactory.health(
+                    task.articleUrl(),
+                    cacheVersions
+            );
+            if (cacheKey.isPresent()) {
+                Optional<CachedAnalysisResult<HealthAnalysisResult>> cached = resultCache
+                        .findHealth(cacheKey.orElseThrow());
+                if (cached.isPresent()) {
+                    String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                            task.userType().name(),
+                            task.usageIdentifierKeys()
+                    );
+                    Optional<HealthTopicFailureUsageResult> cacheUsage = usagePolicy
+                            .recordCacheAccess(
+                                    task.usageSubject(),
+                                    cacheKey.orElseThrow(),
+                                    viewerFingerprint
+                            );
+                    if (cacheUsage.isPresent()) {
+                        completeCached(
+                                task.analysisId(),
+                                cached.orElseThrow().result(),
+                                toUsage(cacheUsage.orElseThrow())
+                        );
+                        return;
+                    }
+                }
+            }
+
             AnalysisJob checkingJob = lifecycleService.advance(
                     task.analysisId(),
                     AnalysisJobStage.CHECKING_ARTICLE
@@ -188,7 +259,9 @@ public class HealthAnalysisWorker {
                 );
                 return;
             }
-            complete(task.analysisId(), result, usage);
+            if (complete(task.analysisId(), result, usage)) {
+                cacheResult(cacheKey, task, result);
+            }
         } catch (ArticleProcessingException exception) {
             fail(
                     task.analysisId(),
@@ -220,7 +293,7 @@ public class HealthAnalysisWorker {
     }
 
     /** 결과와 완료 상태의 원자 저장 */
-    private void complete(
+    private boolean complete(
             String analysisId,
             HealthAnalysisResult result,
             HealthAnalysisJobService.Usage usage
@@ -229,7 +302,7 @@ public class HealthAnalysisWorker {
         AnalysisJob completed = current.complete(clock.instant());
         if (completed.equals(current)) {
             fail(analysisId, "ANALYSIS_DEADLINE_EXCEEDED", "분석 제한 시간을 초과했습니다.", usage);
-            return;
+            return false;
         }
         outcomeStore.replaceWithOutcome(
                 analysisId,
@@ -237,6 +310,46 @@ public class HealthAnalysisWorker {
                 completed,
                 AnalysisJobOutcome.completed(serialize(result), serialize(usage))
         );
+        return true;
+    }
+
+    /** 외부 처리 없는 Cache 결과 단계 전환과 완료 */
+    private void completeCached(
+            String analysisId,
+            HealthAnalysisResult result,
+            HealthAnalysisJobService.Usage usage
+    ) {
+        lifecycleService.advance(analysisId, AnalysisJobStage.CHECKING_ARTICLE);
+        lifecycleService.advance(analysisId, AnalysisJobStage.SEARCHING_EVIDENCE);
+        lifecycleService.advance(analysisId, AnalysisJobStage.GENERATING_RESULT);
+        complete(analysisId, result, usage);
+    }
+
+    /** 현재 Version 일치 결과의 Cache 저장 */
+    private void cacheResult(
+            Optional<AnalysisCacheKey> cacheKey,
+            HealthAnalysisTask task,
+            HealthAnalysisResult result
+    ) {
+        if (cacheKey.isEmpty() || !cacheVersions.matchesHealth(
+                result.aiModelVersion(),
+                result.policyVersion(),
+                result.evidenceAllowlistVersion()
+        )) {
+            return;
+        }
+        try {
+            resultCache.saveHealth(
+                    cacheKey.orElseThrow(),
+                    result,
+                    AnalysisCacheViewer.fingerprint(
+                            task.userType().name(),
+                            task.usageIdentifierKeys()
+                    )
+            );
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Health analysis cache write failed: {}", exception.getClass().getSimpleName());
+        }
     }
 
     /** 실패와 오류 응답의 원자 저장 */
