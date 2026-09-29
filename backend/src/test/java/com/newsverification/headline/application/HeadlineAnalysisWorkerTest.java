@@ -8,6 +8,7 @@ import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.domain.AnalysisJob;
 import com.newsverification.analysis.domain.AnalysisJobOwner;
 import com.newsverification.analysis.domain.AnalysisJobOwnerType;
+import com.newsverification.analysis.domain.AnalysisJobStatus;
 import com.newsverification.analysiscache.application.AnalysisCacheKey;
 import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
@@ -102,6 +103,59 @@ class HeadlineAnalysisWorkerTest {
         );
     }
 
+    /** 완료 상태 저장 거부 시 공용 Cache 게시 차단 */
+    @Test
+    void doesNotPublishCacheWhenCompletionWriteIsRejected() {
+        InMemoryStore store = new InMemoryStore();
+        AnalysisJob job = AnalysisJob.queued(
+                "headline-rejected",
+                new AnalysisJobOwner(AnalysisJobOwnerType.MEMBER, "owner-hash"),
+                NOW
+        );
+        store.create(job);
+        HeadlineAnalysisTask task = new HeadlineAnalysisTask(
+                job.id(),
+                "https://news.example/general",
+                HeadlineAnalysisUserType.MEMBER,
+                List.of("member-key")
+        );
+        HeadlineAnalysisUseCase useCase = mock(HeadlineAnalysisUseCase.class);
+        HeadlineAnalysisUsagePolicy usagePolicy = mock(HeadlineAnalysisUsagePolicy.class);
+        HeadlineAnalysisResultCache cache = mock(HeadlineAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        ExtractedArticle article = article();
+        when(useCase.read(task.articleUrl())).thenReturn(article);
+        when(usagePolicy.recordAnalysisStart(task.usageSubject()))
+                .thenReturn(new HeadlineAnalysisUsageResult(1, 10));
+        when(useCase.analyze(article, job.deadlineAt())).thenReturn(result(article));
+        store.rejectOutcomeWrites = true;
+        Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
+        HeadlineAnalysisWorker worker = new HeadlineAnalysisWorker(
+                new RecordingQueue(task),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "worker-1"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        assertThat(store.findById(job.id()).orElseThrow().status())
+                .isEqualTo(AnalysisJobStatus.PROCESSING);
+        assertThat(store.findOutcome(job.id())).isEmpty();
+        verify(cache, never()).saveHeadline(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
     /** Cache Hit의 기사 추출과 제목 분석 미호출 */
     @Test
     void completesFromCacheWithoutCallingArticleOrAnalysisPorts() {
@@ -161,6 +215,65 @@ class HeadlineAnalysisWorkerTest {
                 org.mockito.ArgumentMatchers.any()
         );
         verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
+    }
+
+    /** Cache 이용량 차감 후 완료 실패의 차감 결과 보존 */
+    @Test
+    void preservesCacheChargeWhenCompletionFails() throws Exception {
+        InMemoryStore store = new InMemoryStore();
+        AnalysisJob job = AnalysisJob.queued(
+                "headline-cache-failed",
+                new AnalysisJobOwner(AnalysisJobOwnerType.MEMBER, "owner-hash"),
+                NOW
+        );
+        store.create(job);
+        HeadlineAnalysisTask task = new HeadlineAnalysisTask(
+                job.id(),
+                "https://news.example/general",
+                HeadlineAnalysisUserType.MEMBER,
+                List.of("member-key")
+        );
+        HeadlineAnalysisUseCase useCase = mock(HeadlineAnalysisUseCase.class);
+        HeadlineAnalysisUsagePolicy usagePolicy = mock(HeadlineAnalysisUsagePolicy.class);
+        HeadlineAnalysisResultCache cache = mock(HeadlineAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.headline(task.articleUrl(), versions)
+                .orElseThrow();
+        String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                task.userType().name(),
+                task.usageIdentifierKeys()
+        );
+        when(cache.findHeadline(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                result(article()),
+                NOW.plus(Duration.ofDays(3))
+        )));
+        when(usagePolicy.recordCacheAccess(task.usageSubject(), cacheKey, viewerFingerprint))
+                .thenReturn(Optional.of(new HeadlineAnalysisCacheUsageResult(true, 2, 10)));
+        store.outcomeWriteFailuresRemaining = 1;
+        Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
+        HeadlineAnalysisWorker worker = new HeadlineAnalysisWorker(
+                new RecordingQueue(task),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "worker-1"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        AnalysisJobOutcome outcome = store.findOutcome(job.id()).orElseThrow();
+        HeadlineAnalysisJobService.Usage usage = new ObjectMapper().readValue(
+                outcome.usageJson(),
+                HeadlineAnalysisJobService.Usage.class
+        );
+        assertThat(outcome.errorCode()).isEqualTo("ANALYSIS_FAILED");
+        assertThat(usage).isEqualTo(new HeadlineAnalysisJobService.Usage(10, 2, 8, true));
     }
 
     /** 기사 수집 실패의 무차감 종료 */
@@ -288,6 +401,8 @@ class HeadlineAnalysisWorkerTest {
 
         private final Map<String, AnalysisJob> jobs = new HashMap<>();
         private final Map<String, AnalysisJobOutcome> outcomes = new HashMap<>();
+        private boolean rejectOutcomeWrites;
+        private int outcomeWriteFailuresRemaining;
 
         @Override
         public boolean create(AnalysisJob job) {
@@ -316,6 +431,13 @@ class HeadlineAnalysisWorkerTest {
                 AnalysisJob updatedJob,
                 AnalysisJobOutcome outcome
         ) {
+            if (outcomeWriteFailuresRemaining > 0) {
+                outcomeWriteFailuresRemaining--;
+                throw new IllegalStateException("outcome write failed");
+            }
+            if (rejectOutcomeWrites) {
+                return false;
+            }
             if (!replace(jobId, expectedVersion, updatedJob)) {
                 return false;
             }

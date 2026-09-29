@@ -81,6 +81,7 @@ public class RedisAnalysisJobStore implements AnalysisJobStore, AnalysisJobOutco
             redis.call('PEXPIREAT', KEYS[1], ARGV[11])
             return 1
             """, Long.class);
+
     private static final RedisScript<Long> REPLACE_WITH_OUTCOME_SCRIPT = new DefaultRedisScript<>("""
             local currentVersion = redis.call('HGET', KEYS[1], 'version')
             if not currentVersion or currentVersion ~= ARGV[1] then
@@ -195,10 +196,13 @@ public class RedisAnalysisJobStore implements AnalysisJobStore, AnalysisJobOutco
     public Optional<AnalysisJobOutcome> findOutcome(String jobId) {
         Map<Object, Object> values = redisTemplate.opsForHash().entries(keyFor(jobId));
         Object typeValue = values.get(OUTCOME_TYPE);
+
         if (typeValue == null) {
             return Optional.empty();
         }
+
         AnalysisJobOutcome.Type type = AnalysisJobOutcome.Type.valueOf(typeValue.toString());
+
         return Optional.of(switch (type) {
             case RESULT -> AnalysisJobOutcome.completed(
                     requiredValue(values, RESULT_JSON),

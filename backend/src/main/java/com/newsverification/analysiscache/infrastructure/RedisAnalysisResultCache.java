@@ -19,6 +19,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
 
 import java.time.Clock;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -124,26 +125,30 @@ public class RedisAnalysisResultCache
             Class<T> resultType
     ) {
         Objects.requireNonNull(key);
+
         if (key.feature() != expectedFeature) {
             return Optional.empty();
         }
+
         Map<Object, Object> values = redisTemplate.opsForHash().entries(cacheKey(key));
         Object resultJson = values.get(RESULT_JSON);
         Object expiresAtValue = values.get(EXPIRES_AT);
+
         if (resultJson == null || expiresAtValue == null) {
             return Optional.empty();
         }
-        Instant expiresAt = Instant.parse(expiresAtValue.toString());
-        if (!clock.instant().isBefore(expiresAt)) {
-            return Optional.empty();
-        }
+
         try {
+            Instant expiresAt = Instant.parse(expiresAtValue.toString());
+            if (!clock.instant().isBefore(expiresAt)) {
+                return Optional.empty();
+            }
             return Optional.of(new CachedAnalysisResult<>(
                     objectMapper.readValue(resultJson.toString(), resultType),
                     expiresAt
             ));
-        } catch (JacksonException exception) {
-            throw new IllegalStateException("Analysis cache result cannot be read", exception);
+        } catch (DateTimeException | JacksonException exception) {
+            return Optional.empty();
         }
     }
 

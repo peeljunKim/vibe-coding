@@ -110,6 +110,55 @@ class HealthAnalysisWorkerTest {
         );
     }
 
+    /** 완료 상태 저장 거부 시 공용 Cache 게시 차단 */
+    @Test
+    void doesNotPublishCacheWhenCompletionWriteIsRejected() {
+        var store = new InMemoryJobStore();
+        AnalysisJob accepted = lifecycle(store, NOW).accept("analysis-rejected", OWNER);
+        HealthAnalysisTask task = task(accepted.id());
+        HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthAnalysisResultCache cache = mock(HealthAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        HealthArticleScreeningResult screening = screeningResult();
+        HealthAnalysisResult result = result(screening.article());
+        when(useCase.screen(task.articleUrl(), task.usageSubject())).thenReturn(screening);
+        when(usagePolicy.recordAnalysisStart(task.usageSubject()))
+                .thenReturn(new HealthTopicFailureUsageResult(true, 1, 5));
+        when(useCase.continueAfterScreening(screening, task.usageSubject(), accepted.deadlineAt()))
+                .thenReturn(new HealthAnalysisRoutingResult(
+                        HealthAnalysisRoutingStatus.ANALYSIS_STARTED,
+                        Optional.empty(),
+                        Optional.of(result)
+                ));
+        store.rejectOutcomeWrites = true;
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        HealthAnalysisWorker worker = new HealthAnalysisWorker(
+                new SingleTaskQueue(task, true),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "test-worker"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        assertThat(store.findById(accepted.id()).orElseThrow().status())
+                .isEqualTo(AnalysisJobStatus.PROCESSING);
+        assertThat(store.findOutcome(accepted.id())).isEmpty();
+        verify(cache, never()).saveHealth(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
     /** Cache Hit의 기사 수집·분야 판별·근거 분석 미호출 */
     @Test
     void completesFromCacheWithoutCallingArticleOrAnalysisPorts() {
@@ -163,6 +212,55 @@ class HealthAnalysisWorkerTest {
                 org.mockito.ArgumentMatchers.any()
         );
         verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
+    }
+
+    /** Cache 이용량 차감 후 완료 실패의 차감 결과 보존 */
+    @Test
+    void preservesCacheChargeWhenCompletionFails() throws Exception {
+        var store = new InMemoryJobStore();
+        AnalysisJob accepted = lifecycle(store, NOW).accept("analysis-cache-failed", OWNER);
+        HealthAnalysisTask task = task(accepted.id());
+        HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthAnalysisResultCache cache = mock(HealthAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.health(task.articleUrl(), versions)
+                .orElseThrow();
+        String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                task.userType().name(),
+                task.usageIdentifierKeys()
+        );
+        when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                result(article()),
+                NOW.plus(Duration.ofDays(3))
+        )));
+        when(usagePolicy.recordCacheAccess(task.usageSubject(), cacheKey, viewerFingerprint))
+                .thenReturn(Optional.of(new HealthTopicFailureUsageResult(true, 2, 5)));
+        store.outcomeWriteFailuresRemaining = 1;
+        Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
+        HealthAnalysisWorker worker = new HealthAnalysisWorker(
+                new SingleTaskQueue(task, true),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "test-worker"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        AnalysisJobOutcome outcome = store.findOutcome(accepted.id()).orElseThrow();
+        HealthAnalysisJobService.Usage usage = new ObjectMapper().readValue(
+                outcome.usageJson(),
+                HealthAnalysisJobService.Usage.class
+        );
+        assertThat(outcome.errorCode()).isEqualTo("ANALYSIS_FAILED");
+        assertThat(usage).isEqualTo(new HealthAnalysisJobService.Usage(5, 2, 3, true));
     }
 
     /** 기사 수집 실패의 종료 상태와 무재시도 */
@@ -404,6 +502,8 @@ class HealthAnalysisWorkerTest {
 
         private final Map<String, AnalysisJob> jobs = new HashMap<>();
         private final Map<String, AnalysisJobOutcome> outcomes = new HashMap<>();
+        private boolean rejectOutcomeWrites;
+        private int outcomeWriteFailuresRemaining;
 
         @Override
         public boolean create(AnalysisJob job) {
@@ -432,6 +532,13 @@ class HealthAnalysisWorkerTest {
                 AnalysisJob updatedJob,
                 AnalysisJobOutcome outcome
         ) {
+            if (outcomeWriteFailuresRemaining > 0) {
+                outcomeWriteFailuresRemaining--;
+                throw new IllegalStateException("outcome write failed");
+            }
+            if (rejectOutcomeWrites) {
+                return false;
+            }
             if (!replace(jobId, expectedVersion, updatedJob)) {
                 return false;
             }
