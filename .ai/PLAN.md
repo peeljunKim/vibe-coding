@@ -399,11 +399,11 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - ACTIVE 회원 탈퇴 신청·Session 전체 만료·`WITHDRAWAL_PENDING` 전환: PASS
 - 신청 후 7일 이내 로그인 시 명시적 탈퇴 취소와 ACTIVE 복구: PASS
 - 7일 경과 후 복구 차단과 공통 로그인 실패 응답: PASS
-- 탈퇴 완료 뒤 30일 추가 보관, 신청 시각부터 37일째 물리 삭제: PASS
+- 탈퇴 신청 뒤 총 30일 보관, 최초 7일 복구 허용과 이후 복구 차단: PASS
 - 계정 삭제 시 Foreign Key CASCADE 대상 정리: PASS (Native MySQL 통합 테스트 소스)
 - 계정 설정·2단계 확인·복구 로그인 Frontend: PASS
-- Backend 전체 Maven 회귀: PASS (216개, 실패·오류·Skip 0)
+- Backend 전체 Maven 회귀: PASS (218개, 실패·오류·Skip 0)
 - Frontend Test·TypeScript·Lint·Build: PASS (15 files, 74 tests)
 - Harness·Secret·Diff 공백 검사: PASS
-- Native MySQL 탈퇴 수명주기 실제 실행: PASS (`verify-publisher-native-mysql.ps1`; 7일 복구, 신청 후 37일 삭제와 Foreign Key CASCADE 검증)
+- Native MySQL 탈퇴 수명주기 실제 재검증: NOT RUN (7일 복구·신청 후 30일 삭제 경계로 테스트 변경)
 - Desktop Browser 시각·상호작용 검증: PASS (Chrome, 1024·1280·1440px 가로 넘침 없음, 2단계 확인과 일정 표시)

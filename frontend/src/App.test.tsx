@@ -103,7 +103,7 @@ beforeEach(() => {
   vi.mocked(logout).mockResolvedValue(undefined)
   vi.mocked(requestAccountWithdrawal).mockResolvedValue({
     recoveryDeadline: '2026-10-06T00:00:00Z',
-    scheduledDeletionAt: '2026-11-05T00:00:00Z',
+    scheduledDeletionAt: '2026-10-29T00:00:00Z',
   })
   vi.mocked(listHealthRecords).mockResolvedValue({
     items: [],
@@ -725,7 +725,7 @@ describe('App', () => {
       await screen.findByRole('heading', { name: '탈퇴 신청이 완료되었습니다' }),
     ).toBeInTheDocument()
     expect(screen.getByText(/2026\.\s*10\.\s*06\./)).toBeInTheDocument()
-    expect(screen.getByText(/2026\.\s*11\.\s*05\./)).toBeInTheDocument()
+    expect(screen.getByText(/2026\.\s*10\.\s*29\./)).toBeInTheDocument()
     expect(requestAccountWithdrawal).toHaveBeenCalledOnce()
   })
 

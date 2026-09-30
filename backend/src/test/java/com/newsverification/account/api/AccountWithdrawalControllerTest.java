@@ -49,12 +49,12 @@ class AccountWithdrawalControllerTest {
                 .build();
     }
 
-    /** 로그인 회원의 7일 복구와 37일 삭제 일정 응답 */
+    /** 로그인 회원의 7일 복구와 30일 삭제 일정 응답 */
     @Test
     void requestsWithdrawalForAuthenticatedMember() throws Exception {
         when(service.request("42")).thenReturn(new AccountWithdrawalService.Withdrawal(
                 Instant.parse("2026-10-06T00:00:00Z"),
-                Instant.parse("2026-11-05T00:00:00Z")
+                Instant.parse("2026-10-29T00:00:00Z")
         ));
 
         mockMvc.perform(post("/api/account/withdrawal")
@@ -63,7 +63,7 @@ class AccountWithdrawalControllerTest {
                 .andExpect(status().isAccepted())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.recoveryDeadline").value("2026-10-06T00:00:00Z"))
-                .andExpect(jsonPath("$.scheduledDeletionAt").value("2026-11-05T00:00:00Z"));
+                .andExpect(jsonPath("$.scheduledDeletionAt").value("2026-10-29T00:00:00Z"));
 
         verify(service).request("42");
     }

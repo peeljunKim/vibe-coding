@@ -248,7 +248,10 @@ function LoginPage({
             </p>
             {recoveryDeadline ? (
               <p className="withdrawal-dialog__deadline">
-                복구 가능 기한 {new Date(recoveryDeadline).toLocaleDateString('ko-KR')}
+                복구 가능 기한{' '}
+                {new Date(recoveryDeadline).toLocaleDateString('ko-KR', {
+                  timeZone: 'Asia/Seoul',
+                })}
               </p>
             ) : null}
             <div className="report-dialog__actions">
