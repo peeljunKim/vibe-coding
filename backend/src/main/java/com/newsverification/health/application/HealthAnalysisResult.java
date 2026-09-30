@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /** Mock과 실제 AI Adapter가 공유하는 구조화 결과 */
 public record HealthAnalysisResult(
@@ -23,6 +24,17 @@ public record HealthAnalysisResult(
         String evidenceAllowlistVersion,
         boolean limitedEvidence
 ) {
+
+    /** 분석 결과 필수값 검증 */
+    public HealthAnalysisResult {
+        Objects.requireNonNull(article);
+        Objects.requireNonNull(analyzedAt);
+        Objects.requireNonNull(overallStatus);
+        Objects.requireNonNull(confirmationRate);
+        Objects.requireNonNull(claims);
+        Objects.requireNonNull(expertReviewStatus);
+        claims = List.copyOf(claims);
+    }
 
     /** 기사 요약 */
     public record ArticleSummary(

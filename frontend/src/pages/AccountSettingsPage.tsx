@@ -112,7 +112,7 @@ function AccountSettingsPage({
                     <span>로그인 후 계정 복구 가능</span>
                   </div>
                   <div>
-                    <strong>탈퇴 완료 후 30일</strong>
+                    <strong>탈퇴 신청 후 30일</strong>
                     <span>남은 계정과 기록 영구 삭제</span>
                   </div>
                 </div>

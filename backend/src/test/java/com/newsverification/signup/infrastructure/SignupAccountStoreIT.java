@@ -122,7 +122,7 @@ class SignupAccountStoreIT {
         assertThat(repository.findById(pending.id())).isEmpty();
     }
 
-    /** 탈퇴 7일 복구와 완료 후 30일 보관 뒤 CASCADE 삭제 */
+    /** 탈퇴 7일 복구와 신청 후 30일 보관 뒤 CASCADE 삭제 */
     @Test
     void recoversWithinSevenDaysAndDeletesAfterThirtyDayRetention() {
         Instant requestedAt = Instant.parse("2026-09-29T00:00:00Z");
@@ -145,7 +145,7 @@ class SignupAccountStoreIT {
         repository.flush();
 
         assertThat(firstSchedule.recoveryDeadline()).isEqualTo(requestedAt.plusSeconds(7L * 24 * 60 * 60));
-        assertThat(firstSchedule.scheduledDeletionAt()).isEqualTo(requestedAt.plusSeconds(37L * 24 * 60 * 60));
+        assertThat(firstSchedule.scheduledDeletionAt()).isEqualTo(requestedAt.plusSeconds(30L * 24 * 60 * 60));
         assertThat(jdbcTemplate.queryForMap(
                 "SELECT status, withdrawal_requested_at, scheduled_deletion_at FROM users WHERE id = ?",
                 created.id()
@@ -173,12 +173,18 @@ class SignupAccountStoreIT {
                 ) VALUES (?, 'GOOGLE', ?, ?, FALSE)
                 """, created.id(), "withdraw-subject-" + created.id(), "linked-withdraw@example.com");
 
+        int earlyDeleted = new AccountWithdrawalService(
+                repository,
+                sessionInvalidator,
+                Clock.fixed(secondRequestAt.plusSeconds(30L * 24 * 60 * 60).minusSeconds(1), ZoneOffset.UTC)
+        ).cleanupExpiredAccounts();
         int deleted = new AccountWithdrawalService(
                 repository,
                 sessionInvalidator,
-                Clock.fixed(secondRequestAt.plusSeconds(37L * 24 * 60 * 60), ZoneOffset.UTC)
+                Clock.fixed(secondRequestAt.plusSeconds(30L * 24 * 60 * 60), ZoneOffset.UTC)
         ).cleanupExpiredAccounts();
 
+        assertThat(earlyDeleted).isZero();
         assertThat(deleted).isEqualTo(1);
         assertThat(repository.findById(created.id())).isEmpty();
         assertThat(jdbcTemplate.queryForObject(

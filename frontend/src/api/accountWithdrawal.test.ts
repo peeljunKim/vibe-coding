@@ -18,14 +18,14 @@ describe('account withdrawal API', () => {
         json: () =>
           Promise.resolve({
             recoveryDeadline: '2026-10-06T00:00:00Z',
-            scheduledDeletionAt: '2026-11-05T00:00:00Z',
+            scheduledDeletionAt: '2026-10-29T00:00:00Z',
           }),
       })
     vi.stubGlobal('fetch', fetchMock)
 
     const result = await requestAccountWithdrawal()
 
-    expect(result.scheduledDeletionAt).toBe('2026-11-05T00:00:00Z')
+    expect(result.scheduledDeletionAt).toBe('2026-10-29T00:00:00Z')
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/account/withdrawal', {
       method: 'POST',
       credentials: 'include',

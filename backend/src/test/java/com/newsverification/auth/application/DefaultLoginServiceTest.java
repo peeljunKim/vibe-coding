@@ -115,7 +115,7 @@ class DefaultLoginServiceTest {
     @Test
     void requiresRecoveryConfirmationDuringSevenDayGracePeriod() {
         UserAccount account = activeAccount();
-        account.requestWithdrawal(NOW.minusSeconds(60), NOW.plusSeconds(37L * 24 * 60 * 60));
+        account.requestWithdrawal(NOW.minusSeconds(60), NOW.plusSeconds(30L * 24 * 60 * 60));
         when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
 
         assertThatThrownBy(() -> service.authenticate(
@@ -130,7 +130,7 @@ class DefaultLoginServiceTest {
     @Test
     void recoversPendingWithdrawalBeforeSevenDayDeadline() {
         UserAccount account = activeAccount();
-        account.requestWithdrawal(NOW.minusSeconds(60), NOW.plusSeconds(37L * 24 * 60 * 60));
+        account.requestWithdrawal(NOW.minusSeconds(60), NOW.plusSeconds(30L * 24 * 60 * 60));
         when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
 
         LoginService.AuthenticatedAccount authenticated = service.authenticate(
@@ -142,7 +142,7 @@ class DefaultLoginServiceTest {
         assertThat(account.scheduledDeletionAt()).isNull();
     }
 
-    /** 탈퇴 완료 후 30일 보관 중 복구 차단 */
+    /** 7일 복구 기한이 지난 보관 계정의 복구 차단 */
     @Test
     void rejectsRecoveryAfterSevenDayDeadline() {
         UserAccount account = activeAccount();

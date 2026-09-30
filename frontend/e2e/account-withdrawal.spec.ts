@@ -39,7 +39,7 @@ test('데스크톱 너비에서 탈퇴 일정이 가로로 넘치지 않는다',
 
     await expect(page.getByRole('heading', { name: '계정 설정' })).toBeVisible()
     await expect(page.getByText('7일 이내')).toBeVisible()
-    await expect(page.getByText('탈퇴 완료 후 30일')).toBeVisible()
+    await expect(page.getByText('탈퇴 신청 후 30일')).toBeVisible()
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true)
@@ -53,7 +53,7 @@ test('확인 뒤 탈퇴 일정을 표시한다', async ({ page }) => {
       contentType: 'application/json',
       body: JSON.stringify({
         recoveryDeadline: '2026-10-06T00:00:00Z',
-        scheduledDeletionAt: '2026-11-05T00:00:00Z',
+        scheduledDeletionAt: '2026-10-29T00:00:00Z',
       }),
     }),
   )
@@ -65,5 +65,5 @@ test('확인 뒤 탈퇴 일정을 표시한다', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: '탈퇴 신청이 완료되었습니다' })).toBeVisible()
   await expect(page.getByText(/2026\. 10\. 06\./)).toBeVisible()
-  await expect(page.getByText(/2026\. 11\. 05\./)).toBeVisible()
+  await expect(page.getByText(/2026\. 10\. 29\./)).toBeVisible()
 })

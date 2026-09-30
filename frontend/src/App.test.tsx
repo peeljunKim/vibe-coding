@@ -103,7 +103,7 @@ beforeEach(() => {
   vi.mocked(logout).mockResolvedValue(undefined)
   vi.mocked(requestAccountWithdrawal).mockResolvedValue({
     recoveryDeadline: '2026-10-06T00:00:00Z',
-    scheduledDeletionAt: '2026-11-05T00:00:00Z',
+    scheduledDeletionAt: '2026-10-29T00:00:00Z',
   })
   vi.mocked(listHealthRecords).mockResolvedValue({
     items: [],
@@ -138,6 +138,21 @@ const renderApp = (path = '/') =>
   )
 
 describe('App', () => {
+  it('로그인 화면의 도움말 링크로 이용 안내를 연다', async () => {
+    renderApp('/login')
+
+    fireEvent.click(screen.getByRole('link', { name: '도움말' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        name: '기사체크를 이렇게 이용하세요',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('URL 복사')).toBeInTheDocument()
+    expect(screen.getByText('기능 선택')).toBeInTheDocument()
+    expect(screen.getByText('결과 읽기')).toBeInTheDocument()
+  })
+
   it('기능 선택 홈을 기본 화면으로 표시한다', () => {
     renderApp()
 
@@ -725,7 +740,7 @@ describe('App', () => {
       await screen.findByRole('heading', { name: '탈퇴 신청이 완료되었습니다' }),
     ).toBeInTheDocument()
     expect(screen.getByText(/2026\.\s*10\.\s*06\./)).toBeInTheDocument()
-    expect(screen.getByText(/2026\.\s*11\.\s*05\./)).toBeInTheDocument()
+    expect(screen.getByText(/2026\.\s*10\.\s*29\./)).toBeInTheDocument()
     expect(requestAccountWithdrawal).toHaveBeenCalledOnce()
   })
 

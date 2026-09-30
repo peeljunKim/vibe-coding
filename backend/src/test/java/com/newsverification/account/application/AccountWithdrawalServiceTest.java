@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -18,10 +20,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 탈퇴 신청·Session 만료·37일 뒤 삭제 검증 */
+/** 탈퇴 신청·Session 만료·30일 뒤 삭제 검증 */
 class AccountWithdrawalServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-09-29T00:00:00Z");
@@ -40,25 +43,35 @@ class AccountWithdrawalServiceTest {
         );
     }
 
-    /** ACTIVE 계정의 7일 복구와 이후 30일 보관 예약 */
+    /** ACTIVE 계정의 7일 복구와 신청 후 30일 삭제 예약 */
     @Test
-    void requestsWithdrawalAndSchedulesDeletionAfterThirtySevenDays() {
+    void requestsWithdrawalAndInvalidatesSessionsAfterCommit() {
         UserAccount account = activeAccount(42L, "withdraw26");
         when(repository.findByIdForWithdrawal(42L)).thenReturn(Optional.of(account));
 
-        AccountWithdrawalService.Withdrawal result = service.request("42");
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            AccountWithdrawalService.Withdrawal result = service.request("42");
 
-        assertThat(result.recoveryDeadline()).isEqualTo(NOW.plusSeconds(7L * 24 * 60 * 60));
-        assertThat(result.scheduledDeletionAt()).isEqualTo(NOW.plusSeconds(37L * 24 * 60 * 60));
-        assertThat(account.withdrawalPending()).isTrue();
-        verify(sessionInvalidator).invalidateAll(42L);
+            assertThat(result.recoveryDeadline()).isEqualTo(NOW.plusSeconds(7L * 24 * 60 * 60));
+            assertThat(result.scheduledDeletionAt()).isEqualTo(NOW.plusSeconds(30L * 24 * 60 * 60));
+            assertThat(account.withdrawalPending()).isTrue();
+            verifyNoInteractions(sessionInvalidator);
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(TransactionSynchronization::afterCommit);
+
+            verify(sessionInvalidator).invalidateAll(42L);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     /** ACTIVE가 아닌 계정의 중복 탈퇴 신청 차단 */
     @Test
     void rejectsAccountThatIsNotActive() {
         UserAccount account = activeAccount(42L, "withdraw26");
-        account.requestWithdrawal(NOW, NOW.plusSeconds(37L * 24 * 60 * 60));
+        account.requestWithdrawal(NOW, NOW.plusSeconds(30L * 24 * 60 * 60));
         when(repository.findByIdForWithdrawal(42L)).thenReturn(Optional.of(account));
 
         assertThatThrownBy(() -> service.request("42"))
@@ -66,11 +79,11 @@ class AccountWithdrawalServiceTest {
                 .hasMessage("ACCOUNT_NOT_ACTIVE");
     }
 
-    /** 탈퇴 완료 후 30일 보관이 끝난 계정만 한 묶음 정리 */
+    /** 탈퇴 신청 후 30일 보관이 끝난 계정만 한 묶음 정리 */
     @Test
     void deletesOnlyExpiredWithdrawalBatch() {
         UserAccount expired = activeAccount(42L, "expired26");
-        expired.requestWithdrawal(NOW.minusSeconds(38L * 24 * 60 * 60), NOW.minusSeconds(24 * 60 * 60));
+        expired.requestWithdrawal(NOW.minusSeconds(31L * 24 * 60 * 60), NOW.minusSeconds(24 * 60 * 60));
         when(repository.findTop100ByStatusAndScheduledDeletionAtLessThanEqualOrderByScheduledDeletionAtAscIdAsc(
                 UserAccount.UserStatus.WITHDRAWAL_PENDING,
                 NOW

@@ -1,5 +1,6 @@
 // 건강 뉴스 분석 결과 화면
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { CreatedShare } from '../api/shares'
 import type { HealthRecordSummary } from '../api/healthRecords'
 import type { ReportType } from '../api/reports'
@@ -88,7 +89,7 @@ function HealthResultPage({
   return (
     <div className="app-page health-result-page">
       <AppHeader section="분석 결과">
-        <span>도움말</span>
+        <Link to="/help">도움말</Link>
         <span className="header-account-pill">내 정보</span>
       </AppHeader>
 

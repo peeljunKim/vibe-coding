@@ -143,8 +143,12 @@ public class RedisAnalysisResultCache
             if (!clock.instant().isBefore(expiresAt)) {
                 return Optional.empty();
             }
+            T result = objectMapper.readValue(resultJson.toString(), resultType);
+            if (result == null) {
+                return Optional.empty();
+            }
             return Optional.of(new CachedAnalysisResult<>(
-                    objectMapper.readValue(resultJson.toString(), resultType),
+                    result,
                     expiresAt
             ));
         } catch (DateTimeException | JacksonException exception) {
