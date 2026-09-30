@@ -6,6 +6,8 @@ import com.newsverification.signup.domain.UserAccount;
 import com.newsverification.signup.infrastructure.UserAccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -17,7 +19,7 @@ import java.util.List;
 public class AccountWithdrawalService {
 
     private static final Duration RECOVERY_PERIOD = Duration.ofDays(7);
-    private static final Duration RETENTION_AFTER_WITHDRAWAL = Duration.ofDays(30);
+    private static final Duration RETENTION_PERIOD = Duration.ofDays(30);
 
     private final UserAccountRepository repository;
     private final AccountSessionInvalidator sessionInvalidator;
@@ -45,9 +47,9 @@ public class AccountWithdrawalService {
 
         Instant requestedAt = clock.instant();
         Instant recoveryDeadline = requestedAt.plus(RECOVERY_PERIOD);
-        Instant scheduledDeletionAt = recoveryDeadline.plus(RETENTION_AFTER_WITHDRAWAL);
+        Instant scheduledDeletionAt = requestedAt.plus(RETENTION_PERIOD);
         account.requestWithdrawal(requestedAt, scheduledDeletionAt);
-        sessionInvalidator.invalidateAll(userId);
+        invalidateSessionsAfterCommit(userId);
         return new Withdrawal(recoveryDeadline, scheduledDeletionAt);
     }
 
@@ -70,6 +72,20 @@ public class AccountWithdrawalService {
         } catch (NumberFormatException exception) {
             throw new AccountWithdrawalException("ACCOUNT_NOT_ACTIVE");
         }
+    }
+
+    /** 탈퇴 상태 Commit 뒤 기존 Session 만료 */
+    private void invalidateSessionsAfterCommit(long userId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            sessionInvalidator.invalidateAll(userId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sessionInvalidator.invalidateAll(userId);
+            }
+        });
     }
 
     /** 탈퇴 신청 결과 */

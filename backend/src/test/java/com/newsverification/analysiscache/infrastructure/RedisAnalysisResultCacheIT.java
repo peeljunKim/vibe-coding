@@ -133,7 +133,7 @@ class RedisAnalysisResultCacheIT {
                 .isGreaterThanOrEqualTo(BASE_TTL.minusMinutes(30).toMillis() - 1_000L);
     }
 
-    /** 손상된 만료 시각과 JSON의 Cache Miss 처리 */
+    /** 손상되거나 필수 값이 없는 Cache의 Miss 처리 */
     @Test
     void treatsMalformedCacheValuesAsMissWithoutDeletingTheEntry() {
         AnalysisCacheKey key = AnalysisCacheKeyFactory.health(
@@ -145,6 +145,16 @@ class RedisAnalysisResultCacheIT {
 
         redisTemplate.opsForHash().put(redisKey, "resultJson", "{}");
         redisTemplate.opsForHash().put(redisKey, "expiresAt", "invalid-instant");
+
+        assertThat(cache.findHealth(key)).isEmpty();
+        assertThat(redisTemplate.hasKey(redisKey)).isTrue();
+
+        redisTemplate.opsForHash().put(redisKey, "resultJson", "{}");
+        redisTemplate.opsForHash().put(
+                redisKey,
+                "expiresAt",
+                Instant.now().plus(Duration.ofHours(1)).toString()
+        );
 
         assertThat(cache.findHealth(key)).isEmpty();
         assertThat(redisTemplate.hasKey(redisKey)).isTrue();

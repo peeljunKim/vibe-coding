@@ -21,6 +21,9 @@ public class AccountWithdrawalCleanupScheduler {
             zone = "${app.time-zone:Asia/Seoul}"
     )
     public void cleanupExpiredAccounts() {
-        service.cleanupExpiredAccounts();
+        int deleted;
+        do {
+            deleted = service.cleanupExpiredAccounts();
+        } while (deleted > 0);
     }
 }
