@@ -56,9 +56,10 @@
 - 공유 Open Graph는 Fragment Token 보안을 유지하는 공통 메타데이터와 1200×630 대표 이미지를 사용하며 결과별 동적 미리보기는 제공하지 않음
 - 공유 Vertical Slice의 Backend 전체 196개 Test, Frontend 14개 Test File·70개 Test, Chrome 공유 E2E 4개와 Native MySQL ShareStoreIT 실제 실행은 PASS이며 기사 게시·수정 시각 UTC 변환 회귀도 실제 MySQL에서 검증함
 - 건강·제목 공용 Cache는 정규화 URL·기능·모델·정책·언론사 정책 Version을 SHA-256 Key로 분리하고 건강 기능에는 근거 허용 목록 Version도 포함함
-- Redis Cache에는 구조화 결과와 만료 시각만 저장하고 기본 3일에서 Key 기반 최대 30분 감산 지터를 적용하며 조회로 TTL을 연장하지 않음
-- Cache Hit은 기사 수집·검색·AI Port를 호출하지 않으며 원 분석 회원의 재조회는 Cache 수명 동안, 비회원은 날짜별 식별 경계 안에서 미차감하고 다른 사용자의 최초 열람만 원자적으로 차감함
-- 공용 Cache Backend 전체 202개 Test와 Docker Redis 통합 40개 Test는 PASS이며 기사 변경 감지와 건강 근거 링크 재검증은 아직 미구현
+- Redis Cache에는 구조화 결과·만료 시각·비원문 기사 Fingerprint만 저장하고 기본 3일에서 Key 기반 최대 30분 감산 지터를 적용하며 조회로 TTL을 연장하지 않음
+- Cache Hit은 안전한 기사 수집 1회로 제목·게시/수정 시각·순서형 문단 Hash를 비교하며 분야 판별·검색·AI Port는 호출하지 않음; 변경 기사에는 이용량 차감 전 `ARTICLE_CHANGED`를 반환함
+- 원 분석 회원의 재조회는 Cache 수명 동안, 비회원은 날짜별 식별 경계 안에서 미차감하고 다른 사용자의 변경 없는 결과 최초 열람만 원자적으로 차감함
+- 공용 Cache Backend 전체 225개 Test와 Docker Redis 통합 42개 Test는 PASS이며 건강 근거 링크 재검증과 기사 변경 후 명시적 재분석 UI는 아직 미구현
 
 ## Deferred
 

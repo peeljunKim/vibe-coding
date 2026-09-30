@@ -12,6 +12,7 @@ import com.newsverification.analysiscache.application.AnalysisCacheKey;
 import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.article.domain.ExtractedArticle;
@@ -167,6 +168,19 @@ public class HeadlineAnalysisWorker {
                 Optional<CachedAnalysisResult<HeadlineAnalysisResult>> cached = resultCache
                         .findHeadline(cacheKey.orElseThrow());
                 if (cached.isPresent()) {
+                    CachedAnalysisResult<HeadlineAnalysisResult> cachedResult = cached.orElseThrow();
+                    ExtractedArticle currentArticle = useCase.read(task.articleUrl());
+                    if (!cachedResult.articleFingerprint().equals(
+                            ArticleRevisionFingerprint.from(currentArticle)
+                    )) {
+                        fail(
+                                task.analysisId(),
+                                "ARTICLE_CHANGED",
+                                "기사 내용이 분석 당시와 달라졌습니다. 최신 내용으로 다시 분석하시겠습니까?",
+                                null
+                        );
+                        return;
+                    }
                     String viewerFingerprint = AnalysisCacheViewer.fingerprint(
                             task.userType().name(),
                             task.usageIdentifierKeys()
@@ -188,7 +202,7 @@ public class HeadlineAnalysisWorker {
                         chargedUsage = usage;
                         completeCached(
                                 task.analysisId(),
-                                cached.orElseThrow().result(),
+                                cachedResult.result(),
                                 usage
                         );
                         return;
@@ -216,7 +230,7 @@ public class HeadlineAnalysisWorker {
             chargedUsage = usage;
             HeadlineAnalysisResult result = useCase.analyze(article, checkingJob.deadlineAt());
             if (complete(task.analysisId(), result, usage)) {
-                cacheResult(cacheKey, task, result);
+                cacheResult(cacheKey, task, result, article);
             }
         } catch (ArticleProcessingException exception) {
             fail(task.analysisId(), exception.error().name(), "기사 내용을 확인하지 못했습니다.", null);
@@ -275,7 +289,8 @@ public class HeadlineAnalysisWorker {
     private void cacheResult(
             Optional<AnalysisCacheKey> cacheKey,
             HeadlineAnalysisTask task,
-            HeadlineAnalysisResult result
+            HeadlineAnalysisResult result,
+            ExtractedArticle article
     ) {
         if (cacheKey.isEmpty() || !cacheVersions.matchesHeadline(
                 result.aiModelVersion(),
@@ -287,6 +302,7 @@ public class HeadlineAnalysisWorker {
             resultCache.saveHeadline(
                     cacheKey.orElseThrow(),
                     result,
+                    ArticleRevisionFingerprint.from(article),
                     AnalysisCacheViewer.fingerprint(
                             task.userType().name(),
                             task.usageIdentifierKeys()

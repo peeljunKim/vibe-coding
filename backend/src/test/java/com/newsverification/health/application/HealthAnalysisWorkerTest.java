@@ -13,6 +13,7 @@ import com.newsverification.analysiscache.application.AnalysisCacheKey;
 import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingError;
 import com.newsverification.article.domain.ArticleProcessingException;
@@ -103,6 +104,7 @@ class HealthAnalysisWorkerTest {
         verify(cache).saveHealth(
                 AnalysisCacheKeyFactory.health(task.articleUrl(), versions).orElseThrow(),
                 result,
+                ArticleRevisionFingerprint.from(article),
                 AnalysisCacheViewer.fingerprint(
                         task.userType().name(),
                         task.usageIdentifierKeys()
@@ -155,13 +157,14 @@ class HealthAnalysisWorkerTest {
         verify(cache, never()).saveHealth(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.anyString()
         );
     }
 
-    /** Cache Hit의 기사 수집·분야 판별·근거 분석 미호출 */
+    /** Cache Hit의 변경 확인 외 분야 판별·근거 분석 미호출 */
     @Test
-    void completesFromCacheWithoutCallingArticleOrAnalysisPorts() {
+    void completesFromCacheAfterMatchingArticleRevision() {
         var store = new InMemoryJobStore();
         AnalysisJobLifecycleService lifecycle = lifecycle(store, NOW);
         AnalysisJob accepted = lifecycle.accept("analysis-cached", OWNER);
@@ -176,11 +179,14 @@ class HealthAnalysisWorkerTest {
                 task.userType().name(),
                 task.usageIdentifierKeys()
         );
-        HealthAnalysisResult cachedResult = result(article());
+        ExtractedArticle currentArticle = article();
+        HealthAnalysisResult cachedResult = result(currentArticle);
         when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
                 cachedResult,
-                NOW.plus(Duration.ofDays(3))
+                NOW.plus(Duration.ofDays(3)),
+                ArticleRevisionFingerprint.from(currentArticle)
         )));
+        when(useCase.read(task.articleUrl())).thenReturn(currentArticle);
         when(usagePolicy.recordCacheAccess(
                 task.usageSubject(), cacheKey, viewerFingerprint
         )).thenReturn(Optional.of(new HealthTopicFailureUsageResult(false, 1, 5)));
@@ -205,6 +211,7 @@ class HealthAnalysisWorkerTest {
         assertThat(outcome.type()).isEqualTo(AnalysisJobOutcome.Type.RESULT);
         assertThat(store.findById(accepted.id()).orElseThrow().status())
                 .isEqualTo(AnalysisJobStatus.COMPLETED);
+        verify(useCase).read(task.articleUrl());
         verify(useCase, never()).screen(task.articleUrl(), task.usageSubject());
         verify(useCase, never()).continueAfterScreening(
                 org.mockito.ArgumentMatchers.any(),
@@ -212,6 +219,67 @@ class HealthAnalysisWorkerTest {
                 org.mockito.ArgumentMatchers.any()
         );
         verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
+    }
+
+    /** 변경된 기사의 Cache 결과와 이용량 사용 차단 */
+    @Test
+    void rejectsChangedArticleBeforeCacheUsage() {
+        var store = new InMemoryJobStore();
+        AnalysisJob accepted = lifecycle(store, NOW).accept("analysis-changed", OWNER);
+        HealthAnalysisTask task = task(accepted.id());
+        HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthAnalysisResultCache cache = mock(HealthAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.health(task.articleUrl(), versions)
+                .orElseThrow();
+        ExtractedArticle cachedArticle = article();
+        ExtractedArticle changedArticle = new ExtractedArticle(
+                cachedArticle.sourceUrl(),
+                cachedArticle.title(),
+                cachedArticle.body() + "\n추가된 문단",
+                cachedArticle.publishedAt(),
+                cachedArticle.modifiedAt()
+        );
+        when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                result(cachedArticle),
+                NOW.plus(Duration.ofDays(3)),
+                ArticleRevisionFingerprint.from(cachedArticle)
+        )));
+        when(useCase.read(task.articleUrl())).thenReturn(changedArticle);
+        Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
+        HealthAnalysisWorker worker = new HealthAnalysisWorker(
+                new SingleTaskQueue(task, true),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "test-worker"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        AnalysisJobOutcome outcome = store.findOutcome(accepted.id()).orElseThrow();
+        assertThat(outcome.errorCode()).isEqualTo("ARTICLE_CHANGED");
+        assertThat(store.findById(accepted.id()).orElseThrow().status())
+                .isEqualTo(AnalysisJobStatus.FAILED);
+        verify(useCase).read(task.articleUrl());
+        verify(usagePolicy, never()).recordCacheAccess(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+        verify(useCase, never()).screen(task.articleUrl(), task.usageSubject());
+        verify(useCase, never()).continueAfterScreening(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
     }
 
     /** Cache 이용량 차감 후 완료 실패의 차감 결과 보존 */
@@ -232,8 +300,10 @@ class HealthAnalysisWorkerTest {
         );
         when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
                 result(article()),
-                NOW.plus(Duration.ofDays(3))
+                NOW.plus(Duration.ofDays(3)),
+                ArticleRevisionFingerprint.from(article())
         )));
+        when(useCase.read(task.articleUrl())).thenReturn(article());
         when(usagePolicy.recordCacheAccess(task.usageSubject(), cacheKey, viewerFingerprint))
                 .thenReturn(Optional.of(new HealthTopicFailureUsageResult(true, 2, 5)));
         store.outcomeWriteFailuresRemaining = 1;

@@ -21,8 +21,13 @@ public class HealthArticleScreeningService {
 
     /** 지원 언론사 기사 수집 후 분야 판별 */
     public HealthArticleScreeningResult screen(String rawUrl) {
-        ExtractedArticle article = articleReader.read(rawUrl);
+        ExtractedArticle article = read(rawUrl);
         HealthArticleTopicDecision decision = topicClassifier.classify(article);
         return new HealthArticleScreeningResult(article, decision);
+    }
+
+    /** 분야 판별 없는 안전 기사 수집 */
+    public ExtractedArticle read(String rawUrl) {
+        return articleReader.read(rawUrl);
     }
 }

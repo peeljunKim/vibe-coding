@@ -123,7 +123,7 @@
 
 ## Next Loop
 
-1. 공용 Cache 기사 변경 감지와 건강 근거 링크 재검증
+1. 건강 근거 링크 재검증
 2. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
 3. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
 4. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
@@ -381,17 +381,22 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 건강·제목 기능별 Redis Cache Namespace와 SHA-256 Key 분리: PASS
 - 정규화 URL·기능·모델·판정 정책·언론사 정책 Version Key 반영: PASS
 - 건강 Cache의 근거 허용 목록 Version 추가 반영: PASS
-- 구조화 결과·만료 시각만 저장하고 기사 원문·사용자 개인정보 미저장: PASS
+- 구조화 결과·만료 시각·비원문 기사 Fingerprint만 저장하고 기사 원문·사용자 개인정보 미저장: PASS
 - 기본 3일에서 Key 기반 최대 30분 감산 지터와 조회 TTL 무연장: PASS
-- Cache Hit의 기사 추출·검색·AI 분석 Port 미호출: PASS
+- Cache Hit의 안전한 기사 재수집 1회와 제목·시각·순서형 문단 Hash 비교: PASS
+- Cache Hit의 분야 판별·검색·AI 분석 Port 미호출: PASS
+- 기사 변경 시 이용량 차감 전 `ARTICLE_CHANGED` 종료와 기존 결과 차단: PASS
+- Fingerprint 없는 이전 형식 Cache의 Miss 처리: PASS
 - 원 분석 사용자 재조회 미차감, 다른 사용자 최초 열람 1회 차감과 이후 미차감: PASS
 - 회원은 Cache 수명 동안 동일 식별, 비회원은 한국시간 날짜별 식별 경계 적용: PASS
 - Cache Miss의 기존 분석 흐름과 현재 Version 결과 저장: PASS
-- Docker Redis 8.8 통합 검증: PASS (40개, 실패·오류·Skip 0)
-- Backend 전체 Maven 회귀: PASS (202개, 실패·오류·Skip 0; Redis IT 별도 실행)
+- Docker Redis 8.8 통합 검증: PASS (42개, 실패·오류·Skip 0)
+- Backend 전체 Maven 회귀: PASS (225개, 실패·오류·Skip 0; Redis IT 별도 실행)
 - 실제 Gemini·PubMed·외부 검색 호출: NOT APPLICABLE (기존 Mock Adapter 사용)
 - Frontend 변경: NOT APPLICABLE
-- 기사 변경 감지와 건강 근거 링크 재검증: NOT APPLICABLE (이번 1단계 범위 제외)
+- 기사 변경 감지: PASS (제목 Hash·게시/수정 시각·순서형 문단 Hash, 기사 원문 Cache 미저장)
+- 기사 변경 후 자동 재분석과 Frontend 확인 UI: NOT APPLICABLE (사용자 요청으로 이번 범위 제외)
+- 건강 근거 링크 재검증: NOT APPLICABLE (후속 범위)
 
 ## 회원 탈퇴와 보관 수명주기
 

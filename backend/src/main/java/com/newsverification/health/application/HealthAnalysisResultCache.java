@@ -2,6 +2,7 @@
 package com.newsverification.health.application;
 
 import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 
 import java.util.Optional;
@@ -16,6 +17,7 @@ public interface HealthAnalysisResultCache {
     CachedAnalysisResult<HealthAnalysisResult> saveHealth(
             AnalysisCacheKey key,
             HealthAnalysisResult result,
+            ArticleRevisionFingerprint articleFingerprint,
             String viewerFingerprint
     );
 
@@ -31,9 +33,10 @@ public interface HealthAnalysisResultCache {
             public CachedAnalysisResult<HealthAnalysisResult> saveHealth(
                     AnalysisCacheKey key,
                     HealthAnalysisResult result,
+                    ArticleRevisionFingerprint articleFingerprint,
                     String viewerFingerprint
             ) {
-                return new CachedAnalysisResult<>(result, java.time.Instant.MAX);
+                return new CachedAnalysisResult<>(result, java.time.Instant.MAX, articleFingerprint);
             }
         };
     }

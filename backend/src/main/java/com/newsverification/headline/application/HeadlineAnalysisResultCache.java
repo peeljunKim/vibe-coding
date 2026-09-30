@@ -2,6 +2,7 @@
 package com.newsverification.headline.application;
 
 import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 
 import java.util.Optional;
@@ -16,6 +17,7 @@ public interface HeadlineAnalysisResultCache {
     CachedAnalysisResult<HeadlineAnalysisResult> saveHeadline(
             AnalysisCacheKey key,
             HeadlineAnalysisResult result,
+            ArticleRevisionFingerprint articleFingerprint,
             String viewerFingerprint
     );
 
@@ -31,9 +33,10 @@ public interface HeadlineAnalysisResultCache {
             public CachedAnalysisResult<HeadlineAnalysisResult> saveHeadline(
                     AnalysisCacheKey key,
                     HeadlineAnalysisResult result,
+                    ArticleRevisionFingerprint articleFingerprint,
                     String viewerFingerprint
             ) {
-                return new CachedAnalysisResult<>(result, java.time.Instant.MAX);
+                return new CachedAnalysisResult<>(result, java.time.Instant.MAX, articleFingerprint);
             }
         };
     }

@@ -1,6 +1,8 @@
 /* 건강 분석 분야 판별 분기 */
 package com.newsverification.health.application;
 
+import com.newsverification.article.domain.ExtractedArticle;
+
 import java.time.Instant;
 import java.util.Optional;
 
@@ -41,6 +43,11 @@ public class HealthAnalysisUseCase {
     ) {
         usagePolicy.verifyCanStart(usageSubject);
         return screeningService.screen(rawUrl);
+    }
+
+    /** Cache 기사 변경 확인용 안전 기사 수집 */
+    public ExtractedArticle read(String rawUrl) {
+        return screeningService.read(rawUrl);
     }
 
     /** 분야 판별 이후 후속 분석 또는 중단 */

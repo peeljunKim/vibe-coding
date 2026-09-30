@@ -3,6 +3,7 @@ package com.newsverification.analysiscache.infrastructure;
 
 import com.newsverification.analysiscache.application.AnalysisCacheFeature;
 import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.health.application.HealthAnalysisResult;
 import com.newsverification.health.application.HealthAnalysisResultCache;
@@ -34,14 +35,16 @@ public class RedisAnalysisResultCache
 
     private static final String RESULT_JSON = "resultJson";
     private static final String EXPIRES_AT = "expiresAt";
+    private static final String ARTICLE_FINGERPRINT_JSON = "articleFingerprintJson";
     private static final long MAX_JITTER_SECONDS = Duration.ofMinutes(30).toSeconds();
     private static final RedisScript<Long> SAVE_SCRIPT = new DefaultRedisScript<>("""
             redis.call('HSET', KEYS[1],
                 'resultJson', ARGV[1],
-                'expiresAt', ARGV[2])
-            redis.call('PEXPIREAT', KEYS[1], ARGV[3])
+                'expiresAt', ARGV[2],
+                'articleFingerprintJson', ARGV[3])
+            redis.call('PEXPIREAT', KEYS[1], ARGV[4])
             redis.call('SET', KEYS[2], '1')
-            redis.call('PEXPIREAT', KEYS[2], ARGV[3])
+            redis.call('PEXPIREAT', KEYS[2], ARGV[4])
             return 1
             """, Long.class);
 
@@ -97,9 +100,10 @@ public class RedisAnalysisResultCache
     public CachedAnalysisResult<HealthAnalysisResult> saveHealth(
             AnalysisCacheKey key,
             HealthAnalysisResult result,
+            ArticleRevisionFingerprint articleFingerprint,
             String viewerFingerprint
     ) {
-        return save(key, AnalysisCacheFeature.HEALTH, result, viewerFingerprint);
+        return save(key, AnalysisCacheFeature.HEALTH, result, articleFingerprint, viewerFingerprint);
     }
 
     /** TTL 연장 없는 제목 결과 조회 */
@@ -113,9 +117,10 @@ public class RedisAnalysisResultCache
     public CachedAnalysisResult<HeadlineAnalysisResult> saveHeadline(
             AnalysisCacheKey key,
             HeadlineAnalysisResult result,
+            ArticleRevisionFingerprint articleFingerprint,
             String viewerFingerprint
     ) {
-        return save(key, AnalysisCacheFeature.HEADLINE, result, viewerFingerprint);
+        return save(key, AnalysisCacheFeature.HEADLINE, result, articleFingerprint, viewerFingerprint);
     }
 
     /** 기능 일치 결과 Hash 역직렬화 */
@@ -133,8 +138,9 @@ public class RedisAnalysisResultCache
         Map<Object, Object> values = redisTemplate.opsForHash().entries(cacheKey(key));
         Object resultJson = values.get(RESULT_JSON);
         Object expiresAtValue = values.get(EXPIRES_AT);
+        Object articleFingerprintJson = values.get(ARTICLE_FINGERPRINT_JSON);
 
-        if (resultJson == null || expiresAtValue == null) {
+        if (resultJson == null || expiresAtValue == null || articleFingerprintJson == null) {
             return Optional.empty();
         }
 
@@ -144,12 +150,17 @@ public class RedisAnalysisResultCache
                 return Optional.empty();
             }
             T result = objectMapper.readValue(resultJson.toString(), resultType);
+            ArticleRevisionFingerprint articleFingerprint = objectMapper.readValue(
+                    articleFingerprintJson.toString(),
+                    ArticleRevisionFingerprint.class
+            );
             if (result == null) {
                 return Optional.empty();
             }
             return Optional.of(new CachedAnalysisResult<>(
                     result,
-                    expiresAt
+                    expiresAt,
+                    articleFingerprint
             ));
         } catch (DateTimeException | JacksonException exception) {
             return Optional.empty();
@@ -161,10 +172,12 @@ public class RedisAnalysisResultCache
             AnalysisCacheKey key,
             AnalysisCacheFeature expectedFeature,
             T result,
+            ArticleRevisionFingerprint articleFingerprint,
             String viewerFingerprint
     ) {
         Objects.requireNonNull(key);
         Objects.requireNonNull(result);
+        Objects.requireNonNull(articleFingerprint);
         if (key.feature() != expectedFeature) {
             throw new IllegalArgumentException("Analysis cache feature does not match result type");
         }
@@ -175,12 +188,13 @@ public class RedisAnalysisResultCache
                     List.of(cacheKey(key), viewerKey(key, viewerFingerprint)),
                     objectMapper.writeValueAsString(result),
                     expiresAt.toString(),
+                    objectMapper.writeValueAsString(articleFingerprint),
                     Long.toString(expiresAt.toEpochMilli())
             );
             if (!Long.valueOf(1L).equals(saved)) {
                 throw new IllegalStateException("Analysis cache result was not saved");
             }
-            return new CachedAnalysisResult<>(result, expiresAt);
+            return new CachedAnalysisResult<>(result, expiresAt, articleFingerprint);
         } catch (JacksonException exception) {
             throw new IllegalStateException("Analysis cache result cannot be written", exception);
         }

@@ -12,8 +12,10 @@ import com.newsverification.analysiscache.application.AnalysisCacheKey;
 import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingException;
+import com.newsverification.article.domain.ExtractedArticle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -177,6 +179,19 @@ public class HealthAnalysisWorker {
                 Optional<CachedAnalysisResult<HealthAnalysisResult>> cached = resultCache
                         .findHealth(cacheKey.orElseThrow());
                 if (cached.isPresent()) {
+                    CachedAnalysisResult<HealthAnalysisResult> cachedResult = cached.orElseThrow();
+                    ExtractedArticle currentArticle = useCase.read(task.articleUrl());
+                    if (!cachedResult.articleFingerprint().equals(
+                            ArticleRevisionFingerprint.from(currentArticle)
+                    )) {
+                        fail(
+                                task.analysisId(),
+                                "ARTICLE_CHANGED",
+                                "기사 내용이 분석 당시와 달라졌습니다. 최신 내용으로 다시 분석하시겠습니까?",
+                                null
+                        );
+                        return;
+                    }
                     String viewerFingerprint = AnalysisCacheViewer.fingerprint(
                             task.userType().name(),
                             task.usageIdentifierKeys()
@@ -192,7 +207,7 @@ public class HealthAnalysisWorker {
                         chargedUsage = usage;
                         completeCached(
                                 task.analysisId(),
-                                cached.orElseThrow().result(),
+                                cachedResult.result(),
                                 usage
                         );
                         return;
@@ -262,7 +277,7 @@ public class HealthAnalysisWorker {
                 return;
             }
             if (complete(task.analysisId(), result, usage)) {
-                cacheResult(cacheKey, task, result);
+                cacheResult(cacheKey, task, result, screening.article());
             }
         } catch (ArticleProcessingException exception) {
             fail(
@@ -330,7 +345,8 @@ public class HealthAnalysisWorker {
     private void cacheResult(
             Optional<AnalysisCacheKey> cacheKey,
             HealthAnalysisTask task,
-            HealthAnalysisResult result
+            HealthAnalysisResult result,
+            ExtractedArticle article
     ) {
         if (cacheKey.isEmpty() || !cacheVersions.matchesHealth(
                 result.aiModelVersion(),
@@ -343,6 +359,7 @@ public class HealthAnalysisWorker {
             resultCache.saveHealth(
                     cacheKey.orElseThrow(),
                     result,
+                    ArticleRevisionFingerprint.from(article),
                     AnalysisCacheViewer.fingerprint(
                             task.userType().name(),
                             task.usageIdentifierKeys()

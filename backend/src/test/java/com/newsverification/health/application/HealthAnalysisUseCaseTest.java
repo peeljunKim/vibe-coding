@@ -24,6 +24,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -140,6 +141,25 @@ class HealthAnalysisUseCaseTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Redis unavailable");
         verifyNoInteractions(screeningService, analysisPort);
+    }
+
+    /** Cache 기사 변경 확인의 이용량·분석 미호출 */
+    @Test
+    void readsArticleWithoutUsageOrAnalysis() {
+        HealthArticleScreeningService screeningService = mock(HealthArticleScreeningService.class);
+        HealthAnalysisPort analysisPort = mock(HealthAnalysisPort.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        ExtractedArticle article = mock(ExtractedArticle.class);
+        when(screeningService.read(ARTICLE_URL.toString())).thenReturn(article);
+        HealthAnalysisUseCase useCase = new HealthAnalysisUseCase(
+                screeningService,
+                analysisPort,
+                usagePolicy
+        );
+
+        assertThat(useCase.read(ARTICLE_URL.toString())).isSameAs(article);
+        verify(screeningService).read(ARTICLE_URL.toString());
+        verifyNoInteractions(analysisPort, usagePolicy);
     }
 
     /** 실제 수집 경계와 판별값별 Use Case 구성 */
