@@ -179,15 +179,17 @@ public class HeadlineAnalysisWorker {
                             );
                     if (cacheUsage.isPresent()) {
                         HeadlineAnalysisCacheUsageResult cachedUsage = cacheUsage.orElseThrow();
+                        HeadlineAnalysisJobService.Usage usage = new HeadlineAnalysisJobService.Usage(
+                                cachedUsage.dailyLimit(),
+                                cachedUsage.usedCount(),
+                                Math.max(0, cachedUsage.dailyLimit() - cachedUsage.usedCount()),
+                                cachedUsage.charged()
+                        );
+                        chargedUsage = usage;
                         completeCached(
                                 task.analysisId(),
                                 cached.orElseThrow().result(),
-                                new HeadlineAnalysisJobService.Usage(
-                                        cachedUsage.dailyLimit(),
-                                        cachedUsage.usedCount(),
-                                        Math.max(0, cachedUsage.dailyLimit() - cachedUsage.usedCount()),
-                                        cachedUsage.charged()
-                                )
+                                usage
                         );
                         return;
                     }
@@ -250,13 +252,12 @@ public class HeadlineAnalysisWorker {
             fail(analysisId, "ANALYSIS_DEADLINE_EXCEEDED", "분석 제한 시간을 초과했습니다.", usage);
             return false;
         }
-        outcomeStore.replaceWithOutcome(
+        return outcomeStore.replaceWithOutcome(
                 analysisId,
                 current.version(),
                 completed,
                 AnalysisJobOutcome.completed(serialize(result), serialize(usage))
         );
-        return true;
     }
 
     /** 외부 처리 없는 Cache 결과 단계 전환과 완료 */

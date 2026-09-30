@@ -45,6 +45,7 @@ describe('auth API', () => {
         username: 'health26',
         password: 'test-Password23!',
         rememberMe: false,
+        cancelWithdrawal: false,
       }),
     })
     expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/csrf', {
@@ -72,6 +73,35 @@ describe('auth API', () => {
         rememberMe: false,
       }),
     ).rejects.toThrow('로그인이 일시 제한되었습니다. 30분 후 이용 가능합니다.')
+  })
+
+  it('탈퇴 유예 로그인에서 복구 마감과 공개 오류 코드를 유지한다', async () => {
+    document.cookie = 'XSRF-TOKEN=test-login-csrf; path=/'
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({
+          ok: false,
+          json: () =>
+            Promise.resolve({
+              code: 'WITHDRAWAL_RECOVERY_REQUIRED',
+              recoveryDeadline: '2026-10-06T00:00:00Z',
+            }),
+        }),
+    )
+
+    await expect(
+      login({
+        username: 'health26',
+        password: 'test-Password23!',
+        rememberMe: false,
+      }),
+    ).rejects.toMatchObject({
+      code: 'WITHDRAWAL_RECOVERY_REQUIRED',
+      recoveryDeadline: '2026-10-06T00:00:00Z',
+    })
   })
 
   it('로그인 완료 후 CSRF 갱신 실패와 무관하게 인증 결과를 반환한다', async () => {

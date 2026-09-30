@@ -133,6 +133,33 @@ class RedisAnalysisResultCacheIT {
                 .isGreaterThanOrEqualTo(BASE_TTL.minusMinutes(30).toMillis() - 1_000L);
     }
 
+    /** 손상된 만료 시각과 JSON의 Cache Miss 처리 */
+    @Test
+    void treatsMalformedCacheValuesAsMissWithoutDeletingTheEntry() {
+        AnalysisCacheKey key = AnalysisCacheKeyFactory.health(
+                "https://news.example/malformed",
+                VERSIONS
+        ).orElseThrow();
+        String redisKey = cache.cacheKey(key);
+        createdKeys.add(redisKey);
+
+        redisTemplate.opsForHash().put(redisKey, "resultJson", "{}");
+        redisTemplate.opsForHash().put(redisKey, "expiresAt", "invalid-instant");
+
+        assertThat(cache.findHealth(key)).isEmpty();
+        assertThat(redisTemplate.hasKey(redisKey)).isTrue();
+
+        redisTemplate.opsForHash().put(redisKey, "resultJson", "not-json");
+        redisTemplate.opsForHash().put(
+                redisKey,
+                "expiresAt",
+                Instant.now().plus(Duration.ofHours(1)).toString()
+        );
+
+        assertThat(cache.findHealth(key)).isEmpty();
+        assertThat(redisTemplate.hasKey(redisKey)).isTrue();
+    }
+
     /** 테스트에서 생성한 Cache·Viewer Key 등록 */
     private void track(AnalysisCacheKey key, String viewerFingerprint) {
         createdKeys.add(cache.cacheKey(key));

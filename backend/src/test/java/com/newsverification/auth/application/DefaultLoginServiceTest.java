@@ -45,7 +45,7 @@ class DefaultLoginServiceTest {
         when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
 
         LoginService.AuthenticatedAccount authenticated = service.authenticate(
-                new LoginService.LoginCommand("health26", "Password!23")
+                new LoginService.LoginCommand("health26", "Password!23", false)
         );
 
         assertThat(authenticated.userId()).isEqualTo(42L);
@@ -64,7 +64,7 @@ class DefaultLoginServiceTest {
         when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
 
         assertThatThrownBy(() -> service.authenticate(
-                new LoginService.LoginCommand("health26", "WrongPassword!23")
+                new LoginService.LoginCommand("health26", "WrongPassword!23", false)
         )).isInstanceOf(LoginException.class)
                 .hasMessage("INVALID_CREDENTIALS");
         assertThat(account.failedLoginCount()).isEqualTo(5);
@@ -80,7 +80,7 @@ class DefaultLoginServiceTest {
         when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
 
         assertThatThrownBy(() -> service.authenticate(
-                new LoginService.LoginCommand("health26", "WrongPassword!23")
+                new LoginService.LoginCommand("health26", "WrongPassword!23", false)
         )).isInstanceOf(LoginException.class)
                 .hasMessage("INVALID_CREDENTIALS");
     }
@@ -95,7 +95,7 @@ class DefaultLoginServiceTest {
         when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
 
         assertThatThrownBy(() -> service.authenticate(
-                new LoginService.LoginCommand("health26", "Password!23")
+                new LoginService.LoginCommand("health26", "Password!23", false)
         )).isInstanceOf(LoginException.class)
                 .hasMessage("LOGIN_LOCKED");
     }
@@ -106,9 +106,55 @@ class DefaultLoginServiceTest {
         when(repository.findByUsernameForLogin("unknown26")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.authenticate(
-                new LoginService.LoginCommand("unknown26", "Password!23")
+                new LoginService.LoginCommand("unknown26", "Password!23", false)
         )).isInstanceOf(LoginException.class)
                 .hasMessage("INVALID_CREDENTIALS");
+    }
+
+    /** 탈퇴 유예 계정의 복구 확인 요구 */
+    @Test
+    void requiresRecoveryConfirmationDuringSevenDayGracePeriod() {
+        UserAccount account = activeAccount();
+        account.requestWithdrawal(NOW.minusSeconds(60), NOW.plusSeconds(37L * 24 * 60 * 60));
+        when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> service.authenticate(
+                new LoginService.LoginCommand("health26", "Password!23", false)
+        )).isInstanceOf(LoginException.class)
+                .hasMessage("WITHDRAWAL_RECOVERY_REQUIRED");
+
+        assertThat(account.withdrawalPending()).isTrue();
+    }
+
+    /** 확인된 탈퇴 취소와 정상 로그인 */
+    @Test
+    void recoversPendingWithdrawalBeforeSevenDayDeadline() {
+        UserAccount account = activeAccount();
+        account.requestWithdrawal(NOW.minusSeconds(60), NOW.plusSeconds(37L * 24 * 60 * 60));
+        when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
+
+        LoginService.AuthenticatedAccount authenticated = service.authenticate(
+                new LoginService.LoginCommand("health26", "Password!23", true)
+        );
+
+        assertThat(authenticated.userId()).isEqualTo(42L);
+        assertThat(account.active()).isTrue();
+        assertThat(account.scheduledDeletionAt()).isNull();
+    }
+
+    /** 탈퇴 완료 후 30일 보관 중 복구 차단 */
+    @Test
+    void rejectsRecoveryAfterSevenDayDeadline() {
+        UserAccount account = activeAccount();
+        account.requestWithdrawal(NOW.minusSeconds(7L * 24 * 60 * 60), NOW.plusSeconds(30L * 24 * 60 * 60));
+        when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> service.authenticate(
+                new LoginService.LoginCommand("health26", "Password!23", true)
+        )).isInstanceOf(LoginException.class)
+                .hasMessage("INVALID_CREDENTIALS");
+
+        assertThat(account.withdrawalPending()).isTrue();
     }
 
     private UserAccount activeAccount() {

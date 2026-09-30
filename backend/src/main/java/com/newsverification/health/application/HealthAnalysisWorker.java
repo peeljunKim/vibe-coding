@@ -188,10 +188,12 @@ public class HealthAnalysisWorker {
                                     viewerFingerprint
                             );
                     if (cacheUsage.isPresent()) {
+                        HealthAnalysisJobService.Usage usage = toUsage(cacheUsage.orElseThrow());
+                        chargedUsage = usage;
                         completeCached(
                                 task.analysisId(),
                                 cached.orElseThrow().result(),
-                                toUsage(cacheUsage.orElseThrow())
+                                usage
                         );
                         return;
                     }
@@ -304,13 +306,12 @@ public class HealthAnalysisWorker {
             fail(analysisId, "ANALYSIS_DEADLINE_EXCEEDED", "분석 제한 시간을 초과했습니다.", usage);
             return false;
         }
-        outcomeStore.replaceWithOutcome(
+        return outcomeStore.replaceWithOutcome(
                 analysisId,
                 current.version(),
                 completed,
                 AnalysisJobOutcome.completed(serialize(result), serialize(usage))
         );
-        return true;
     }
 
     /** 외부 처리 없는 Cache 결과 단계 전환과 완료 */

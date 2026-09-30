@@ -38,11 +38,12 @@
 
 ## 현재 구현 경계
 
-- 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; 소셜 가입은 아직 없음
+- 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, 계정 복구, 회원 탈퇴 7일 복구·완료 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; 소셜 가입은 아직 없음
 - 실제 Gemini와 근거 검색 외부 연동은 아직 없음
 - 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
+- 회원 탈퇴 Native MySQL 수명주기 검증 완료: 7일 복구, 탈퇴 완료 후 30일 보관, 신청 후 37일 삭제와 Foreign Key CASCADE
 - 분석 작업 상태에는 회원·비회원 비식별 소유권 Key를 함께 저장하며 다른 소유자의 Polling 조회는 빈 결과로 처리
 - 건강 분석 HTTP Adapter는 비회원·회원 접수와 Polling을 Redis 작업 상태·결과에 연결하고 Queue 포화·Redis 장애를 `503`으로 처리
 - 건강 분석 Worker는 Redis Streams 최대 대기 20개, 전역 동시 실행 1개, 자동 재시도 없음, 90초 Deadline과 늦은 결과 폐기를 적용

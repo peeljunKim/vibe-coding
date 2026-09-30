@@ -6,11 +6,12 @@ public interface LoginService {
 
     AuthenticatedAccount authenticate(LoginCommand command);
 
-    record LoginCommand(String username, String password) {
+    record LoginCommand(String username, String password, boolean cancelWithdrawal) {
 
         @Override
         public String toString() {
-            return "LoginCommand[username=[REDACTED], password=[REDACTED]]";
+            return "LoginCommand[username=[REDACTED], password=[REDACTED], cancelWithdrawal="
+                    + cancelWithdrawal + "]";
         }
     }
 

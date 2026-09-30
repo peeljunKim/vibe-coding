@@ -30,6 +30,7 @@ import {
   requestRecoveryCode,
   verifyUsernameRecovery,
 } from './api/accountRecovery'
+import { requestAccountWithdrawal } from './api/accountWithdrawal'
 import App from './App'
 import AdminReportsPage from './pages/AdminReportsPage'
 import HealthResultPage from './pages/HealthResultPage'
@@ -48,6 +49,10 @@ vi.mock('./api/accountRecovery', () => ({
   requestRecoveryCode: vi.fn(),
   resetRecoveredPassword: vi.fn(),
   verifyUsernameRecovery: vi.fn(),
+}))
+
+vi.mock('./api/accountWithdrawal', () => ({
+  requestAccountWithdrawal: vi.fn(),
 }))
 
 vi.mock('./api/healthRecords', () => ({
@@ -80,6 +85,7 @@ beforeEach(() => {
   vi.mocked(logout).mockReset()
   vi.mocked(requestRecoveryCode).mockReset()
   vi.mocked(verifyUsernameRecovery).mockReset()
+  vi.mocked(requestAccountWithdrawal).mockReset()
   vi.mocked(listHealthRecords).mockReset()
   vi.mocked(saveHealthRecord).mockReset()
   vi.mocked(createReport).mockReset()
@@ -95,6 +101,10 @@ beforeEach(() => {
   vi.mocked(revokeHeadlineShare).mockReset()
   vi.mocked(getSession).mockResolvedValue({ authenticated: false })
   vi.mocked(logout).mockResolvedValue(undefined)
+  vi.mocked(requestAccountWithdrawal).mockResolvedValue({
+    recoveryDeadline: '2026-10-06T00:00:00Z',
+    scheduledDeletionAt: '2026-11-05T00:00:00Z',
+  })
   vi.mocked(listHealthRecords).mockResolvedValue({
     items: [],
     page: 0,
@@ -639,6 +649,7 @@ describe('App', () => {
       username: 'health26',
       password: 'test-Password23!',
       rememberMe: true,
+      cancelWithdrawal: false,
     })
 
     fireEvent.click(screen.getByRole('button', { name: '로그아웃' }))
@@ -646,6 +657,76 @@ describe('App', () => {
       await screen.findByRole('link', { name: '로그인' }),
     ).toBeInTheDocument()
     expect(logout).toHaveBeenCalledOnce()
+  })
+
+  it('탈퇴 유예 계정 로그인에서 확인 후 계정을 복구한다', async () => {
+    vi.mocked(login)
+      .mockRejectedValueOnce(
+        Object.assign(new Error('탈퇴 취소 여부를 확인해 주세요.'), {
+          code: 'WITHDRAWAL_RECOVERY_REQUIRED',
+          recoveryDeadline: '2026-10-06T00:00:00Z',
+        }),
+      )
+      .mockResolvedValueOnce({
+        authenticated: true,
+        userId: '42',
+        username: 'health26',
+        role: 'USER',
+        expiresInSeconds: 7200,
+      })
+    renderApp('/login')
+
+    fireEvent.change(screen.getByLabelText('아이디'), {
+      target: { value: 'health26' },
+    })
+    fireEvent.change(screen.getByLabelText('비밀번호'), {
+      target: { value: 'test-Password23!' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }))
+
+    expect(
+      await screen.findByRole('heading', { name: '탈퇴를 취소하시겠어요?' }),
+    ).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: '계정 복구 후 로그인' }),
+    )
+
+    expect(
+      await screen.findByRole('button', { name: '로그아웃' }),
+    ).toBeInTheDocument()
+    expect(login).toHaveBeenLastCalledWith({
+      username: 'health26',
+      password: 'test-Password23!',
+      rememberMe: false,
+      cancelWithdrawal: true,
+    })
+  })
+
+  it('계정 설정에서 확인 후 탈퇴 신청 일정을 표시한다', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+    renderApp('/settings/account')
+
+    expect(
+      screen.getByRole('heading', { name: '계정 설정' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '회원 탈퇴 신청' }))
+    expect(
+      screen.getByRole('heading', { name: '회원 탈퇴를 신청할까요?' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '탈퇴 신청 확정' }))
+
+    expect(
+      await screen.findByRole('heading', { name: '탈퇴 신청이 완료되었습니다' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/2026\.\s*10\.\s*06\./)).toBeInTheDocument()
+    expect(screen.getByText(/2026\.\s*11\.\s*05\./)).toBeInTheDocument()
+    expect(requestAccountWithdrawal).toHaveBeenCalledOnce()
   })
 
   it('로그인 화면에서 아이디 찾기와 인증 결과를 표시한다', async () => {

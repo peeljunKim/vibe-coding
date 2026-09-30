@@ -7,6 +7,7 @@ import type { SavedRecordViewData } from '../types/pageData'
 interface SavedRecordsPageProps {
   records?: SavedRecordViewData[]
   onOpenReports?: () => void
+  onOpenAccountSettings?: () => void
   onReanalyze?: (recordId: string) => void
   onDelete?: (recordId: string) => void
   onDeleteAll?: () => void
@@ -40,6 +41,7 @@ const formatDate = (value: string) => {
 function SavedRecordsPage({
   records,
   onOpenReports,
+  onOpenAccountSettings,
   onReanalyze,
   onDelete,
   onDeleteAll,
@@ -96,7 +98,13 @@ function SavedRecordsPage({
               내 신고 내역
             </button>
             <span>연결된 소셜 계정</span>
-            <span>계정 설정</span>
+            <button
+              type="button"
+              onClick={onOpenAccountSettings}
+              disabled={!onOpenAccountSettings}
+            >
+              계정 설정
+            </button>
           </nav>
         </aside>
 

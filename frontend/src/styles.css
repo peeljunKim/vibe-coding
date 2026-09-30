@@ -1431,14 +1431,20 @@ input:focus-visible {
   gap: 14px;
 }
 
-.saved-sidebar nav span {
+.saved-sidebar nav span,
+.saved-sidebar nav button {
   display: flex;
+  width: 100%;
   height: 50px;
   align-items: center;
   padding: 0 20px;
+  border: 0;
   border-radius: 12px;
+  background: transparent;
+  color: inherit;
   font-size: 14px;
   font-weight: 700;
+  text-align: left;
 }
 
 .saved-sidebar__active {
@@ -1604,6 +1610,157 @@ input:focus-visible {
   color: #5e7079;
   font-size: 14px;
   font-weight: 700;
+}
+
+/* 계정 설정과 탈퇴 일정 화면 스타일 */
+.account-settings-content {
+  min-width: 0;
+}
+
+.account-settings-heading {
+  padding: 6px 0 28px;
+}
+
+.account-settings-heading h1,
+.account-settings-heading p {
+  margin: 0;
+}
+
+.account-settings-heading h1 {
+  font-size: 30px;
+}
+
+.account-settings-heading p {
+  margin-top: 8px;
+  color: #5e7079;
+  font-size: 13px;
+}
+
+.account-withdrawal-card,
+.account-settings-complete {
+  border-radius: 18px;
+  background: #fff;
+}
+
+.account-withdrawal-card {
+  padding: 34px;
+}
+
+.account-withdrawal-card h2 {
+  margin: 18px 0 8px;
+  font-size: 26px;
+}
+
+.account-withdrawal-timeline {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.account-withdrawal-timeline div {
+  min-height: 126px;
+  padding: 22px;
+  border-radius: 14px;
+  background: #edf3f6;
+}
+
+.account-withdrawal-timeline strong,
+.account-withdrawal-timeline span {
+  display: block;
+}
+
+.account-withdrawal-timeline strong {
+  color: #17637a;
+  font-size: 15px;
+}
+
+.account-withdrawal-timeline span {
+  margin-top: 12px;
+  color: #42555f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.account-withdrawal-card__notice {
+  margin: 24px 0 0;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #fff0d2;
+  color: #6f490e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.account-withdrawal-card [role='alert'] {
+  margin: 18px 0 0;
+  color: #b33c4a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.account-withdrawal-card__button {
+  min-width: 170px;
+  height: 46px;
+  margin-top: 28px;
+  border: 1px solid #b33c4a;
+  border-radius: 10px;
+  background: #fff;
+  color: #b33c4a;
+  font-weight: 700;
+}
+
+.account-settings-complete {
+  display: flex;
+  min-height: 520px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 52px;
+  text-align: center;
+}
+
+.account-settings-complete > span {
+  display: inline-flex;
+  width: 112px;
+  height: 112px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #dff0e8;
+  color: #287a5a;
+  font-size: 54px;
+}
+
+.account-settings-complete h1 {
+  margin: 26px 0 12px;
+  font-size: 30px;
+}
+
+.account-settings-complete p {
+  margin: 5px 0;
+  color: #5e7079;
+  line-height: 1.5;
+}
+
+.account-settings-complete button {
+  min-width: 240px;
+  height: 48px;
+  margin-top: 30px;
+}
+
+.withdrawal-dialog__deadline {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #edf3f6;
+  color: #17637a !important;
+  font-weight: 700;
+}
+
+.withdrawal-confirm-button {
+  border-color: #b33c4a !important;
+  background: #b33c4a !important;
+  color: #fff !important;
 }
 
 /* 회원가입 화면 스타일 */
@@ -2712,5 +2869,9 @@ textarea:focus-visible {
 
   .my-report-card {
     grid-template-columns: minmax(0, 1fr) minmax(260px, 0.75fr);
+  }
+
+  .account-withdrawal-timeline {
+    gap: 12px;
   }
 }

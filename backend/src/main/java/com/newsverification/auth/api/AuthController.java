@@ -47,7 +47,11 @@ public class AuthController {
             HttpServletRequest servletRequest
     ) {
         LoginService.AuthenticatedAccount account = loginService.authenticate(
-                new LoginService.LoginCommand(request.username(), request.password())
+                new LoginService.LoginCommand(
+                        request.username(),
+                        request.password(),
+                        Boolean.TRUE.equals(request.cancelWithdrawal())
+                )
         );
         HttpSession previousSession = servletRequest.getSession(false);
         if (previousSession != null) {
@@ -145,13 +149,14 @@ public class AuthController {
     public record LoginRequest(
             @NotBlank @Size(max = 20) String username,
             @NotBlank @Size(max = 128) String password,
-            boolean rememberMe
+            boolean rememberMe,
+            Boolean cancelWithdrawal
     ) {
 
         @Override
         public String toString() {
             return "LoginRequest[username=[REDACTED], password=[REDACTED], rememberMe="
-                    + rememberMe + "]";
+                    + rememberMe + ", cancelWithdrawal=" + cancelWithdrawal + "]";
         }
     }
 
