@@ -124,13 +124,12 @@
 ## Next Loop
 
 1. 공용 Cache 기사 변경 감지와 건강 근거 링크 재검증
-2. 도움말 화면과 기존 사용자 흐름 연결
-3. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
-4. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
-5. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
-6. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-7. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-8. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+2. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
+3. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
+4. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
+5. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+6. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+7. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -405,5 +404,15 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend 전체 Maven 회귀: PASS (218개, 실패·오류·Skip 0)
 - Frontend Test·TypeScript·Lint·Build: PASS (15 files, 74 tests)
 - Harness·Secret·Diff 공백 검사: PASS
-- Native MySQL 탈퇴 수명주기 실제 재검증: NOT RUN (7일 복구·신청 후 30일 삭제 경계로 테스트 변경)
+- Native MySQL 탈퇴 수명주기 실제 재검증: PASS (`verify-publisher-native-mysql.ps1`; 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 검증)
 - Desktop Browser 시각·상호작용 검증: PASS (Chrome, 1024·1280·1440px 가로 넘침 없음, 2단계 확인과 일정 표시)
+
+## 도움말 화면과 기존 사용자 흐름
+
+- `/help` 이용 안내 Route와 로그인·건강 분석 결과 화면 진입 링크: PASS
+- URL 복사 → 기능 선택 → 결과 읽기, 기능별 범위·이용 횟수·결과 해석·지원 제한 안내: PASS
+- Semantic Header·Section·Ordered List·Definition List와 Keyboard Focus: PASS
+- Desktop 1024·1280·1440px 가로 넘침과 Browser Console 오류 자동 검증: PASS
+- 실제 Browser 렌더링 시각 검토: PASS
+- Frontend Test·TypeScript·Lint·Build: PASS (16 files, 76 tests)
+- Backend·Native MySQL 변경과 검증: NOT APPLICABLE

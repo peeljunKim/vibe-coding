@@ -22,6 +22,7 @@ import AccountSettingsPage from './pages/AccountSettingsPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import HealthAnalysisPage from './pages/HealthAnalysisPage'
 import HealthResultPage from './pages/HealthResultPage'
+import HelpPage from './pages/HelpPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import MyReportsPage from './pages/MyReportsPage'
@@ -293,6 +294,7 @@ function App() {
           />
         }
       />
+      <Route path="/help" element={<HelpPage />} />
       <Route path="/admin/reports" element={<AdminReportsPage />} />
       <Route
         path="/share/health"

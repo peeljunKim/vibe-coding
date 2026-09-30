@@ -30,7 +30,7 @@
 - 회원가입 이메일 발송: 기본 Profile은 Mock, `smtp`·`prod` Profile은 Gmail SMTP Adapter 사용
 - 미인증 일반 계정: 가입 후 7일 경과 시 일일 정리, 공개 중복 오류는 계정 정보 단일 코드 사용
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
-- 현재 구현: Frontend Desktop 화면과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유와 분리된 3일 공용 Cache
+- 현재 구현: Frontend Desktop 화면·도움말과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유와 분리된 3일 공용 Cache
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
 - 프로젝트 구조·위험: `docs/agent/project-context.md`
 - Backend 구현 표준: `docs/agent/backend-development.md` (채택 기준, 업무 기능 구현 완료 아님)
@@ -43,7 +43,8 @@
 - 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
-- 회원 탈퇴 Native MySQL 수명주기 검증 소스는 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 경계로 변경됨; 실제 Native MySQL 재검증 필요
+- 회원 탈퇴 Native MySQL 수명주기 검증 완료: 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 경계 PASS
+- 도움말 `/help` 화면은 로그인·건강 분석 결과에서 진입하며 기능 선택, 이용 횟수, 결과 해석과 지원 제한을 안내함; Frontend 16개 Test File·76개 Test와 Desktop 1024·1280·1440px Browser E2E PASS
 - 분석 작업 상태에는 회원·비회원 비식별 소유권 Key를 함께 저장하며 다른 소유자의 Polling 조회는 빈 결과로 처리
 - 건강 분석 HTTP Adapter는 비회원·회원 접수와 Polling을 Redis 작업 상태·결과에 연결하고 Queue 포화·Redis 장애를 `503`으로 처리
 - 건강 분석 Worker는 Redis Streams 최대 대기 20개, 전역 동시 실행 1개, 자동 재시도 없음, 90초 Deadline과 늦은 결과 폐기를 적용

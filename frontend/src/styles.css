@@ -2819,6 +2819,175 @@ input:focus-visible {
   color: #5e7079;
 }
 
+/* 기사체크 이용 도움말 화면 스타일 */
+.help-content {
+  width: min(calc(100% - 112px), 1200px);
+  margin: 46px auto 88px;
+}
+
+.help-hero {
+  display: flex;
+  min-height: 210px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 48px;
+  padding: 42px 48px;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.help-eyebrow,
+.help-feature-card > span {
+  display: inline-flex;
+  color: #17637a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.help-hero h1 {
+  margin: 14px 0 12px;
+  font-size: 36px;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+}
+
+.help-hero p {
+  max-width: 700px;
+  margin: 0;
+  color: #5e7079;
+  line-height: 1.65;
+}
+
+.help-hero__action {
+  flex: 0 0 auto;
+  min-width: 190px;
+  padding: 15px 24px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.help-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help-flow li {
+  display: flex;
+  min-width: 0;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 16px;
+  background: #dceff4;
+}
+
+.help-flow li > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: #17637a;
+  color: #fff;
+  font-weight: 700;
+}
+
+.help-flow strong {
+  display: block;
+  margin: 2px 0 7px;
+}
+
+.help-flow p {
+  margin: 0;
+  color: #5e7079;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.help-feature-grid,
+.help-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.help-feature-card,
+.help-detail-grid > article {
+  padding: 34px;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.help-feature-card--health {
+  border-top: 6px solid #237a60;
+}
+
+.help-feature-card--title {
+  border-top: 6px solid #17637a;
+}
+
+.help-feature-card h2,
+.help-detail-grid h2 {
+  margin: 12px 0;
+  font-size: 23px;
+}
+
+.help-feature-card p {
+  min-height: 52px;
+  margin: 0;
+  color: #334f5b;
+  line-height: 1.65;
+}
+
+.help-feature-card ul,
+.help-notice-card ul {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0 0;
+  padding-left: 20px;
+  color: #5e7079;
+  line-height: 1.55;
+}
+
+.help-detail-grid {
+  margin-top: 24px;
+}
+
+.help-detail-grid dl {
+  display: grid;
+  gap: 18px;
+  margin: 24px 0 0;
+}
+
+.help-detail-grid dl > div {
+  padding-top: 18px;
+  border-top: 1px solid #d7e1e6;
+}
+
+.help-detail-grid dt {
+  color: #17637a;
+  font-weight: 700;
+}
+
+.help-detail-grid dd {
+  margin: 7px 0 0;
+  color: #5e7079;
+  line-height: 1.6;
+}
+
+.help-detail-grid > .help-notice-card {
+  background: #fff1d4;
+}
+
+.help-page a:focus-visible {
+  outline: 3px solid rgb(23 99 122 / 30%);
+  outline-offset: 3px;
+}
+
 select:focus-visible,
 textarea:focus-visible {
   outline: 3px solid rgb(23 99 122 / 30%);
@@ -2830,8 +2999,19 @@ textarea:focus-visible {
   .saved-layout,
   .admin-content,
   .my-reports-content,
-  .shared-result-content {
+  .shared-result-content,
+  .help-content {
     width: calc(100% - 64px);
+  }
+
+  .help-hero {
+    padding: 36px;
+  }
+
+  .help-flow li,
+  .help-feature-card,
+  .help-detail-grid > article {
+    padding: 24px;
   }
 
   .signup-content,

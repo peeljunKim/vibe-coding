@@ -1,5 +1,6 @@
 // 사용자 로그인 화면
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { login, type LoginResponse } from '../api/auth'
 import AppHeader from '../components/AppHeader'
 import googleLoginImage from '../assets/oauth/google-login.png'
@@ -87,9 +88,9 @@ function LoginPage({
   return (
     <div className="app-page login-page">
       <AppHeader section="로그인" onHome={onHome}>
-        <button className="site-header__help text-action" type="button">
+        <Link className="site-header__help text-action" to="/help">
           도움말
-        </button>
+        </Link>
       </AppHeader>
 
       <main className="login-content">
