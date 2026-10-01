@@ -54,6 +54,11 @@ public class HealthAnalysisUseCase {
         return screeningService.screen(article);
     }
 
+    /** 이용량 검사 없는 Cache 유지보수 분야 판별 */
+    public HealthArticleScreeningResult screenForMaintenance(ExtractedArticle article) {
+        return screeningService.screen(article);
+    }
+
     /** Cache 기사 변경 확인용 안전 기사 수집 */
     public ExtractedArticle read(String rawUrl) {
         return screeningService.read(rawUrl);

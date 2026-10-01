@@ -146,6 +146,36 @@ class RedisAnalysisResultCacheIT {
                 .isGreaterThanOrEqualTo(BASE_TTL.minusMinutes(30).toMillis() - 1_000L);
     }
 
+    /** 깨진 근거 건강 결과의 명시적 제거 */
+    @Test
+    void evictsHealthResultWithoutRemovingOtherFeatureCache() {
+        String articleUrl = "https://news.example/evict";
+        AnalysisCacheKey healthKey = AnalysisCacheKeyFactory.health(articleUrl, VERSIONS)
+                .orElseThrow();
+        AnalysisCacheKey headlineKey = AnalysisCacheKeyFactory.headline(articleUrl, VERSIONS)
+                .orElseThrow();
+        String viewerFingerprint = "c".repeat(64);
+        cache.saveHealth(
+                healthKey,
+                healthResult(articleUrl),
+                articleFingerprint(articleUrl),
+                viewerFingerprint
+        );
+        cache.saveHeadline(
+                headlineKey,
+                headlineResult(articleUrl),
+                articleFingerprint(articleUrl),
+                viewerFingerprint
+        );
+        track(healthKey, viewerFingerprint);
+        track(headlineKey, viewerFingerprint);
+
+        cache.evictHealth(healthKey);
+
+        assertThat(cache.findHealth(healthKey)).isEmpty();
+        assertThat(cache.findHeadline(headlineKey)).isPresent();
+    }
+
     /** 손상되거나 필수 값이 없는 Cache의 Miss 처리 */
     @Test
     void treatsMalformedCacheValuesAsMissWithoutDeletingTheEntry() {

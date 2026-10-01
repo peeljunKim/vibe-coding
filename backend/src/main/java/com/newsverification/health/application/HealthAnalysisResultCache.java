@@ -21,6 +21,11 @@ public interface HealthAnalysisResultCache {
             String viewerFingerprint
     );
 
+    /** 깨진 근거를 포함한 건강 결과 제거 */
+    default void evictHealth(AnalysisCacheKey key) {
+        // Cache 미사용 구현 호환
+    }
+
     /** Cache 미사용 단위 테스트 기본값 */
     static HealthAnalysisResultCache disabled() {
         return new HealthAnalysisResultCache() {

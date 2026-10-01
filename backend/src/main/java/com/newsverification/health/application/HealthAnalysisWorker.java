@@ -44,6 +44,7 @@ public class HealthAnalysisWorker {
     private final HealthTopicFailureUsagePolicy usagePolicy;
     private final HealthAnalysisResultCache resultCache;
     private final AnalysisCacheVersions cacheVersions;
+    private final HealthEvidenceLinkValidationService evidenceLinkValidationService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final String leaseOwnerId;
@@ -59,6 +60,7 @@ public class HealthAnalysisWorker {
             HealthTopicFailureUsagePolicy usagePolicy,
             HealthAnalysisResultCache resultCache,
             AnalysisCacheVersions cacheVersions,
+            HealthEvidenceLinkValidationService evidenceLinkValidationService,
             ObjectMapper objectMapper,
             Clock clock
     ) {
@@ -71,6 +73,7 @@ public class HealthAnalysisWorker {
                 usagePolicy,
                 resultCache,
                 cacheVersions,
+                evidenceLinkValidationService,
                 objectMapper,
                 clock,
                 UUID.randomUUID().toString()
@@ -98,6 +101,7 @@ public class HealthAnalysisWorker {
                 usagePolicy,
                 HealthAnalysisResultCache.disabled(),
                 AnalysisCacheVersions.mockDefaults(),
+                HealthEvidenceLinkValidationService.trustAll(),
                 objectMapper,
                 clock,
                 leaseOwnerId
@@ -118,6 +122,37 @@ public class HealthAnalysisWorker {
             Clock clock,
             String leaseOwnerId
     ) {
+        this(
+                queue,
+                lifecycleService,
+                jobStore,
+                outcomeStore,
+                useCase,
+                usagePolicy,
+                resultCache,
+                cacheVersions,
+                HealthEvidenceLinkValidationService.trustAll(),
+                objectMapper,
+                clock,
+                leaseOwnerId
+        );
+    }
+
+    /** Cache와 근거 링크 검증을 포함한 테스트 제어용 구성 */
+    HealthAnalysisWorker(
+            HealthAnalysisQueue queue,
+            AnalysisJobLifecycleService lifecycleService,
+            AnalysisJobStore jobStore,
+            AnalysisJobOutcomeStore outcomeStore,
+            HealthAnalysisUseCase useCase,
+            HealthTopicFailureUsagePolicy usagePolicy,
+            HealthAnalysisResultCache resultCache,
+            AnalysisCacheVersions cacheVersions,
+            HealthEvidenceLinkValidationService evidenceLinkValidationService,
+            ObjectMapper objectMapper,
+            Clock clock,
+            String leaseOwnerId
+    ) {
         this.queue = queue;
         this.lifecycleService = lifecycleService;
         this.jobStore = jobStore;
@@ -126,6 +161,7 @@ public class HealthAnalysisWorker {
         this.usagePolicy = usagePolicy;
         this.resultCache = resultCache;
         this.cacheVersions = cacheVersions;
+        this.evidenceLinkValidationService = evidenceLinkValidationService;
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.leaseOwnerId = leaseOwnerId;
@@ -170,9 +206,13 @@ public class HealthAnalysisWorker {
         }
 
         HealthAnalysisJobService.Usage chargedUsage = null;
+        HealthAnalysisJobService.Usage maintenanceUsage = null;
+        HealthAnalysisResult limitedFallback = null;
+        ExtractedArticle currentArticle = null;
+        Optional<AnalysisCacheKey> cacheKey = Optional.empty();
+        boolean automaticEvidenceRefresh = false;
         try {
-            ExtractedArticle currentArticle = null;
-            Optional<AnalysisCacheKey> cacheKey = AnalysisCacheKeyFactory.health(
+            cacheKey = AnalysisCacheKeyFactory.health(
                     task.articleUrl(),
                     cacheVersions
             );
@@ -195,25 +235,34 @@ public class HealthAnalysisWorker {
                         return;
                     }
                     if (!articleChanged) {
-                        String viewerFingerprint = AnalysisCacheViewer.fingerprint(
-                                task.userType().name(),
-                                task.usageIdentifierKeys()
-                        );
-                        Optional<HealthTopicFailureUsageResult> cacheUsage = usagePolicy
-                                .recordCacheAccess(
-                                        task.usageSubject(),
-                                        cacheKey.orElseThrow(),
-                                        viewerFingerprint
-                                );
-                        if (cacheUsage.isPresent()) {
-                            HealthAnalysisJobService.Usage usage = toUsage(cacheUsage.orElseThrow());
-                            chargedUsage = usage;
-                            completeCached(
-                                    task.analysisId(),
-                                    cachedResult.result(),
-                                    usage
+                        HealthEvidenceLinkValidation validation = evidenceLinkValidationService
+                                .validate(cachedResult.result());
+                        if (validation.status() == HealthEvidenceLinkValidation.Status.MISSING) {
+                            automaticEvidenceRefresh = true;
+                            limitedFallback = validation.limitedResult().orElseThrow();
+                            maintenanceUsage = toUsage(usagePolicy.currentUsage(task.usageSubject()));
+                            resultCache.evictHealth(cacheKey.orElseThrow());
+                        } else {
+                            String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                                    task.userType().name(),
+                                    task.usageIdentifierKeys()
                             );
-                            return;
+                            Optional<HealthTopicFailureUsageResult> cacheUsage = usagePolicy
+                                    .recordCacheAccess(
+                                            task.usageSubject(),
+                                            cacheKey.orElseThrow(),
+                                            viewerFingerprint
+                                    );
+                            if (cacheUsage.isPresent()) {
+                                HealthAnalysisJobService.Usage usage = toUsage(cacheUsage.orElseThrow());
+                                chargedUsage = usage;
+                                completeCached(
+                                        task.analysisId(),
+                                        cachedResult.result(),
+                                        usage
+                                );
+                                return;
+                            }
                         }
                     }
                 }
@@ -223,10 +272,20 @@ public class HealthAnalysisWorker {
                     task.analysisId(),
                     AnalysisJobStage.CHECKING_ARTICLE
             );
-            HealthArticleScreeningResult screening = currentArticle == null
-                    ? useCase.screen(task.articleUrl(), task.usageSubject())
-                    : useCase.screen(currentArticle, task.usageSubject());
+            HealthArticleScreeningResult screening = automaticEvidenceRefresh
+                    ? useCase.screenForMaintenance(currentArticle)
+                    : currentArticle == null
+                            ? useCase.screen(task.articleUrl(), task.usageSubject())
+                            : useCase.screen(currentArticle, task.usageSubject());
             if (screening.decision() != HealthArticleTopicDecision.HEALTH_RELATED) {
+                if (automaticEvidenceRefresh && completeLimitedFallback(
+                        task.analysisId(),
+                        limitedFallback,
+                        maintenanceUsage
+                )) {
+                    cacheResult(cacheKey, task, limitedFallback, currentArticle);
+                    return;
+                }
                 HealthAnalysisRoutingResult stopped = useCase.continueAfterScreening(
                         screening,
                         task.usageSubject(),
@@ -254,10 +313,9 @@ public class HealthAnalysisWorker {
                 );
                 return;
             }
-            HealthTopicFailureUsageResult chargedUsageResult = usagePolicy.recordAnalysisStart(
-                    task.usageSubject()
-            );
-            HealthAnalysisJobService.Usage usage = toUsage(chargedUsageResult);
+            HealthAnalysisJobService.Usage usage = automaticEvidenceRefresh
+                    ? maintenanceUsage
+                    : toUsage(usagePolicy.recordAnalysisStart(task.usageSubject()));
             chargedUsage = usage;
             HealthAnalysisRoutingResult routing = useCase.continueAfterScreening(
                     screening,
@@ -283,6 +341,14 @@ public class HealthAnalysisWorker {
                 cacheResult(cacheKey, task, result, screening.article());
             }
         } catch (ArticleProcessingException exception) {
+            if (automaticEvidenceRefresh && completeLimitedFallback(
+                    task.analysisId(),
+                    limitedFallback,
+                    maintenanceUsage
+            )) {
+                cacheResult(cacheKey, task, limitedFallback, currentArticle);
+                return;
+            }
             fail(
                     task.analysisId(),
                     exception.error().name(),
@@ -302,6 +368,18 @@ public class HealthAnalysisWorker {
                     )
             );
         } catch (RuntimeException exception) {
+            if (automaticEvidenceRefresh && completeLimitedFallback(
+                    task.analysisId(),
+                    limitedFallback,
+                    maintenanceUsage
+            )) {
+                LOGGER.warn(
+                        "Automatic evidence refresh failed: {}",
+                        exception.getClass().getSimpleName()
+                );
+                cacheResult(cacheKey, task, limitedFallback, currentArticle);
+                return;
+            }
             LOGGER.error("Health analysis failed. analysisId={}", task.analysisId(), exception);
             fail(
                     task.analysisId(),
@@ -342,6 +420,30 @@ public class HealthAnalysisWorker {
         lifecycleService.advance(analysisId, AnalysisJobStage.SEARCHING_EVIDENCE);
         lifecycleService.advance(analysisId, AnalysisJobStage.GENERATING_RESULT);
         complete(analysisId, result, usage);
+    }
+
+    /** 현재 단계에서 제한 결과 완료 단계까지 전환 */
+    private boolean completeLimitedFallback(
+            String analysisId,
+            HealthAnalysisResult limitedResult,
+            HealthAnalysisJobService.Usage usage
+    ) {
+        if (limitedResult == null || usage == null) {
+            return false;
+        }
+        try {
+            AnalysisJob current = jobStore.findById(analysisId).orElseThrow();
+            if (current.stage() == AnalysisJobStage.QUEUED) {
+                current = lifecycleService.advance(analysisId, AnalysisJobStage.CHECKING_ARTICLE);
+            }
+            if (current.stage() == AnalysisJobStage.CHECKING_ARTICLE
+                    || current.stage() == AnalysisJobStage.SEARCHING_EVIDENCE) {
+                lifecycleService.advance(analysisId, AnalysisJobStage.GENERATING_RESULT);
+            }
+            return complete(analysisId, limitedResult, usage);
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     /** 현재 Version 일치 결과의 Cache 저장 */

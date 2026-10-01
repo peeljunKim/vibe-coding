@@ -5,6 +5,8 @@ import com.newsverification.analysis.application.AnalysisJobLifecycleService;
 import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.article.application.PublisherArticleReader;
 import com.newsverification.health.application.HealthAnalysisJobIdentityService;
+import com.newsverification.health.application.HealthEvidenceLinkChecker;
+import com.newsverification.health.application.HealthEvidenceLinkValidationService;
 import com.newsverification.health.application.HealthAnalysisPort;
 import com.newsverification.health.application.HealthAnalysisUseCase;
 import com.newsverification.health.application.HealthArticleScreeningService;
@@ -12,6 +14,7 @@ import com.newsverification.health.application.HealthArticleTopicClassifier;
 import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
 import com.newsverification.health.infrastructure.MockHealthAnalysisPort;
 import com.newsverification.health.infrastructure.MockHealthArticleTopicClassifier;
+import com.newsverification.health.infrastructure.MockHealthEvidenceLinkChecker;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -80,6 +83,25 @@ public class HealthAnalysisConfig {
     )
     HealthAnalysisPort healthAnalysisPort(Clock clock) {
         return new MockHealthAnalysisPort(clock);
+    }
+
+    /** Local 근거 링크 상태 Mock */
+    @Bean
+    @ConditionalOnProperty(
+            prefix = "app.analysis",
+            name = "provider",
+            havingValue = "mock"
+    )
+    HealthEvidenceLinkChecker healthEvidenceLinkChecker() {
+        return new MockHealthEvidenceLinkChecker();
+    }
+
+    /** Cache 근거 링크 재확인 흐름 */
+    @Bean
+    HealthEvidenceLinkValidationService healthEvidenceLinkValidationService(
+            HealthEvidenceLinkChecker checker
+    ) {
+        return new HealthEvidenceLinkValidationService(checker);
     }
 
     /** 안전 수집 이후 기사 분야 판별 */

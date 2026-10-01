@@ -123,13 +123,12 @@
 
 ## Next Loop
 
-1. 건강 근거 링크 재검증
-2. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
-3. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
-4. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
-5. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-6. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-7. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. 실제 PubMed 근거 검색 Adapter와 안전한 근거 링크 HTTP 상태 확인 Adapter 구현
+2. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
+3. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
+4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+5. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+6. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -401,7 +400,14 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 재분석 관련 단위·MVC 검증: PASS (56개, 실패·오류·Skip 0)
 - 건강·제목 Chrome 재분석 E2E: PASS (2개, Console·Runtime 오류 없음; 건강 흐름 1024px Viewport 포함)
 - Chrome 전체 Browser 회귀: PASS (20개, 회원가입 E2E의 비로그인 Session Mock 경계 보완 포함)
-- 건강 근거 링크 재검증: NOT APPLICABLE (후속 범위)
+- 건강 근거 링크 검증 Port·외부 호출 없는 Mock: PASS
+- 중복 URL 제거와 일시 오류 1회 재확인, 반복 일시 오류의 기존 Cache 보존: PASS
+- 실제 소멸 근거 Cache 제거와 이용량 미차감 자동 재분석: PASS
+- 자동 재분석 동시 실행 방지: PASS (기존 Redis 전역 단일 Worker Lease 재사용)
+- 자동 재분석 실패 시 깨진 근거 의존 주장 제거, 확인률·종합 상태 재계산과 제한 결과 Cache 저장: PASS
+- Docker Redis 8.8 Cache 제거·기존 Queue·이용량 통합 회귀: PASS (45개, 실패·오류·Skip 0)
+- Backend 전체 Maven·Harness 회귀: PASS (238개, 실패·오류·Skip 0)
+- 실제 외부 근거 링크 HTTP 호출: NOT APPLICABLE (교체 가능한 Port와 Mock만 구현)
 
 ## 회원 탈퇴와 보관 수명주기
 
@@ -415,7 +421,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend 전체 Maven 회귀: PASS (218개, 실패·오류·Skip 0)
 - Frontend Test·TypeScript·Lint·Build: PASS (15 files, 74 tests)
 - Harness·Secret·Diff 공백 검사: PASS
-- Native MySQL 탈퇴 수명주기 실제 재검증: PASS (`verify-publisher-native-mysql.ps1`; 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 검증)
+- Native MySQL 탈퇴 수명주기 실제 재검증: PASS (`verify-publisher-native-mysql.ps1`; 세션 만료 선행 변경 후에도 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 검증)
 - Desktop Browser 시각·상호작용 검증: PASS (Chrome, 1024·1280·1440px 가로 넘침 없음, 2단계 확인과 일정 표시)
 
 ## 도움말 화면과 기존 사용자 흐름

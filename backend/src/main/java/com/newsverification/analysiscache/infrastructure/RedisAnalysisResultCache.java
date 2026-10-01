@@ -106,6 +106,15 @@ public class RedisAnalysisResultCache
         return save(key, AnalysisCacheFeature.HEALTH, result, articleFingerprint, viewerFingerprint);
     }
 
+    /** 깨진 근거를 포함한 건강 결과 Hash 제거 */
+    @Override
+    public void evictHealth(AnalysisCacheKey key) {
+        Objects.requireNonNull(key);
+        if (key.feature() == AnalysisCacheFeature.HEALTH) {
+            redisTemplate.delete(cacheKey(key));
+        }
+    }
+
     /** TTL 연장 없는 제목 결과 조회 */
     @Override
     public Optional<CachedAnalysisResult<HeadlineAnalysisResult>> findHeadline(AnalysisCacheKey key) {

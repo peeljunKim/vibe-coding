@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -162,7 +163,7 @@ class HealthAnalysisWorkerTest {
         );
     }
 
-    /** Cache Hit의 변경 확인 외 분야 판별·근거 분석 미호출 */
+    /** 일시 근거 오류 재확인 뒤 Cache Hit의 분석 Port 미호출 */
     @Test
     void completesFromCacheAfterMatchingArticleRevision() {
         var store = new InMemoryJobStore();
@@ -180,7 +181,12 @@ class HealthAnalysisWorkerTest {
                 task.usageIdentifierKeys()
         );
         ExtractedArticle currentArticle = article();
-        HealthAnalysisResult cachedResult = result(currentArticle);
+        URI temporaryUrl = URI.create("https://evidence.example/temporary");
+        HealthAnalysisResult cachedResult = resultWithEvidence(
+                currentArticle,
+                temporaryUrl,
+                HealthAnalysisResult.ClaimStatus.SUPPORTED
+        );
         when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
                 cachedResult,
                 NOW.plus(Duration.ofDays(3)),
@@ -190,6 +196,11 @@ class HealthAnalysisWorkerTest {
         when(usagePolicy.recordCacheAccess(
                 task.usageSubject(), cacheKey, viewerFingerprint
         )).thenReturn(Optional.of(new HealthTopicFailureUsageResult(false, 1, 5)));
+        AtomicInteger evidenceChecks = new AtomicInteger();
+        var validator = new HealthEvidenceLinkValidationService(sourceUrl -> {
+            evidenceChecks.incrementAndGet();
+            return HealthEvidenceLinkChecker.Status.TEMPORARY_FAILURE;
+        });
         Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
         HealthAnalysisWorker worker = new HealthAnalysisWorker(
                 new SingleTaskQueue(task, true),
@@ -200,6 +211,7 @@ class HealthAnalysisWorkerTest {
                 usagePolicy,
                 cache,
                 versions,
+                validator,
                 new ObjectMapper(),
                 clock,
                 "test-worker"
@@ -219,6 +231,173 @@ class HealthAnalysisWorkerTest {
                 org.mockito.ArgumentMatchers.any()
         );
         verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
+        verify(cache, never()).evictHealth(cacheKey);
+        assertThat(evidenceChecks).hasValue(2);
+    }
+
+    /** 사라진 근거의 무차감 자동 재분석과 Cache 교체 */
+    @Test
+    void reanalyzesWithoutChargeWhenCachedEvidenceIsMissing() {
+        var store = new InMemoryJobStore();
+        AnalysisJob accepted = lifecycle(store, NOW).accept("analysis-evidence-refresh", OWNER);
+        HealthAnalysisTask task = task(accepted.id());
+        HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthAnalysisResultCache cache = mock(HealthAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.health(task.articleUrl(), versions)
+                .orElseThrow();
+        ExtractedArticle currentArticle = article();
+        URI missingUrl = URI.create("https://evidence.example/missing");
+        HealthAnalysisResult cachedResult = resultWithEvidence(
+                currentArticle,
+                missingUrl,
+                HealthAnalysisResult.ClaimStatus.SUPPORTED
+        );
+        HealthAnalysisResult refreshedResult = resultWithEvidence(
+                currentArticle,
+                URI.create("https://evidence.example/refreshed"),
+                HealthAnalysisResult.ClaimStatus.SUPPORTED
+        );
+        HealthArticleScreeningResult screening = new HealthArticleScreeningResult(
+                currentArticle,
+                HealthArticleTopicDecision.HEALTH_RELATED
+        );
+        when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                cachedResult,
+                NOW.plus(Duration.ofDays(3)),
+                ArticleRevisionFingerprint.from(currentArticle)
+        )));
+        when(useCase.read(task.articleUrl())).thenReturn(currentArticle);
+        when(useCase.screenForMaintenance(currentArticle)).thenReturn(screening);
+        when(usagePolicy.currentUsage(task.usageSubject()))
+                .thenReturn(new HealthTopicFailureUsageResult(false, 1, 5));
+        when(useCase.continueAfterScreening(screening, task.usageSubject(), accepted.deadlineAt()))
+                .thenReturn(new HealthAnalysisRoutingResult(
+                        HealthAnalysisRoutingStatus.ANALYSIS_STARTED,
+                        Optional.empty(),
+                        Optional.of(refreshedResult)
+                ));
+        var validator = new HealthEvidenceLinkValidationService(
+                sourceUrl -> sourceUrl.equals(missingUrl)
+                        ? HealthEvidenceLinkChecker.Status.MISSING
+                        : HealthEvidenceLinkChecker.Status.AVAILABLE
+        );
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        HealthAnalysisWorker worker = new HealthAnalysisWorker(
+                new SingleTaskQueue(task, true),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                validator,
+                new ObjectMapper(),
+                clock,
+                "test-worker"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        assertThat(store.findById(accepted.id()).orElseThrow().status())
+                .isEqualTo(AnalysisJobStatus.COMPLETED);
+        verify(cache).evictHealth(cacheKey);
+        verify(usagePolicy).currentUsage(task.usageSubject());
+        verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
+        verify(cache).saveHealth(
+                cacheKey,
+                refreshedResult,
+                ArticleRevisionFingerprint.from(currentArticle),
+                AnalysisCacheViewer.fingerprint(
+                        task.userType().name(),
+                        task.usageIdentifierKeys()
+                )
+        );
+    }
+
+    /** 자동 재분석 실패 시 정상 근거만 포함한 제한 결과 완료 */
+    @Test
+    void completesLimitedResultWhenAutomaticEvidenceRefreshFails() throws Exception {
+        var store = new InMemoryJobStore();
+        AnalysisJob accepted = lifecycle(store, NOW).accept("analysis-evidence-fallback", OWNER);
+        HealthAnalysisTask task = task(accepted.id());
+        HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthAnalysisResultCache cache = mock(HealthAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.health(task.articleUrl(), versions)
+                .orElseThrow();
+        ExtractedArticle currentArticle = article();
+        URI availableUrl = URI.create("https://evidence.example/available");
+        URI missingUrl = URI.create("https://evidence.example/missing");
+        HealthAnalysisResult cachedResult = resultWithTwoEvidenceClaims(
+                currentArticle,
+                availableUrl,
+                missingUrl
+        );
+        HealthArticleScreeningResult screening = new HealthArticleScreeningResult(
+                currentArticle,
+                HealthArticleTopicDecision.HEALTH_RELATED
+        );
+        when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                cachedResult,
+                NOW.plus(Duration.ofDays(3)),
+                ArticleRevisionFingerprint.from(currentArticle)
+        )));
+        when(useCase.read(task.articleUrl())).thenReturn(currentArticle);
+        when(useCase.screenForMaintenance(currentArticle)).thenReturn(screening);
+        when(usagePolicy.currentUsage(task.usageSubject()))
+                .thenReturn(new HealthTopicFailureUsageResult(false, 2, 5));
+        when(useCase.continueAfterScreening(screening, task.usageSubject(), accepted.deadlineAt()))
+                .thenThrow(new IllegalStateException("mock analysis failure"));
+        var validator = new HealthEvidenceLinkValidationService(
+                sourceUrl -> sourceUrl.equals(missingUrl)
+                        ? HealthEvidenceLinkChecker.Status.MISSING
+                        : HealthEvidenceLinkChecker.Status.AVAILABLE
+        );
+        HealthAnalysisResult expectedLimited = validator.validate(cachedResult)
+                .limitedResult()
+                .orElseThrow();
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        HealthAnalysisWorker worker = new HealthAnalysisWorker(
+                new SingleTaskQueue(task, true),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                validator,
+                new ObjectMapper(),
+                clock,
+                "test-worker"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        AnalysisJobOutcome outcome = store.findOutcome(accepted.id()).orElseThrow();
+        HealthAnalysisResult limited = new ObjectMapper().readValue(
+                outcome.resultJson(),
+                HealthAnalysisResult.class
+        );
+        assertThat(outcome.type()).isEqualTo(AnalysisJobOutcome.Type.RESULT);
+        assertThat(limited.limitedEvidence()).isTrue();
+        assertThat(limited.claims()).extracting(HealthAnalysisResult.Claim::order)
+                .containsExactly(1);
+        assertThat(limited.confirmationRate()).isEqualByComparingTo("100.00");
+        verify(usagePolicy, never()).recordAnalysisStart(task.usageSubject());
+        verify(cache).saveHealth(
+                cacheKey,
+                expectedLimited,
+                ArticleRevisionFingerprint.from(currentArticle),
+                AnalysisCacheViewer.fingerprint(
+                        task.userType().name(),
+                        task.usageIdentifierKeys()
+                )
+        );
     }
 
     /** 변경된 기사의 Cache 결과와 이용량 사용 차단 */
@@ -648,6 +827,80 @@ class HealthAnalysisWorkerTest {
                 "health-analysis-policy-v1",
                 "evidence-allowlist-v1",
                 false
+        );
+    }
+
+    /** 단일 근거 포함 분석 결과 Fixture */
+    private HealthAnalysisResult resultWithEvidence(
+            ExtractedArticle article,
+            URI sourceUrl,
+            HealthAnalysisResult.ClaimStatus status
+    ) {
+        return resultWithClaims(article, List.of(evidenceClaim(1, sourceUrl, status)));
+    }
+
+    /** 정상·깨진 근거 포함 분석 결과 Fixture */
+    private HealthAnalysisResult resultWithTwoEvidenceClaims(
+            ExtractedArticle article,
+            URI availableUrl,
+            URI missingUrl
+    ) {
+        return resultWithClaims(article, List.of(
+                evidenceClaim(1, availableUrl, HealthAnalysisResult.ClaimStatus.SUPPORTED),
+                evidenceClaim(2, missingUrl, HealthAnalysisResult.ClaimStatus.CONTRADICTED)
+        ));
+    }
+
+    /** 주장 목록 기반 분석 결과 Fixture */
+    private HealthAnalysisResult resultWithClaims(
+            ExtractedArticle article,
+            List<HealthAnalysisResult.Claim> claims
+    ) {
+        return new HealthAnalysisResult(
+                new HealthAnalysisResult.ArticleSummary(
+                        article.sourceUrl(),
+                        article.title(),
+                        article.sourceUrl().getHost(),
+                        article.publishedAt(),
+                        null
+                ),
+                NOW,
+                HealthAnalysisResult.OverallStatus.CAUTION,
+                BigDecimal.valueOf(50).setScale(2),
+                1,
+                claims.size(),
+                claims,
+                HealthAnalysisResult.ExpertReviewStatus.NOT_REVIEWED,
+                "mock-health-analysis-v1",
+                "health-analysis-policy-v1",
+                "evidence-allowlist-v1",
+                false
+        );
+    }
+
+    /** 단일 근거 주장 Fixture */
+    private HealthAnalysisResult.Claim evidenceClaim(
+            int order,
+            URI sourceUrl,
+            HealthAnalysisResult.ClaimStatus status
+    ) {
+        return new HealthAnalysisResult.Claim(
+                order,
+                "근거 포함 주장 " + order,
+                status,
+                "판정 이유",
+                List.of(new HealthAnalysisResult.Evidence(
+                        HealthAnalysisResult.EvidenceSourceKind.OFFICIAL,
+                        "source-" + order,
+                        HealthAnalysisResult.EvidenceStudyType.GUIDELINE,
+                        HealthAnalysisResult.EvidenceRelationType.SUPPORTS,
+                        "근거 자료",
+                        "공식 기관",
+                        java.time.LocalDate.parse("2026-09-30"),
+                        sourceUrl,
+                        "근거 요약",
+                        null
+                ))
         );
     }
 
