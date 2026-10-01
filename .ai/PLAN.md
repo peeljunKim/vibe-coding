@@ -391,7 +391,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 회원은 Cache 수명 동안 동일 식별, 비회원은 한국시간 날짜별 식별 경계 적용: PASS
 - Cache Miss의 기존 분석 흐름과 현재 Version 결과 저장: PASS
 - Docker Redis 8.8 통합 검증: PASS (44개, 실패·오류·Skip 0)
-- Backend 전체 Maven 회귀: PASS (232개, 실패·오류·Skip 0; Redis IT 별도 실행)
+- Backend 전체 Maven 회귀: PASS (233개, 실패·오류·Skip 0; Redis IT 별도 실행)
 - 실제 Gemini·PubMed·외부 검색 호출: NOT APPLICABLE (기존 Mock Adapter 사용)
 - Frontend 재분석 확인·취소와 API 전달: PASS (17개 Test File·80개 Test, TypeScript, Lint, Build)
 - 기사 변경 감지: PASS (제목 Hash·게시/수정 시각·순서형 문단 Hash, 기사 원문 Cache 미저장)
@@ -406,6 +406,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 ## 회원 탈퇴와 보관 수명주기
 
 - ACTIVE 회원 탈퇴 신청·Session 전체 만료·`WITHDRAWAL_PENDING` 전환: PASS
+- Session 만료 실패 시 탈퇴 상태 Commit 차단과 Transaction Rollback: PASS
 - 신청 후 7일 이내 로그인 시 명시적 탈퇴 취소와 ACTIVE 복구: PASS
 - 7일 경과 후 복구 차단과 공통 로그인 실패 응답: PASS
 - 탈퇴 신청 뒤 총 30일 보관, 최초 7일 복구 허용과 이후 복구 차단: PASS

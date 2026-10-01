@@ -59,7 +59,7 @@
 - Redis Cache에는 구조화 결과·만료 시각·비원문 기사 Fingerprint만 저장하고 기본 3일에서 Key 기반 최대 30분 감산 지터를 적용하며 조회로 TTL을 연장하지 않음
 - Cache Hit은 안전한 기사 수집 1회로 제목·게시/수정 시각·순서형 문단 Hash를 비교하며 분야 판별·검색·AI Port는 호출하지 않음; 변경 기사에는 이용량 차감 전 `ARTICLE_CHANGED`를 반환함
 - 원 분석 회원의 재조회는 Cache 수명 동안, 비회원은 날짜별 식별 경계 안에서 미차감하고 다른 사용자의 변경 없는 결과 최초 열람만 원자적으로 차감함
-- 기사 변경 시 건강·제목 화면에서 명시적 재분석 확인·취소를 제공하고, 동의 요청만 Queue 표시를 거쳐 기존 분석·이용량 흐름과 Cache 교체를 실행함; Backend 전체 232개 Test, Docker Redis 통합 44개 Test, Frontend 17개 Test File·80개 Test와 Chrome 전체 E2E 20개 PASS
+- 기사 변경 시 건강·제목 화면에서 명시적 재분석 확인·취소를 제공하고, 동의 요청만 Queue 표시를 거쳐 기존 분석·이용량 흐름과 Cache 교체를 실행함; Backend 전체 233개 Test, Docker Redis 통합 44개 Test, Frontend 17개 Test File·80개 Test와 Chrome 전체 E2E 20개 PASS
 - 건강 근거 링크 재검증은 아직 미구현
 
 ## Deferred

@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
@@ -19,8 +18,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,7 +44,7 @@ class AccountWithdrawalServiceTest {
 
     /** ACTIVE 계정의 7일 복구와 신청 후 30일 삭제 예약 */
     @Test
-    void requestsWithdrawalAndInvalidatesSessionsAfterCommit() {
+    void requestsWithdrawalAndInvalidatesSessionsBeforeCommit() {
         UserAccount account = activeAccount(42L, "withdraw26");
         when(repository.findByIdForWithdrawal(42L)).thenReturn(Optional.of(account));
 
@@ -56,12 +55,25 @@ class AccountWithdrawalServiceTest {
             assertThat(result.recoveryDeadline()).isEqualTo(NOW.plusSeconds(7L * 24 * 60 * 60));
             assertThat(result.scheduledDeletionAt()).isEqualTo(NOW.plusSeconds(30L * 24 * 60 * 60));
             assertThat(account.withdrawalPending()).isTrue();
-            verifyNoInteractions(sessionInvalidator);
-
-            TransactionSynchronizationManager.getSynchronizations()
-                    .forEach(TransactionSynchronization::afterCommit);
-
             verify(sessionInvalidator).invalidateAll(42L);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    /** Session 만료 실패 시 탈퇴 요청 성공 반환 차단 */
+    @Test
+    void failsWithdrawalBeforeCommitWhenSessionInvalidationFails() {
+        UserAccount account = activeAccount(42L, "withdraw26");
+        when(repository.findByIdForWithdrawal(42L)).thenReturn(Optional.of(account));
+        doThrow(new IllegalStateException("session store unavailable"))
+                .when(sessionInvalidator).invalidateAll(42L);
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            assertThatThrownBy(() -> service.request("42"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("session store unavailable");
         } finally {
             TransactionSynchronizationManager.clearSynchronization();
         }
