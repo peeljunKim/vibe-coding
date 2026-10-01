@@ -5,6 +5,7 @@ import type {
   HealthClaimStatus,
   HealthResultViewData,
 } from '../types/pageData'
+import { ArticleChangedError } from './analysisErrors'
 
 interface AcceptedResponse {
   analysisId: string
@@ -64,6 +65,7 @@ interface ApiErrorResponse {
 interface HealthAnalysisOptions {
   signal?: AbortSignal
   onProgress?: (data: HealthAnalysisViewData) => void
+  reanalyze?: boolean
 }
 
 const readCookie = (name: string) => {
@@ -187,11 +189,11 @@ const toResultView = (
 /** CSRF Cookie 발급 후 건강 분석 작업 접수 */
 const acceptHealthAnalysis = async (
   articleUrl: string,
-  signal?: AbortSignal,
+  options: HealthAnalysisOptions,
 ): Promise<AcceptedResponse> => {
   const csrfResponse = await fetch('/api/csrf', {
     credentials: 'include',
-    ...(signal ? { signal } : {}),
+    ...(options.signal ? { signal: options.signal } : {}),
   })
   if (!csrfResponse.ok) {
     throw new Error('분석을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -209,8 +211,10 @@ const acceptHealthAnalysis = async (
     method: 'POST',
     credentials: 'include',
     headers,
-    body: JSON.stringify({ articleUrl }),
-    ...(signal ? { signal } : {}),
+    body: JSON.stringify(
+      options.reanalyze ? { articleUrl, reanalyze: true } : { articleUrl },
+    ),
+    ...(options.signal ? { signal: options.signal } : {}),
   })
   if (!response.ok) {
     throw new Error(toHealthAnalysisErrorMessage(await readErrorCode(response)))
@@ -256,6 +260,9 @@ const pollHealthAnalysis = async (
       return toResultView(progress.result, accepted.analysisId)
     }
     if (progress.status === 'FAILED') {
+      if (progress.error?.code === 'ARTICLE_CHANGED') {
+        throw new ArticleChangedError(articleUrl)
+      }
       throw new Error(toHealthAnalysisErrorMessage(progress.error?.code))
     }
     options.onProgress?.(toProgressView(articleUrl, progress.stage))
@@ -271,6 +278,6 @@ export const analyzeHealthArticle = async (
   options: HealthAnalysisOptions = {},
 ): Promise<HealthResultViewData> => {
   options.onProgress?.(toProgressView(articleUrl, 'QUEUED'))
-  const accepted = await acceptHealthAnalysis(articleUrl, options.signal)
+  const accepted = await acceptHealthAnalysis(articleUrl, options)
   return pollHealthAnalysis(articleUrl, accepted, options)
 }

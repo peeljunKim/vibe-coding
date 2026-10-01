@@ -77,6 +77,24 @@ class HealthArticleScreeningServiceTest {
         verifyNoInteractions(classifier);
     }
 
+    /** 재분석에서 안전 수집 결과 재사용 */
+    @Test
+    void screensPreviouslyExtractedArticleWithoutReadingAgain() {
+        PublisherArticleReader articleReader = mock(PublisherArticleReader.class);
+        HealthArticleTopicClassifier classifier = mock(HealthArticleTopicClassifier.class);
+        ExtractedArticle article = mock(ExtractedArticle.class);
+        when(classifier.classify(article)).thenReturn(HealthArticleTopicDecision.HEALTH_RELATED);
+        HealthArticleScreeningService service = new HealthArticleScreeningService(
+                articleReader,
+                classifier
+        );
+
+        assertThat(service.screen(article).decision())
+                .isEqualTo(HealthArticleTopicDecision.HEALTH_RELATED);
+        verify(classifier).classify(article);
+        verifyNoInteractions(articleReader);
+    }
+
     /** 실제 기사 수집 경계와 테스트 판별 Port 구성 */
     private HealthArticleScreeningService service(
             Map<URI, HealthArticleTopicDecision> decisions

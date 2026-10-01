@@ -44,6 +44,17 @@ public class DefaultHealthAnalysisJobService implements HealthAnalysisJobService
     /** 작업 상태 생성 후 유한 Queue 접수 */
     @Override
     public Acceptance accept(String articleUrl, Requester requester) {
+        return accept(articleUrl, requester, false);
+    }
+
+    /** 기사 변경 동의 표시를 포함한 유한 Queue 접수 */
+    @Override
+    public Acceptance reanalyze(String articleUrl, Requester requester) {
+        return accept(articleUrl, requester, true);
+    }
+
+    /** 일반·재분석 작업의 공통 접수 */
+    private Acceptance accept(String articleUrl, Requester requester, boolean reanalysisRequested) {
         HealthAnalysisJobIdentityService.PreparedIdentity identity = identityService.prepare(requester);
         HealthTopicFailureUsageResult currentUsage;
         AnalysisJob job = null;
@@ -54,7 +65,8 @@ public class DefaultHealthAnalysisJobService implements HealthAnalysisJobService
                     job.id(),
                     articleUrl,
                     identity.usageSubject().userType(),
-                    identity.usageSubject().identifierKeys()
+                    identity.usageSubject().identifierKeys(),
+                    reanalysisRequested
             ));
             if (!enqueued) {
                 throw new HealthAnalysisServiceUnavailableException();

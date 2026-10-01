@@ -452,6 +452,140 @@ describe('App', () => {
     },
   )
 
+  it('변경된 건강 기사는 사용자 동의 뒤 같은 URL을 재분석한다', async () => {
+    const articleUrl = 'https://news.example.com/changed-health-article'
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { readText: vi.fn().mockResolvedValue(articleUrl) },
+    })
+    document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'health-changed',
+            deadlineAt: '2099-09-20T00:01:30Z',
+            pollAfterSeconds: 0,
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: 'FAILED',
+            stage: 'FAILED',
+            error: { code: 'ARTICLE_CHANGED' },
+          }),
+      })
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'health-refreshed',
+            deadlineAt: '2099-09-20T00:01:30Z',
+            pollAfterSeconds: 0,
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: 'COMPLETED',
+            stage: 'COMPLETED',
+            result: {
+              article: {
+                url: articleUrl,
+                title: '변경 후 다시 확인한 건강 기사',
+                publisher: '테스트 언론사',
+              },
+              analyzedAt: '2026-09-30T00:00:03Z',
+              claims: [
+                {
+                  order: 1,
+                  claim: '변경 후 다시 확인한 주장',
+                  status: 'INSUFFICIENT',
+                  reason: '확인 가능한 근거가 부족합니다.',
+                  evidences: [],
+                },
+              ],
+            },
+          }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    renderApp()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '복사한 건강 기사 확인하기' }),
+    )
+    expect(
+      await screen.findByText(
+        '기사 내용이 분석 당시와 달라졌습니다. 최신 내용으로 다시 분석하시겠습니까?',
+      ),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '최신 내용 재분석' }))
+
+    expect(
+      await screen.findByRole('heading', { name: '변경 후 다시 확인한 주장' }),
+    ).toBeInTheDocument()
+    const [, reanalysisRequest] = fetchMock.mock.calls[4] as unknown as [
+      RequestInfo | URL,
+      RequestInit,
+    ]
+    expect(reanalysisRequest.body).toBe(
+      JSON.stringify({ articleUrl, reanalyze: true }),
+    )
+  })
+
+  it('기사 변경 재분석을 취소하면 새 요청을 보내지 않는다', async () => {
+    const articleUrl = 'https://news.example.com/changed-headline'
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { readText: vi.fn().mockResolvedValue(articleUrl) },
+    })
+    document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            analysisId: 'headline-changed',
+            deadlineAt: '2099-09-20T00:01:30Z',
+            pollAfterSeconds: 0,
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: 'FAILED',
+            stage: 'FAILED',
+            error: { code: 'ARTICLE_CHANGED' },
+          }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    renderApp()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '복사한 기사 제목 확인하기' }),
+    )
+    await screen.findByRole('button', { name: '재분석 취소' })
+    fireEvent.click(screen.getByRole('button', { name: '재분석 취소' }))
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(
+      screen.queryByText(
+        '기사 내용이 분석 당시와 달라졌습니다. 최신 내용으로 다시 분석하시겠습니까?',
+      ),
+    ).not.toBeInTheDocument()
+  })
+
   it('건강 분석 취소 뒤 늦게 도착한 완료 결과를 폐기한다', async () => {
     const articleUrl = 'https://news.example.com/health-article'
     Object.defineProperty(navigator, 'clipboard', {

@@ -292,6 +292,81 @@ class HeadlineAnalysisWorkerTest {
         );
     }
 
+    /** 사용자 동의 뒤 변경 기사 제목 재분석과 Cache 교체 */
+    @Test
+    void reanalyzesChangedHeadlineAfterUserConfirmation() {
+        InMemoryStore store = new InMemoryStore();
+        AnalysisJob job = AnalysisJob.queued(
+                "headline-reanalyze",
+                new AnalysisJobOwner(AnalysisJobOwnerType.MEMBER, "owner-hash"),
+                NOW
+        );
+        store.create(job);
+        HeadlineAnalysisTask task = new HeadlineAnalysisTask(
+                job.id(),
+                "https://news.example/general",
+                HeadlineAnalysisUserType.MEMBER,
+                List.of("member-key"),
+                true
+        );
+        HeadlineAnalysisUseCase useCase = mock(HeadlineAnalysisUseCase.class);
+        HeadlineAnalysisUsagePolicy usagePolicy = mock(HeadlineAnalysisUsagePolicy.class);
+        HeadlineAnalysisResultCache cache = mock(HeadlineAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.headline(task.articleUrl(), versions)
+                .orElseThrow();
+        ExtractedArticle cachedArticle = article();
+        ExtractedArticle changedArticle = new ExtractedArticle(
+                cachedArticle.sourceUrl(),
+                cachedArticle.title(),
+                cachedArticle.body() + "\n추가된 문단",
+                cachedArticle.publishedAt(),
+                cachedArticle.modifiedAt()
+        );
+        HeadlineAnalysisResult refreshedResult = result(changedArticle);
+        when(cache.findHeadline(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                result(cachedArticle),
+                NOW.plus(Duration.ofDays(3)),
+                ArticleRevisionFingerprint.from(cachedArticle)
+        )));
+        when(useCase.read(task.articleUrl())).thenReturn(changedArticle);
+        when(usagePolicy.recordAnalysisStart(task.usageSubject()))
+                .thenReturn(new HeadlineAnalysisUsageResult(1, 10));
+        when(useCase.analyze(changedArticle, job.deadlineAt())).thenReturn(refreshedResult);
+        Clock clock = Clock.fixed(NOW.plusSeconds(1), ZoneOffset.UTC);
+        HeadlineAnalysisWorker worker = new HeadlineAnalysisWorker(
+                new RecordingQueue(task),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "worker-1"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        assertThat(store.findById(job.id()).orElseThrow().status())
+                .isEqualTo(AnalysisJobStatus.COMPLETED);
+        verify(usagePolicy, never()).recordCacheAccess(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+        verify(usagePolicy).recordAnalysisStart(task.usageSubject());
+        verify(useCase).read(task.articleUrl());
+        verify(cache).saveHeadline(
+                cacheKey,
+                refreshedResult,
+                ArticleRevisionFingerprint.from(changedArticle),
+                AnalysisCacheViewer.fingerprint(task.userType().name(), task.usageIdentifierKeys())
+        );
+    }
+
     /** Cache 이용량 차감 후 완료 실패의 차감 결과 보존 */
     @Test
     void preservesCacheChargeWhenCompletionFails() throws Exception {

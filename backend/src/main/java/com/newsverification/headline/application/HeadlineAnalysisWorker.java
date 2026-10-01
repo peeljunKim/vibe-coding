@@ -160,6 +160,7 @@ public class HeadlineAnalysisWorker {
 
         HeadlineAnalysisJobService.Usage chargedUsage = null;
         try {
+            ExtractedArticle currentArticle = null;
             Optional<AnalysisCacheKey> cacheKey = AnalysisCacheKeyFactory.headline(
                     task.articleUrl(),
                     cacheVersions
@@ -169,10 +170,11 @@ public class HeadlineAnalysisWorker {
                         .findHeadline(cacheKey.orElseThrow());
                 if (cached.isPresent()) {
                     CachedAnalysisResult<HeadlineAnalysisResult> cachedResult = cached.orElseThrow();
-                    ExtractedArticle currentArticle = useCase.read(task.articleUrl());
-                    if (!cachedResult.articleFingerprint().equals(
+                    currentArticle = useCase.read(task.articleUrl());
+                    boolean articleChanged = !cachedResult.articleFingerprint().equals(
                             ArticleRevisionFingerprint.from(currentArticle)
-                    )) {
+                    );
+                    if (articleChanged && !task.reanalysisRequested()) {
                         fail(
                                 task.analysisId(),
                                 "ARTICLE_CHANGED",
@@ -181,31 +183,33 @@ public class HeadlineAnalysisWorker {
                         );
                         return;
                     }
-                    String viewerFingerprint = AnalysisCacheViewer.fingerprint(
-                            task.userType().name(),
-                            task.usageIdentifierKeys()
-                    );
-                    Optional<HeadlineAnalysisCacheUsageResult> cacheUsage = usagePolicy
-                            .recordCacheAccess(
-                                    task.usageSubject(),
-                                    cacheKey.orElseThrow(),
-                                    viewerFingerprint
+                    if (!articleChanged) {
+                        String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                                task.userType().name(),
+                                task.usageIdentifierKeys()
+                        );
+                        Optional<HeadlineAnalysisCacheUsageResult> cacheUsage = usagePolicy
+                                .recordCacheAccess(
+                                        task.usageSubject(),
+                                        cacheKey.orElseThrow(),
+                                        viewerFingerprint
+                                );
+                        if (cacheUsage.isPresent()) {
+                            HeadlineAnalysisCacheUsageResult cachedUsage = cacheUsage.orElseThrow();
+                            HeadlineAnalysisJobService.Usage usage = new HeadlineAnalysisJobService.Usage(
+                                    cachedUsage.dailyLimit(),
+                                    cachedUsage.usedCount(),
+                                    Math.max(0, cachedUsage.dailyLimit() - cachedUsage.usedCount()),
+                                    cachedUsage.charged()
                             );
-                    if (cacheUsage.isPresent()) {
-                        HeadlineAnalysisCacheUsageResult cachedUsage = cacheUsage.orElseThrow();
-                        HeadlineAnalysisJobService.Usage usage = new HeadlineAnalysisJobService.Usage(
-                                cachedUsage.dailyLimit(),
-                                cachedUsage.usedCount(),
-                                Math.max(0, cachedUsage.dailyLimit() - cachedUsage.usedCount()),
-                                cachedUsage.charged()
-                        );
-                        chargedUsage = usage;
-                        completeCached(
-                                task.analysisId(),
-                                cachedResult.result(),
-                                usage
-                        );
-                        return;
+                            chargedUsage = usage;
+                            completeCached(
+                                    task.analysisId(),
+                                    cachedResult.result(),
+                                    usage
+                            );
+                            return;
+                        }
                     }
                 }
             }
@@ -214,7 +218,9 @@ public class HeadlineAnalysisWorker {
             AnalysisJob checkingJob = lifecycleService.advance(
                     task.analysisId(), AnalysisJobStage.CHECKING_ARTICLE
             );
-            ExtractedArticle article = useCase.read(task.articleUrl());
+            ExtractedArticle article = currentArticle == null
+                    ? useCase.read(task.articleUrl())
+                    : currentArticle;
             AnalysisJob generatingJob = lifecycleService.advance(
                     task.analysisId(), AnalysisJobStage.GENERATING_RESULT
             );

@@ -45,6 +45,15 @@ public class HealthAnalysisUseCase {
         return screeningService.screen(rawUrl);
     }
 
+    /** 접수 한도 확인과 안전 수집된 기사의 분야 판별 */
+    public HealthArticleScreeningResult screen(
+            ExtractedArticle article,
+            HealthAnalysisUsageSubject usageSubject
+    ) {
+        usagePolicy.verifyCanStart(usageSubject);
+        return screeningService.screen(article);
+    }
+
     /** Cache 기사 변경 확인용 안전 기사 수집 */
     public ExtractedArticle read(String rawUrl) {
         return screeningService.read(rawUrl);

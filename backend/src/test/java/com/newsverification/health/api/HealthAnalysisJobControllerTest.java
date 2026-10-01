@@ -128,6 +128,39 @@ class HealthAnalysisJobControllerTest {
                 .andExpect(jsonPath("$.guestAccessToken").value("guest-job-token"));
     }
 
+    /** 사용자 동의 재분석 요청의 전용 Application 경계 전달 */
+    @Test
+    void forwardsConfirmedReanalysisRequest() throws Exception {
+        var acceptance = new HealthAnalysisJobService.Acceptance(
+                "analysis-reanalyze",
+                AnalysisJobStatus.PROCESSING,
+                AnalysisJobStage.QUEUED,
+                new HealthAnalysisJobService.Usage(5, 0, 5, false),
+                ACCEPTED_AT,
+                DEADLINE_AT,
+                null,
+                null
+        );
+        when(jobService.reanalyze(eq("https://news.example/article"), any()))
+                .thenReturn(acceptance);
+
+        mockMvc.perform(post("/api/analyses/health")
+                        .with(user("test-user").roles("USER"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"articleUrl":"https://news.example/article","reanalyze":true}
+                                """))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.analysisId").value("analysis-reanalyze"));
+
+        verify(jobService).reanalyze(
+                eq("https://news.example/article"),
+                eq(new HealthAnalysisJobService.Requester("test-user", null, null, "127.0.0.1"))
+        );
+        verify(jobService, never()).accept(any(), any());
+    }
+
     /** 비회원 Cookie와 작업 Token 기반 진행 상태 조회 검증 */
     @Test
     void getsGuestOwnedProcessingJobWithoutAuthentication() throws Exception {

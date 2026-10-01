@@ -33,6 +33,9 @@ interface HomePageProps {
   headlineAnalysisError?: string | null
   isHealthAnalysisPending?: boolean
   healthAnalysisError?: string | null
+  reanalysisFeature?: 'health' | 'headline' | undefined
+  onConfirmReanalysis?: (() => void) | undefined
+  onCancelReanalysis?: (() => void) | undefined
   usage?: UsageViewData
 }
 
@@ -48,6 +51,9 @@ function HomePage({
   headlineAnalysisError,
   isHealthAnalysisPending = false,
   healthAnalysisError,
+  reanalysisFeature,
+  onConfirmReanalysis,
+  onCancelReanalysis,
   usage,
 }: HomePageProps) {
   const [isPublisherDirectoryOpen, setPublisherDirectoryOpen] = useState(false)
@@ -172,6 +178,12 @@ function HomePage({
                 {healthAnalysisError}
               </p>
             )}
+            {reanalysisFeature === 'health' && (
+              <ReanalysisConfirmation
+                onConfirm={onConfirmReanalysis}
+                onCancel={onCancelReanalysis}
+              />
+            )}
           </article>
 
           <article className="feature-card feature-card--title">
@@ -196,6 +208,12 @@ function HomePage({
               <p className="feature-card__feedback" role="alert">
                 {headlineAnalysisError}
               </p>
+            )}
+            {reanalysisFeature === 'headline' && (
+              <ReanalysisConfirmation
+                onConfirm={onConfirmReanalysis}
+                onCancel={onCancelReanalysis}
+              />
             )}
           </article>
         </section>
@@ -353,6 +371,31 @@ function HomePage({
             )}
         </section>
       </main>
+    </div>
+  )
+}
+
+function ReanalysisConfirmation({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm?: (() => void) | undefined
+  onCancel?: (() => void) | undefined
+}) {
+  return (
+    <div className="feature-card__reanalysis" role="alert">
+      <p>
+        기사 내용이 분석 당시와 달라졌습니다. 최신 내용으로 다시
+        분석하시겠습니까?
+      </p>
+      <div className="feature-card__reanalysis-actions">
+        <button className="primary-button" type="button" onClick={onConfirm}>
+          최신 내용 재분석
+        </button>
+        <button className="secondary-button" type="button" onClick={onCancel}>
+          재분석 취소
+        </button>
+      </div>
     </div>
   )
 }

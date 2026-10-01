@@ -390,12 +390,17 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 원 분석 사용자 재조회 미차감, 다른 사용자 최초 열람 1회 차감과 이후 미차감: PASS
 - 회원은 Cache 수명 동안 동일 식별, 비회원은 한국시간 날짜별 식별 경계 적용: PASS
 - Cache Miss의 기존 분석 흐름과 현재 Version 결과 저장: PASS
-- Docker Redis 8.8 통합 검증: PASS (42개, 실패·오류·Skip 0)
-- Backend 전체 Maven 회귀: PASS (225개, 실패·오류·Skip 0; Redis IT 별도 실행)
+- Docker Redis 8.8 통합 검증: PASS (44개, 실패·오류·Skip 0)
+- Backend 전체 Maven 회귀: PASS (232개, 실패·오류·Skip 0; Redis IT 별도 실행)
 - 실제 Gemini·PubMed·외부 검색 호출: NOT APPLICABLE (기존 Mock Adapter 사용)
-- Frontend 변경: NOT APPLICABLE
+- Frontend 재분석 확인·취소와 API 전달: PASS (17개 Test File·80개 Test, TypeScript, Lint, Build)
 - 기사 변경 감지: PASS (제목 Hash·게시/수정 시각·순서형 문단 Hash, 기사 원문 Cache 미저장)
-- 기사 변경 후 자동 재분석과 Frontend 확인 UI: NOT APPLICABLE (사용자 요청으로 이번 범위 제외)
+- 기사 변경 후 Frontend 확인·취소 UI와 명시적 재분석 접수: PASS (건강·제목 모두 같은 URL에 선택적 `reanalyze: true` 전달, 취소 시 새 요청 없음)
+- 재분석 Queue 표시와 Worker Cache 우회·최신 결과 교체: PASS (이전 Stream 형식은 표시 누락 시 `false` 호환)
+- 재분석 시 안전 수집 결과 재사용과 외부 기사 중복 요청 방지: PASS
+- 재분석 관련 단위·MVC 검증: PASS (56개, 실패·오류·Skip 0)
+- 건강·제목 Chrome 재분석 E2E: PASS (2개, Console·Runtime 오류 없음; 건강 흐름 1024px Viewport 포함)
+- Chrome 전체 Browser 회귀: PASS (20개, 회원가입 E2E의 비로그인 Session Mock 경계 보완 포함)
 - 건강 근거 링크 재검증: NOT APPLICABLE (후속 범위)
 
 ## 회원 탈퇴와 보관 수명주기

@@ -156,6 +156,21 @@ class DefaultHealthAnalysisJobServiceTest {
         assertThat(accepted.usage()).isEqualTo(new HealthAnalysisJobService.Usage(5, 2, 3, false));
     }
 
+    /** 사용자 동의 재분석의 Queue 표시 전달 */
+    @Test
+    void marksConfirmedReanalysisTask() {
+        var store = new InMemoryJobStore();
+        var queue = new RecordingQueue(true);
+        HealthAnalysisJobService service = service(store, queue);
+
+        service.reanalyze(
+                "https://news.example/article",
+                new HealthAnalysisJobService.Requester("member-1", null, null, "203.0.113.7")
+        );
+
+        assertThat(queue.task.reanalysisRequested()).isTrue();
+    }
+
     /** 고정 시각 기반 Service 구성 */
     private HealthAnalysisJobService service(InMemoryJobStore store, HealthAnalysisQueue queue) {
         return service(store, queue, 0);

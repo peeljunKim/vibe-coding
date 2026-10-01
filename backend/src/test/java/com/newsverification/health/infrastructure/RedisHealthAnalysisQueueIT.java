@@ -80,6 +80,21 @@ class RedisHealthAnalysisQueueIT {
         assertThat(redisTemplate.opsForStream().size(queue.streamKey())).isZero();
     }
 
+    /** 재분석 동의 표시의 Stream 왕복 보존 */
+    @Test
+    void preservesReanalysisRequestFlag() {
+        HealthAnalysisTask task = new HealthAnalysisTask(
+                "job-reanalyze",
+                "https://news.example/article/changed",
+                HealthAnalysisUserType.MEMBER,
+                List.of("member-key"),
+                true
+        );
+
+        assertThat(queue.enqueue(task)).isTrue();
+        assertThat(queue.take()).contains(task);
+    }
+
     /** 전역 Worker Lease의 단일 소유자 보장 */
     @Test
     void allowsOnlyOneWorkerLease() {

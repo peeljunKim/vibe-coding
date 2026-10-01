@@ -282,6 +282,90 @@ class HealthAnalysisWorkerTest {
         );
     }
 
+    /** 사용자 동의 뒤 변경 기사 재분석과 Cache 교체 */
+    @Test
+    void reanalyzesChangedArticleAfterUserConfirmation() {
+        var store = new InMemoryJobStore();
+        AnalysisJob accepted = lifecycle(store, NOW).accept("analysis-reanalyze", OWNER);
+        HealthAnalysisTask task = new HealthAnalysisTask(
+                accepted.id(),
+                "https://news.example/article",
+                HealthAnalysisUserType.MEMBER,
+                List.of("member-usage-key"),
+                true
+        );
+        HealthAnalysisUseCase useCase = mock(HealthAnalysisUseCase.class);
+        HealthTopicFailureUsagePolicy usagePolicy = mock(HealthTopicFailureUsagePolicy.class);
+        HealthAnalysisResultCache cache = mock(HealthAnalysisResultCache.class);
+        AnalysisCacheVersions versions = AnalysisCacheVersions.mockDefaults();
+        AnalysisCacheKey cacheKey = AnalysisCacheKeyFactory.health(task.articleUrl(), versions)
+                .orElseThrow();
+        ExtractedArticle cachedArticle = article();
+        ExtractedArticle changedArticle = new ExtractedArticle(
+                cachedArticle.sourceUrl(),
+                cachedArticle.title(),
+                cachedArticle.body() + "\n추가된 문단",
+                cachedArticle.publishedAt(),
+                cachedArticle.modifiedAt()
+        );
+        HealthArticleScreeningResult screening = new HealthArticleScreeningResult(
+                changedArticle,
+                HealthArticleTopicDecision.HEALTH_RELATED
+        );
+        HealthAnalysisResult refreshedResult = result(changedArticle);
+        when(cache.findHealth(cacheKey)).thenReturn(Optional.of(new CachedAnalysisResult<>(
+                result(cachedArticle),
+                NOW.plus(Duration.ofDays(3)),
+                ArticleRevisionFingerprint.from(cachedArticle)
+        )));
+        when(useCase.read(task.articleUrl())).thenReturn(changedArticle);
+        when(useCase.screen(changedArticle, task.usageSubject())).thenReturn(screening);
+        when(usagePolicy.recordAnalysisStart(task.usageSubject()))
+                .thenReturn(new HealthTopicFailureUsageResult(true, 1, 5));
+        when(useCase.continueAfterScreening(screening, task.usageSubject(), accepted.deadlineAt()))
+                .thenReturn(new HealthAnalysisRoutingResult(
+                        HealthAnalysisRoutingStatus.ANALYSIS_STARTED,
+                        Optional.empty(),
+                        Optional.of(refreshedResult)
+                ));
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        HealthAnalysisWorker worker = new HealthAnalysisWorker(
+                new SingleTaskQueue(task, true),
+                new AnalysisJobLifecycleService(store, clock),
+                store,
+                store,
+                useCase,
+                usagePolicy,
+                cache,
+                versions,
+                new ObjectMapper(),
+                clock,
+                "test-worker"
+        );
+
+        assertThat(worker.runOnce()).isTrue();
+
+        assertThat(store.findById(accepted.id()).orElseThrow().status())
+                .isEqualTo(AnalysisJobStatus.COMPLETED);
+        verify(usagePolicy, never()).recordCacheAccess(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+        verify(usagePolicy).recordAnalysisStart(task.usageSubject());
+        verify(useCase).read(task.articleUrl());
+        verify(useCase, never()).screen(task.articleUrl(), task.usageSubject());
+        verify(cache).saveHealth(
+                cacheKey,
+                refreshedResult,
+                ArticleRevisionFingerprint.from(changedArticle),
+                AnalysisCacheViewer.fingerprint(
+                        task.userType().name(),
+                        task.usageIdentifierKeys()
+                )
+        );
+    }
+
     /** Cache 이용량 차감 후 완료 실패의 차감 결과 보존 */
     @Test
     void preservesCacheChargeWhenCompletionFails() throws Exception {

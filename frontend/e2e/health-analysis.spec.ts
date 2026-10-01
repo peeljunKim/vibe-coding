@@ -121,6 +121,89 @@ test('완료 결과는 표시하고 새로고침 뒤에는 비영속 안내를 �
   ).toBeVisible()
 })
 
+test('변경된 건강 기사는 사용자 확인 뒤 최신 내용으로 재분석한다', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 900 })
+  const requestBodies: unknown[] = []
+  let acceptanceCount = 0
+  await page.route('**/api/analyses/health', async (route) => {
+    requestBodies.push(route.request().postDataJSON())
+    acceptanceCount += 1
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analysisId:
+          acceptanceCount === 1
+            ? 'health-e2e-changed'
+            : 'health-e2e-reanalyzed',
+        deadlineAt: '2099-09-20T00:01:30Z',
+        pollAfterSeconds: 0,
+        guestAccessToken: 'test-guest-health-token',
+      }),
+    })
+  })
+  await page.route('**/api/analyses/health/health-e2e-changed', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analysisId: 'health-e2e-changed',
+        status: 'FAILED',
+        stage: 'FAILED',
+        error: { code: 'ARTICLE_CHANGED' },
+      }),
+    }),
+  )
+  await page.route('**/api/analyses/health/health-e2e-reanalyzed', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analysisId: 'health-e2e-reanalyzed',
+        status: 'COMPLETED',
+        stage: 'COMPLETED',
+        result: {
+          article: {
+            url: ARTICLE_URL,
+            title: '최신 내용으로 다시 읽은 건강 기사',
+            publisher: '테스트 언론사',
+          },
+          analyzedAt: '2026-09-20T00:00:03Z',
+          claims: [
+            {
+              order: 1,
+              claim: '최신 내용으로 확인한 건강 기사 주장',
+              status: 'INSUFFICIENT',
+              reason: '확인 가능한 외부 근거가 부족합니다.',
+              evidences: [],
+            },
+          ],
+        },
+      }),
+    }),
+  )
+  await writeArticleUrl(page)
+
+  await page.getByRole('button', { name: '복사한 건강 기사 확인하기' }).click()
+  await expect(
+    page.getByText(
+      '기사 내용이 분석 당시와 달라졌습니다. 최신 내용으로 다시 분석하시겠습니까?',
+    ),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: '재분석 취소' })).toBeVisible()
+  await page.getByRole('button', { name: '최신 내용 재분석' }).click()
+
+  await expect(
+    page.getByRole('heading', { name: '최신 내용으로 확인한 건강 기사 주장' }),
+  ).toBeVisible()
+  expect(requestBodies).toEqual([
+    { articleUrl: ARTICLE_URL },
+    { articleUrl: ARTICLE_URL, reanalyze: true },
+  ])
+})
+
 test('로그인 회원은 완료된 건강 분석 결과를 명시적으로 저장한다', async ({
   page,
 }) => {

@@ -44,6 +44,17 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
     /** 작업 생성 후 제목 전용 Queue 접수 */
     @Override
     public Acceptance accept(String articleUrl, Requester requester) {
+        return accept(articleUrl, requester, false);
+    }
+
+    /** 기사 변경 동의 표시를 포함한 제목 Queue 접수 */
+    @Override
+    public Acceptance reanalyze(String articleUrl, Requester requester) {
+        return accept(articleUrl, requester, true);
+    }
+
+    /** 일반·재분석 제목 작업의 공통 접수 */
+    private Acceptance accept(String articleUrl, Requester requester, boolean reanalysisRequested) {
         HeadlineAnalysisJobIdentityService.PreparedIdentity identity = identityService.prepare(requester);
         HeadlineAnalysisUsageResult currentUsage;
         AnalysisJob job = null;
@@ -54,7 +65,8 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
                     job.id(),
                     articleUrl,
                     identity.usageSubject().userType(),
-                    identity.usageSubject().identifierKeys()
+                    identity.usageSubject().identifierKeys(),
+                    reanalysisRequested
             ));
             if (!enqueued) {
                 throw new HeadlineAnalysisServiceUnavailableException();

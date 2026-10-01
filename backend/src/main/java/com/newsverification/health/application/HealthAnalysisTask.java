@@ -8,8 +8,19 @@ public record HealthAnalysisTask(
         String analysisId,
         String articleUrl,
         HealthAnalysisUserType userType,
-        List<String> usageIdentifierKeys
+        List<String> usageIdentifierKeys,
+        boolean reanalysisRequested
 ) {
+
+    /** 일반 분석 요청 호환 구성 */
+    public HealthAnalysisTask(
+            String analysisId,
+            String articleUrl,
+            HealthAnalysisUserType userType,
+            List<String> usageIdentifierKeys
+    ) {
+        this(analysisId, articleUrl, userType, usageIdentifierKeys, false);
+    }
 
     /** 필수 Queue 값과 비식별 이용량 Key 검증 */
     public HealthAnalysisTask {

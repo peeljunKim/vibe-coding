@@ -171,6 +171,7 @@ public class HealthAnalysisWorker {
 
         HealthAnalysisJobService.Usage chargedUsage = null;
         try {
+            ExtractedArticle currentArticle = null;
             Optional<AnalysisCacheKey> cacheKey = AnalysisCacheKeyFactory.health(
                     task.articleUrl(),
                     cacheVersions
@@ -180,10 +181,11 @@ public class HealthAnalysisWorker {
                         .findHealth(cacheKey.orElseThrow());
                 if (cached.isPresent()) {
                     CachedAnalysisResult<HealthAnalysisResult> cachedResult = cached.orElseThrow();
-                    ExtractedArticle currentArticle = useCase.read(task.articleUrl());
-                    if (!cachedResult.articleFingerprint().equals(
+                    currentArticle = useCase.read(task.articleUrl());
+                    boolean articleChanged = !cachedResult.articleFingerprint().equals(
                             ArticleRevisionFingerprint.from(currentArticle)
-                    )) {
+                    );
+                    if (articleChanged && !task.reanalysisRequested()) {
                         fail(
                                 task.analysisId(),
                                 "ARTICLE_CHANGED",
@@ -192,25 +194,27 @@ public class HealthAnalysisWorker {
                         );
                         return;
                     }
-                    String viewerFingerprint = AnalysisCacheViewer.fingerprint(
-                            task.userType().name(),
-                            task.usageIdentifierKeys()
-                    );
-                    Optional<HealthTopicFailureUsageResult> cacheUsage = usagePolicy
-                            .recordCacheAccess(
-                                    task.usageSubject(),
-                                    cacheKey.orElseThrow(),
-                                    viewerFingerprint
-                            );
-                    if (cacheUsage.isPresent()) {
-                        HealthAnalysisJobService.Usage usage = toUsage(cacheUsage.orElseThrow());
-                        chargedUsage = usage;
-                        completeCached(
-                                task.analysisId(),
-                                cachedResult.result(),
-                                usage
+                    if (!articleChanged) {
+                        String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                                task.userType().name(),
+                                task.usageIdentifierKeys()
                         );
-                        return;
+                        Optional<HealthTopicFailureUsageResult> cacheUsage = usagePolicy
+                                .recordCacheAccess(
+                                        task.usageSubject(),
+                                        cacheKey.orElseThrow(),
+                                        viewerFingerprint
+                                );
+                        if (cacheUsage.isPresent()) {
+                            HealthAnalysisJobService.Usage usage = toUsage(cacheUsage.orElseThrow());
+                            chargedUsage = usage;
+                            completeCached(
+                                    task.analysisId(),
+                                    cachedResult.result(),
+                                    usage
+                            );
+                            return;
+                        }
                     }
                 }
             }
@@ -219,10 +223,9 @@ public class HealthAnalysisWorker {
                     task.analysisId(),
                     AnalysisJobStage.CHECKING_ARTICLE
             );
-            HealthArticleScreeningResult screening = useCase.screen(
-                    task.articleUrl(),
-                    task.usageSubject()
-            );
+            HealthArticleScreeningResult screening = currentArticle == null
+                    ? useCase.screen(task.articleUrl(), task.usageSubject())
+                    : useCase.screen(currentArticle, task.usageSubject());
             if (screening.decision() != HealthArticleTopicDecision.HEALTH_RELATED) {
                 HealthAnalysisRoutingResult stopped = useCase.continueAfterScreening(
                         screening,

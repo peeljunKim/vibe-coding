@@ -38,6 +38,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -103,6 +104,34 @@ class HeadlineAnalysisJobControllerTest {
                 .andExpect(cookie().value("NEWS_VERIFICATION_GUEST", "guest-browser-id"))
                 .andExpect(jsonPath("$.usage.limit").value(5))
                 .andExpect(jsonPath("$.guestAccessToken").value("guest-job-token"));
+    }
+
+    /** 사용자 동의 제목 재분석 요청의 Application 경계 전달 */
+    @Test
+    void forwardsConfirmedReanalysisRequest() throws Exception {
+        var acceptance = new HeadlineAnalysisJobService.Acceptance(
+                "headline-reanalyze", AnalysisJobStatus.PROCESSING, AnalysisJobStage.QUEUED,
+                new HeadlineAnalysisJobService.Usage(10, 0, 10, false),
+                ACCEPTED_AT, DEADLINE_AT, null, null
+        );
+        when(jobService.reanalyze(eq("https://news.example/article"), any()))
+                .thenReturn(acceptance);
+
+        mockMvc.perform(post("/api/analyses/headline")
+                        .with(user("test-user").roles("USER"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"articleUrl":"https://news.example/article","reanalyze":true}
+                                """))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.analysisId").value("headline-reanalyze"));
+
+        verify(jobService).reanalyze(
+                eq("https://news.example/article"),
+                eq(new HeadlineAnalysisJobService.Requester("test-user", null, null, "127.0.0.1"))
+        );
+        verify(jobService, never()).accept(any(), any());
     }
 
     /** 완료된 제목 분석 결과 응답 검증 */

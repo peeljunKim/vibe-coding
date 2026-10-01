@@ -21,7 +21,11 @@ public class HealthArticleScreeningService {
 
     /** 지원 언론사 기사 수집 후 분야 판별 */
     public HealthArticleScreeningResult screen(String rawUrl) {
-        ExtractedArticle article = read(rawUrl);
+        return screen(read(rawUrl));
+    }
+
+    /** 이미 안전 수집된 기사의 분야 판별 */
+    public HealthArticleScreeningResult screen(ExtractedArticle article) {
         HealthArticleTopicDecision decision = topicClassifier.classify(article);
         return new HealthArticleScreeningResult(article, decision);
     }
