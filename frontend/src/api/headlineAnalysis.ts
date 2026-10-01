@@ -1,5 +1,6 @@
 // 기사 제목 분석 접수와 Polling API
 import type { TitleResultViewData } from '../types/pageData'
+import { ArticleChangedError } from './analysisErrors'
 
 interface AcceptedResponse {
   analysisId: string
@@ -12,7 +13,11 @@ interface ProgressResponse {
   status: 'PROCESSING' | 'COMPLETED' | 'FAILED'
   pollAfterSeconds?: number
   result?: TitleResultViewData
-  error?: { detail?: string }
+  error?: { code?: string; detail?: string }
+}
+
+interface HeadlineAnalysisOptions {
+  reanalyze?: boolean
 }
 
 const readCookie = (name: string) => {
@@ -36,6 +41,7 @@ const wait = (seconds: number) =>
 /** CSRF Cookie 발급 후 제목 분석 작업 접수 */
 const acceptHeadlineAnalysis = async (
   articleUrl: string,
+  options: HeadlineAnalysisOptions,
 ): Promise<AcceptedResponse> => {
   const csrfResponse = await fetch('/api/csrf', { credentials: 'include' })
   if (!csrfResponse.ok) {
@@ -54,7 +60,9 @@ const acceptHeadlineAnalysis = async (
     method: 'POST',
     credentials: 'include',
     headers,
-    body: JSON.stringify({ articleUrl }),
+    body: JSON.stringify(
+      options.reanalyze ? { articleUrl, reanalyze: true } : { articleUrl },
+    ),
   })
   if (!response.ok) {
     throw new Error(
@@ -67,6 +75,7 @@ const acceptHeadlineAnalysis = async (
 
 /** 완료 또는 실패까지 제목 분석 상태 조회 */
 const pollHeadlineAnalysis = async (
+  articleUrl: string,
   accepted: AcceptedResponse,
 ): Promise<TitleResultViewData> => {
   let pollAfterSeconds = accepted.pollAfterSeconds
@@ -95,6 +104,9 @@ const pollHeadlineAnalysis = async (
       return { ...progress.result, analysisId: accepted.analysisId }
     }
     if (progress.status === 'FAILED') {
+      if (progress.error?.code === 'ARTICLE_CHANGED') {
+        throw new ArticleChangedError(articleUrl)
+      }
       throw new Error(
         progress.error?.detail ??
           '기사 제목을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
@@ -109,5 +121,6 @@ const pollHeadlineAnalysis = async (
 /** 클립보드 기사 URL의 제목 분석 완료 결과 조회 */
 export const analyzeHeadline = async (
   articleUrl: string,
+  options: HeadlineAnalysisOptions = {},
 ): Promise<TitleResultViewData> =>
-  pollHeadlineAnalysis(await acceptHeadlineAnalysis(articleUrl))
+  pollHeadlineAnalysis(articleUrl, await acceptHeadlineAnalysis(articleUrl, options))

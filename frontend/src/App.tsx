@@ -7,6 +7,7 @@ import {
   type LoginResponse,
   type SessionState,
 } from './api/auth'
+import { ArticleChangedError } from './api/analysisErrors'
 import { analyzeHealthArticle } from './api/healthAnalysis'
 import { analyzeHeadline } from './api/headlineAnalysis'
 import { saveHealthRecord } from './api/healthRecords'
@@ -36,6 +37,13 @@ import type {
 } from './types/pageData'
 import './styles.css'
 
+type AnalysisFeature = 'health' | 'headline'
+
+interface PendingReanalysis {
+  feature: AnalysisFeature
+  articleUrl: string
+}
+
 function App() {
   const navigate = useNavigate()
   const [isHeadlineAnalysisPending, setHeadlineAnalysisPending] =
@@ -47,6 +55,8 @@ function App() {
   const [healthAnalysisError, setHealthAnalysisError] = useState<string | null>(
     null,
   )
+  const [pendingReanalysis, setPendingReanalysis] =
+    useState<PendingReanalysis>()
   const [healthAnalysisData, setHealthAnalysisData] =
     useState<HealthAnalysisViewData>()
   const [healthResultData, setHealthResultData] =
@@ -103,17 +113,22 @@ function App() {
     }
   }
 
-  const startHeadlineAnalysis = async () => {
+  const runHeadlineAnalysis = async (
+    articleUrl: string,
+    reanalyze = false,
+  ) => {
     setHeadlineAnalysisPending(true)
     setHeadlineAnalysisError(null)
     try {
-      const articleUrl = (await navigator.clipboard.readText()).trim()
-      if (!articleUrl) {
-        throw new Error('클립보드에 복사된 기사 URL이 없습니다.')
-      }
-      const result = await analyzeHeadline(articleUrl)
+      const result = await analyzeHeadline(articleUrl, { reanalyze })
       void navigate('/results/title', { state: { result } })
     } catch (error) {
+      if (error instanceof ArticleChangedError) {
+        setPendingReanalysis({ feature: 'headline', articleUrl })
+        setHeadlineAnalysisError(null)
+        void navigate('/')
+        return
+      }
       setHeadlineAnalysisError(
         error instanceof Error
           ? error.message
@@ -124,7 +139,27 @@ function App() {
     }
   }
 
-  const startHealthAnalysis = async () => {
+  const startHeadlineAnalysis = async () => {
+    setPendingReanalysis(undefined)
+    try {
+      const articleUrl = (await navigator.clipboard.readText()).trim()
+      if (!articleUrl) {
+        throw new Error('클립보드에 복사된 기사 URL이 없습니다.')
+      }
+      await runHeadlineAnalysis(articleUrl)
+    } catch (error) {
+      setHeadlineAnalysisError(
+        error instanceof Error
+          ? error.message
+          : '기사 제목을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      )
+    }
+  }
+
+  const runHealthAnalysis = async (
+    articleUrl: string,
+    reanalyze = false,
+  ) => {
     const controller = new AbortController()
     healthAnalysisController.current?.abort()
     healthAnalysisController.current = controller
@@ -133,14 +168,11 @@ function App() {
     setHealthResultData(undefined)
 
     try {
-      const articleUrl = (await navigator.clipboard.readText()).trim()
-      if (!articleUrl) {
-        throw new Error('클립보드에 복사된 기사 URL이 없습니다.')
-      }
       void navigate('/analysis/health')
       const result = await analyzeHealthArticle(articleUrl, {
         signal: controller.signal,
         onProgress: setHealthAnalysisData,
+        reanalyze,
       })
       if (
         controller.signal.aborted ||
@@ -152,6 +184,12 @@ function App() {
       void navigate('/results/health')
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+      if (error instanceof ArticleChangedError) {
+        setPendingReanalysis({ feature: 'health', articleUrl })
+        setHealthAnalysisError(null)
+        void navigate('/')
         return
       }
       setHealthAnalysisError(
@@ -166,6 +204,38 @@ function App() {
         setHealthAnalysisPending(false)
       }
     }
+  }
+
+  const startHealthAnalysis = async () => {
+    setPendingReanalysis(undefined)
+    try {
+      const articleUrl = (await navigator.clipboard.readText()).trim()
+      if (!articleUrl) {
+        throw new Error('클립보드에 복사된 기사 URL이 없습니다.')
+      }
+      await runHealthAnalysis(articleUrl)
+    } catch (error) {
+      setHealthAnalysisError(
+        error instanceof Error
+          ? error.message
+          : '건강 기사를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      )
+      void navigate('/')
+    }
+  }
+
+  const confirmReanalysis = () => {
+    const request = pendingReanalysis
+    if (!request) {
+      return
+    }
+
+    setPendingReanalysis(undefined)
+    if (request.feature === 'health') {
+      void runHealthAnalysis(request.articleUrl, true)
+      return
+    }
+    void runHeadlineAnalysis(request.articleUrl, true)
   }
 
   const cancelHealthAnalysis = () => {
@@ -193,6 +263,9 @@ function App() {
             headlineAnalysisError={headlineAnalysisError}
             isHealthAnalysisPending={isHealthAnalysisPending}
             healthAnalysisError={healthAnalysisError}
+            reanalysisFeature={pendingReanalysis?.feature}
+            onConfirmReanalysis={confirmReanalysis}
+            onCancelReanalysis={() => setPendingReanalysis(undefined)}
           />
         }
       />

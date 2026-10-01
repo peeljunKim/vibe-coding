@@ -33,6 +33,7 @@ public class RedisHeadlineAnalysisQueue implements HeadlineAnalysisQueue {
     private static final String ARTICLE_URL = "articleUrl";
     private static final String USER_TYPE = "userType";
     private static final String USAGE_KEYS = "usageKeys";
+    private static final String REANALYZE = "reanalyze";
 
     private static final RedisScript<Long> ENQUEUE_SCRIPT = new DefaultRedisScript<>("""
             if redis.call('XLEN', KEYS[1]) >= tonumber(ARGV[1]) then
@@ -42,7 +43,8 @@ public class RedisHeadlineAnalysisQueue implements HeadlineAnalysisQueue {
                 'analysisId', ARGV[2],
                 'articleUrl', ARGV[3],
                 'userType', ARGV[4],
-                'usageKeys', ARGV[5])
+                'usageKeys', ARGV[5],
+                'reanalyze', ARGV[6])
             return 1
             """, Long.class);
     private static final RedisScript<Long> CREATE_GROUP_SCRIPT = new DefaultRedisScript<>("""
@@ -87,7 +89,8 @@ public class RedisHeadlineAnalysisQueue implements HeadlineAnalysisQueue {
                 task.analysisId(),
                 task.articleUrl(),
                 task.userType().name(),
-                String.join(",", task.usageIdentifierKeys())
+                String.join(",", task.usageIdentifierKeys()),
+                Boolean.toString(task.reanalysisRequested())
         );
         return Long.valueOf(1).equals(result);
     }
@@ -142,7 +145,8 @@ public class RedisHeadlineAnalysisQueue implements HeadlineAnalysisQueue {
                 HeadlineAnalysisUserType.valueOf(requiredValue(values, USER_TYPE)),
                 Arrays.stream(requiredValue(values, USAGE_KEYS).split(","))
                         .filter(value -> !value.isBlank())
-                        .toList()
+                        .toList(),
+                Boolean.parseBoolean(optionalValue(values, REANALYZE))
         );
     }
 
@@ -153,6 +157,12 @@ public class RedisHeadlineAnalysisQueue implements HeadlineAnalysisQueue {
             throw new IllegalStateException("Headline queue field is missing: " + field);
         }
         return value.toString();
+    }
+
+    /** 이전 Queue 형식의 선택 필드 조회 */
+    private String optionalValue(Map<Object, Object> values, String field) {
+        Object value = values.get(field);
+        return value == null ? "false" : value.toString();
     }
 
     /** 테스트 Namespace Stream Key */

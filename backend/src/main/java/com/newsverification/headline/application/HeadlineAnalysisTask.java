@@ -8,8 +8,19 @@ public record HeadlineAnalysisTask(
         String analysisId,
         String articleUrl,
         HeadlineAnalysisUserType userType,
-        List<String> usageIdentifierKeys
+        List<String> usageIdentifierKeys,
+        boolean reanalysisRequested
 ) {
+
+    /** 일반 분석 요청 호환 구성 */
+    public HeadlineAnalysisTask(
+            String analysisId,
+            String articleUrl,
+            HeadlineAnalysisUserType userType,
+            List<String> usageIdentifierKeys
+    ) {
+        this(analysisId, articleUrl, userType, usageIdentifierKeys, false);
+    }
 
     /** Queue 필수값과 비식별 이용량 Key 검증 */
     public HeadlineAnalysisTask {

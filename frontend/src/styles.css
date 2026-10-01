@@ -241,6 +241,33 @@ button:disabled {
   line-height: 1.4;
 }
 
+.feature-card__reanalysis {
+  max-width: 420px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #b8ccd5;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.feature-card__reanalysis p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.feature-card__reanalysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.feature-card__reanalysis-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
 .publisher-directory {
   display: flex;
   min-height: 108px;

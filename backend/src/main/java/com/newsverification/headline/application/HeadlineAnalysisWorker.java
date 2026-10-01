@@ -12,6 +12,7 @@ import com.newsverification.analysiscache.application.AnalysisCacheKey;
 import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.analysiscache.application.AnalysisCacheViewer;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.article.domain.ExtractedArticle;
@@ -159,6 +160,7 @@ public class HeadlineAnalysisWorker {
 
         HeadlineAnalysisJobService.Usage chargedUsage = null;
         try {
+            ExtractedArticle currentArticle = null;
             Optional<AnalysisCacheKey> cacheKey = AnalysisCacheKeyFactory.headline(
                     task.articleUrl(),
                     cacheVersions
@@ -167,31 +169,47 @@ public class HeadlineAnalysisWorker {
                 Optional<CachedAnalysisResult<HeadlineAnalysisResult>> cached = resultCache
                         .findHeadline(cacheKey.orElseThrow());
                 if (cached.isPresent()) {
-                    String viewerFingerprint = AnalysisCacheViewer.fingerprint(
-                            task.userType().name(),
-                            task.usageIdentifierKeys()
+                    CachedAnalysisResult<HeadlineAnalysisResult> cachedResult = cached.orElseThrow();
+                    currentArticle = useCase.read(task.articleUrl());
+                    boolean articleChanged = !cachedResult.articleFingerprint().equals(
+                            ArticleRevisionFingerprint.from(currentArticle)
                     );
-                    Optional<HeadlineAnalysisCacheUsageResult> cacheUsage = usagePolicy
-                            .recordCacheAccess(
-                                    task.usageSubject(),
-                                    cacheKey.orElseThrow(),
-                                    viewerFingerprint
-                            );
-                    if (cacheUsage.isPresent()) {
-                        HeadlineAnalysisCacheUsageResult cachedUsage = cacheUsage.orElseThrow();
-                        HeadlineAnalysisJobService.Usage usage = new HeadlineAnalysisJobService.Usage(
-                                cachedUsage.dailyLimit(),
-                                cachedUsage.usedCount(),
-                                Math.max(0, cachedUsage.dailyLimit() - cachedUsage.usedCount()),
-                                cachedUsage.charged()
-                        );
-                        chargedUsage = usage;
-                        completeCached(
+                    if (articleChanged && !task.reanalysisRequested()) {
+                        fail(
                                 task.analysisId(),
-                                cached.orElseThrow().result(),
-                                usage
+                                "ARTICLE_CHANGED",
+                                "기사 내용이 분석 당시와 달라졌습니다. 최신 내용으로 다시 분석하시겠습니까?",
+                                null
                         );
                         return;
+                    }
+                    if (!articleChanged) {
+                        String viewerFingerprint = AnalysisCacheViewer.fingerprint(
+                                task.userType().name(),
+                                task.usageIdentifierKeys()
+                        );
+                        Optional<HeadlineAnalysisCacheUsageResult> cacheUsage = usagePolicy
+                                .recordCacheAccess(
+                                        task.usageSubject(),
+                                        cacheKey.orElseThrow(),
+                                        viewerFingerprint
+                                );
+                        if (cacheUsage.isPresent()) {
+                            HeadlineAnalysisCacheUsageResult cachedUsage = cacheUsage.orElseThrow();
+                            HeadlineAnalysisJobService.Usage usage = new HeadlineAnalysisJobService.Usage(
+                                    cachedUsage.dailyLimit(),
+                                    cachedUsage.usedCount(),
+                                    Math.max(0, cachedUsage.dailyLimit() - cachedUsage.usedCount()),
+                                    cachedUsage.charged()
+                            );
+                            chargedUsage = usage;
+                            completeCached(
+                                    task.analysisId(),
+                                    cachedResult.result(),
+                                    usage
+                            );
+                            return;
+                        }
                     }
                 }
             }
@@ -200,7 +218,9 @@ public class HeadlineAnalysisWorker {
             AnalysisJob checkingJob = lifecycleService.advance(
                     task.analysisId(), AnalysisJobStage.CHECKING_ARTICLE
             );
-            ExtractedArticle article = useCase.read(task.articleUrl());
+            ExtractedArticle article = currentArticle == null
+                    ? useCase.read(task.articleUrl())
+                    : currentArticle;
             AnalysisJob generatingJob = lifecycleService.advance(
                     task.analysisId(), AnalysisJobStage.GENERATING_RESULT
             );
@@ -216,7 +236,7 @@ public class HeadlineAnalysisWorker {
             chargedUsage = usage;
             HeadlineAnalysisResult result = useCase.analyze(article, checkingJob.deadlineAt());
             if (complete(task.analysisId(), result, usage)) {
-                cacheResult(cacheKey, task, result);
+                cacheResult(cacheKey, task, result, article);
             }
         } catch (ArticleProcessingException exception) {
             fail(task.analysisId(), exception.error().name(), "기사 내용을 확인하지 못했습니다.", null);
@@ -275,7 +295,8 @@ public class HeadlineAnalysisWorker {
     private void cacheResult(
             Optional<AnalysisCacheKey> cacheKey,
             HeadlineAnalysisTask task,
-            HeadlineAnalysisResult result
+            HeadlineAnalysisResult result,
+            ExtractedArticle article
     ) {
         if (cacheKey.isEmpty() || !cacheVersions.matchesHeadline(
                 result.aiModelVersion(),
@@ -287,6 +308,7 @@ public class HeadlineAnalysisWorker {
             resultCache.saveHeadline(
                     cacheKey.orElseThrow(),
                     result,
+                    ArticleRevisionFingerprint.from(article),
                     AnalysisCacheViewer.fingerprint(
                             task.userType().name(),
                             task.usageIdentifierKeys()

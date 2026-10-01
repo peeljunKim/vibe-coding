@@ -61,10 +61,15 @@ public class HeadlineAnalysisJobController {
         if (jobService.isEmpty()) {
             return serviceUnavailable();
         }
-        HeadlineAnalysisJobService.Acceptance acceptance = jobService.get().accept(
-                request.articleUrl(),
-                requester(authentication, guestBrowserId, null, servletRequest.getRemoteAddr())
+        HeadlineAnalysisJobService.Requester requester = requester(
+                authentication,
+                guestBrowserId,
+                null,
+                servletRequest.getRemoteAddr()
         );
+        HeadlineAnalysisJobService.Acceptance acceptance = request.reanalysisRequested()
+                ? jobService.get().reanalyze(request.articleUrl(), requester)
+                : jobService.get().accept(request.articleUrl(), requester);
         ResponseEntity.BodyBuilder builder = ResponseEntity.accepted()
                 .location(URI.create("/api/analyses/headline/" + acceptance.analysisId()))
                 .header(HttpHeaders.RETRY_AFTER, Integer.toString(POLL_AFTER_SECONDS))
@@ -156,7 +161,12 @@ public class HeadlineAnalysisJobController {
     }
 
     /** 분석 대상 URL 요청 */
-    public record AnalysisRequest(@NotBlank String articleUrl) {
+    public record AnalysisRequest(@NotBlank String articleUrl, Boolean reanalyze) {
+
+        /** 선택적 재분석 동의 값 변환 */
+        private boolean reanalysisRequested() {
+            return Boolean.TRUE.equals(reanalyze);
+        }
     }
 
     /** 제목 분석 이용량 응답 */

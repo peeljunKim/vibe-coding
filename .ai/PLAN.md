@@ -123,13 +123,12 @@
 
 ## Next Loop
 
-1. 공용 Cache 기사 변경 감지와 건강 근거 링크 재검증
-2. 실제 PubMed 근거 검색 Adapter와 근거 URL 재검증
-3. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
-4. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
-5. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-6. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-7. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. 실제 PubMed 근거 검색 Adapter와 안전한 근거 링크 HTTP 상태 확인 Adapter 구현
+2. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
+3. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
+4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+5. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+6. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -381,21 +380,39 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 건강·제목 기능별 Redis Cache Namespace와 SHA-256 Key 분리: PASS
 - 정규화 URL·기능·모델·판정 정책·언론사 정책 Version Key 반영: PASS
 - 건강 Cache의 근거 허용 목록 Version 추가 반영: PASS
-- 구조화 결과·만료 시각만 저장하고 기사 원문·사용자 개인정보 미저장: PASS
+- 구조화 결과·만료 시각·비원문 기사 Fingerprint만 저장하고 기사 원문·사용자 개인정보 미저장: PASS
 - 기본 3일에서 Key 기반 최대 30분 감산 지터와 조회 TTL 무연장: PASS
-- Cache Hit의 기사 추출·검색·AI 분석 Port 미호출: PASS
+- Cache Hit의 안전한 기사 재수집 1회와 제목·시각·순서형 문단 Hash 비교: PASS
+- Cache Hit의 분야 판별·검색·AI 분석 Port 미호출: PASS
+- 기사 변경 시 이용량 차감 전 `ARTICLE_CHANGED` 종료와 기존 결과 차단: PASS
+- Fingerprint 없는 이전 형식 Cache의 Miss 처리: PASS
 - 원 분석 사용자 재조회 미차감, 다른 사용자 최초 열람 1회 차감과 이후 미차감: PASS
 - 회원은 Cache 수명 동안 동일 식별, 비회원은 한국시간 날짜별 식별 경계 적용: PASS
 - Cache Miss의 기존 분석 흐름과 현재 Version 결과 저장: PASS
-- Docker Redis 8.8 통합 검증: PASS (40개, 실패·오류·Skip 0)
-- Backend 전체 Maven 회귀: PASS (202개, 실패·오류·Skip 0; Redis IT 별도 실행)
+- Docker Redis 8.8 통합 검증: PASS (44개, 실패·오류·Skip 0)
+- Backend 전체 Maven 회귀: PASS (233개, 실패·오류·Skip 0; Redis IT 별도 실행)
 - 실제 Gemini·PubMed·외부 검색 호출: NOT APPLICABLE (기존 Mock Adapter 사용)
-- Frontend 변경: NOT APPLICABLE
-- 기사 변경 감지와 건강 근거 링크 재검증: NOT APPLICABLE (이번 1단계 범위 제외)
+- Frontend 재분석 확인·취소와 API 전달: PASS (17개 Test File·80개 Test, TypeScript, Lint, Build)
+- 기사 변경 감지: PASS (제목 Hash·게시/수정 시각·순서형 문단 Hash, 기사 원문 Cache 미저장)
+- 기사 변경 후 Frontend 확인·취소 UI와 명시적 재분석 접수: PASS (건강·제목 모두 같은 URL에 선택적 `reanalyze: true` 전달, 취소 시 새 요청 없음)
+- 재분석 Queue 표시와 Worker Cache 우회·최신 결과 교체: PASS (이전 Stream 형식은 표시 누락 시 `false` 호환)
+- 재분석 시 안전 수집 결과 재사용과 외부 기사 중복 요청 방지: PASS
+- 재분석 관련 단위·MVC 검증: PASS (56개, 실패·오류·Skip 0)
+- 건강·제목 Chrome 재분석 E2E: PASS (2개, Console·Runtime 오류 없음; 건강 흐름 1024px Viewport 포함)
+- Chrome 전체 Browser 회귀: PASS (20개, 회원가입 E2E의 비로그인 Session Mock 경계 보완 포함)
+- 건강 근거 링크 검증 Port·외부 호출 없는 Mock: PASS
+- 중복 URL 제거와 일시 오류 1회 재확인, 반복 일시 오류의 기존 Cache 보존: PASS
+- 실제 소멸 근거 Cache 제거와 이용량 미차감 자동 재분석: PASS
+- 자동 재분석 동시 실행 방지: PASS (기존 Redis 전역 단일 Worker Lease 재사용)
+- 자동 재분석 실패 시 깨진 근거 의존 주장 제거, 확인률·종합 상태 재계산과 제한 결과 Cache 저장: PASS
+- Docker Redis 8.8 Cache 제거·기존 Queue·이용량 통합 회귀: PASS (45개, 실패·오류·Skip 0)
+- Backend 전체 Maven·Harness 회귀: PASS (238개, 실패·오류·Skip 0)
+- 실제 외부 근거 링크 HTTP 호출: NOT APPLICABLE (교체 가능한 Port와 Mock만 구현)
 
 ## 회원 탈퇴와 보관 수명주기
 
 - ACTIVE 회원 탈퇴 신청·Session 전체 만료·`WITHDRAWAL_PENDING` 전환: PASS
+- Session 만료 실패 시 탈퇴 상태 Commit 차단과 Transaction Rollback: PASS
 - 신청 후 7일 이내 로그인 시 명시적 탈퇴 취소와 ACTIVE 복구: PASS
 - 7일 경과 후 복구 차단과 공통 로그인 실패 응답: PASS
 - 탈퇴 신청 뒤 총 30일 보관, 최초 7일 복구 허용과 이후 복구 차단: PASS
@@ -404,7 +421,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend 전체 Maven 회귀: PASS (218개, 실패·오류·Skip 0)
 - Frontend Test·TypeScript·Lint·Build: PASS (15 files, 74 tests)
 - Harness·Secret·Diff 공백 검사: PASS
-- Native MySQL 탈퇴 수명주기 실제 재검증: PASS (`verify-publisher-native-mysql.ps1`; 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 검증)
+- Native MySQL 탈퇴 수명주기 실제 재검증: PASS (`verify-publisher-native-mysql.ps1`; 세션 만료 선행 변경 후에도 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 검증)
 - Desktop Browser 시각·상호작용 검증: PASS (Chrome, 1024·1280·1440px 가로 넘침 없음, 2단계 확인과 일정 표시)
 
 ## 도움말 화면과 기존 사용자 흐름

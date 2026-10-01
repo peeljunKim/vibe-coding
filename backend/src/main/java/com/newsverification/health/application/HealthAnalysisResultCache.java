@@ -2,6 +2,7 @@
 package com.newsverification.health.application;
 
 import com.newsverification.analysiscache.application.AnalysisCacheKey;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 
 import java.util.Optional;
@@ -16,8 +17,14 @@ public interface HealthAnalysisResultCache {
     CachedAnalysisResult<HealthAnalysisResult> saveHealth(
             AnalysisCacheKey key,
             HealthAnalysisResult result,
+            ArticleRevisionFingerprint articleFingerprint,
             String viewerFingerprint
     );
+
+    /** 깨진 근거를 포함한 건강 결과 제거 */
+    default void evictHealth(AnalysisCacheKey key) {
+        // Cache 미사용 구현 호환
+    }
 
     /** Cache 미사용 단위 테스트 기본값 */
     static HealthAnalysisResultCache disabled() {
@@ -31,9 +38,10 @@ public interface HealthAnalysisResultCache {
             public CachedAnalysisResult<HealthAnalysisResult> saveHealth(
                     AnalysisCacheKey key,
                     HealthAnalysisResult result,
+                    ArticleRevisionFingerprint articleFingerprint,
                     String viewerFingerprint
             ) {
-                return new CachedAnalysisResult<>(result, java.time.Instant.MAX);
+                return new CachedAnalysisResult<>(result, java.time.Instant.MAX, articleFingerprint);
             }
         };
     }

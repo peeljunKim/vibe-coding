@@ -4,6 +4,8 @@ package com.newsverification.analysiscache.infrastructure;
 import com.newsverification.analysiscache.application.AnalysisCacheKey;
 import com.newsverification.analysiscache.application.AnalysisCacheKeyFactory;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
+import com.newsverification.analysiscache.application.ArticleRevisionFingerprint;
+import com.newsverification.article.domain.ExtractedArticle;
 import com.newsverification.health.application.HealthAnalysisResult;
 import com.newsverification.headline.application.HeadlineAnalysisResult;
 import org.junit.jupiter.api.AfterEach;
@@ -88,15 +90,20 @@ class RedisAnalysisResultCacheIT {
                 .orElseThrow();
         HealthAnalysisResult healthResult = healthResult(articleUrl);
         HeadlineAnalysisResult headlineResult = headlineResult(articleUrl);
+        ArticleRevisionFingerprint articleFingerprint = articleFingerprint(articleUrl);
         String viewerFingerprint = "a".repeat(64);
 
-        cache.saveHealth(healthKey, healthResult, viewerFingerprint);
-        cache.saveHeadline(headlineKey, headlineResult, viewerFingerprint);
+        cache.saveHealth(healthKey, healthResult, articleFingerprint, viewerFingerprint);
+        cache.saveHeadline(headlineKey, headlineResult, articleFingerprint, viewerFingerprint);
         track(healthKey, viewerFingerprint);
         track(headlineKey, viewerFingerprint);
 
-        assertThat(cache.findHealth(healthKey).orElseThrow().result()).isEqualTo(healthResult);
-        assertThat(cache.findHeadline(headlineKey).orElseThrow().result()).isEqualTo(headlineResult);
+        assertThat(cache.findHealth(healthKey).orElseThrow())
+                .extracting("result", "articleFingerprint")
+                .containsExactly(healthResult, articleFingerprint);
+        assertThat(cache.findHeadline(headlineKey).orElseThrow())
+                .extracting("result", "articleFingerprint")
+                .containsExactly(headlineResult, articleFingerprint);
         assertThat(cache.findHeadline(healthKey)).isEmpty();
         assertThat(cache.findHealth(headlineKey)).isEmpty();
 
@@ -106,6 +113,7 @@ class RedisAnalysisResultCacheIT {
         assertThat(healthStored)
                 .contains("mock-health-analysis-v1")
                 .doesNotContain("기사 원문 비밀 내용")
+                .doesNotContain("첫 번째 문단", "두 번째 문단")
                 .doesNotContain("member-42");
         assertThat(healthViewerKey).doesNotContain("member-42");
         assertThat(redisTemplate.hasKey(healthViewerKey)).isTrue();
@@ -118,7 +126,12 @@ class RedisAnalysisResultCacheIT {
                 "https://news.example/ttl",
                 VERSIONS
         ).orElseThrow();
-        cache.saveHealth(key, healthResult("https://news.example/ttl"), "b".repeat(64));
+        cache.saveHealth(
+                key,
+                healthResult("https://news.example/ttl"),
+                articleFingerprint("https://news.example/ttl"),
+                "b".repeat(64)
+        );
         track(key, "b".repeat(64));
         Long ttlBeforeRead = redisTemplate.getExpire(cache.cacheKey(key), TimeUnit.MILLISECONDS);
 
@@ -131,6 +144,36 @@ class RedisAnalysisResultCacheIT {
         assertThat(ttlBeforeRead)
                 .isLessThanOrEqualTo(BASE_TTL.toMillis())
                 .isGreaterThanOrEqualTo(BASE_TTL.minusMinutes(30).toMillis() - 1_000L);
+    }
+
+    /** 깨진 근거 건강 결과의 명시적 제거 */
+    @Test
+    void evictsHealthResultWithoutRemovingOtherFeatureCache() {
+        String articleUrl = "https://news.example/evict";
+        AnalysisCacheKey healthKey = AnalysisCacheKeyFactory.health(articleUrl, VERSIONS)
+                .orElseThrow();
+        AnalysisCacheKey headlineKey = AnalysisCacheKeyFactory.headline(articleUrl, VERSIONS)
+                .orElseThrow();
+        String viewerFingerprint = "c".repeat(64);
+        cache.saveHealth(
+                healthKey,
+                healthResult(articleUrl),
+                articleFingerprint(articleUrl),
+                viewerFingerprint
+        );
+        cache.saveHeadline(
+                headlineKey,
+                headlineResult(articleUrl),
+                articleFingerprint(articleUrl),
+                viewerFingerprint
+        );
+        track(healthKey, viewerFingerprint);
+        track(headlineKey, viewerFingerprint);
+
+        cache.evictHealth(healthKey);
+
+        assertThat(cache.findHealth(healthKey)).isEmpty();
+        assertThat(cache.findHeadline(headlineKey)).isPresent();
     }
 
     /** 손상되거나 필수 값이 없는 Cache의 Miss 처리 */
@@ -160,6 +203,33 @@ class RedisAnalysisResultCacheIT {
         assertThat(redisTemplate.hasKey(redisKey)).isTrue();
 
         redisTemplate.opsForHash().put(redisKey, "resultJson", "not-json");
+        redisTemplate.opsForHash().put(
+                redisKey,
+                "expiresAt",
+                Instant.now().plus(Duration.ofHours(1)).toString()
+        );
+
+        assertThat(cache.findHealth(key)).isEmpty();
+        assertThat(redisTemplate.hasKey(redisKey)).isTrue();
+    }
+
+    /** Fingerprint 없는 이전 Cache의 안전한 Miss 처리 */
+    @Test
+    void treatsPreviousCacheWithoutArticleFingerprintAsMiss() throws Exception {
+        AnalysisCacheKey key = AnalysisCacheKeyFactory.health(
+                "https://news.example/previous-cache",
+                VERSIONS
+        ).orElseThrow();
+        String redisKey = cache.cacheKey(key);
+        createdKeys.add(redisKey);
+
+        redisTemplate.opsForHash().put(
+                redisKey,
+                "resultJson",
+                new ObjectMapper().writeValueAsString(
+                        healthResult("https://news.example/previous-cache")
+                )
+        );
         redisTemplate.opsForHash().put(
                 redisKey,
                 "expiresAt",
@@ -225,6 +295,17 @@ class RedisAnalysisResultCacheIT {
                 VERSIONS.headlineModelVersion(),
                 VERSIONS.headlinePolicyVersion()
         );
+    }
+
+    /** 기사 변경 감지 Fingerprint Fixture */
+    private ArticleRevisionFingerprint articleFingerprint(String articleUrl) {
+        return ArticleRevisionFingerprint.from(new ExtractedArticle(
+                URI.create(articleUrl),
+                "건강 기사",
+                "첫 번째 문단\n두 번째 문단",
+                OffsetDateTime.parse("2026-09-29T09:00:00+09:00"),
+                Optional.of(OffsetDateTime.parse("2026-09-29T10:00:00+09:00"))
+        ));
     }
 
     /** 필수 테스트 환경 변수 조회 */

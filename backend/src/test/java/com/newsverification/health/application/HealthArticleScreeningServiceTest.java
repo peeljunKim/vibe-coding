@@ -22,6 +22,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** 같은 지원 언론사의 기사별 분야 판별 */
@@ -56,6 +58,41 @@ class HealthArticleScreeningServiceTest {
         assertThat(result.article().title()).isEqualTo("지역 축제 개막과 교통 통제 안내");
         assertThat(result.decision()).isEqualTo(HealthArticleTopicDecision.NOT_HEALTH_RELATED);
         assertThat(result.canContinue()).isFalse();
+    }
+
+    /** 기사 변경 확인의 분야 판별 없는 안전 수집 */
+    @Test
+    void readsArticleWithoutTopicClassification() {
+        PublisherArticleReader articleReader = mock(PublisherArticleReader.class);
+        HealthArticleTopicClassifier classifier = mock(HealthArticleTopicClassifier.class);
+        ExtractedArticle article = mock(ExtractedArticle.class);
+        when(articleReader.read(HEALTH_ARTICLE_URL.toString())).thenReturn(article);
+        HealthArticleScreeningService service = new HealthArticleScreeningService(
+                articleReader,
+                classifier
+        );
+
+        assertThat(service.read(HEALTH_ARTICLE_URL.toString())).isSameAs(article);
+        verify(articleReader).read(HEALTH_ARTICLE_URL.toString());
+        verifyNoInteractions(classifier);
+    }
+
+    /** 재분석에서 안전 수집 결과 재사용 */
+    @Test
+    void screensPreviouslyExtractedArticleWithoutReadingAgain() {
+        PublisherArticleReader articleReader = mock(PublisherArticleReader.class);
+        HealthArticleTopicClassifier classifier = mock(HealthArticleTopicClassifier.class);
+        ExtractedArticle article = mock(ExtractedArticle.class);
+        when(classifier.classify(article)).thenReturn(HealthArticleTopicDecision.HEALTH_RELATED);
+        HealthArticleScreeningService service = new HealthArticleScreeningService(
+                articleReader,
+                classifier
+        );
+
+        assertThat(service.screen(article).decision())
+                .isEqualTo(HealthArticleTopicDecision.HEALTH_RELATED);
+        verify(classifier).classify(article);
+        verifyNoInteractions(articleReader);
     }
 
     /** 실제 기사 수집 경계와 테스트 판별 Port 구성 */

@@ -61,10 +61,15 @@ public class HealthAnalysisJobController {
             return serviceUnavailable();
         }
 
-        HealthAnalysisJobService.Acceptance acceptance = jobService.get().accept(
-                request.articleUrl(),
-                requester(authentication, guestBrowserId, null, servletRequest.getRemoteAddr())
+        HealthAnalysisJobService.Requester requester = requester(
+                authentication,
+                guestBrowserId,
+                null,
+                servletRequest.getRemoteAddr()
         );
+        HealthAnalysisJobService.Acceptance acceptance = request.reanalysisRequested()
+                ? jobService.get().reanalyze(request.articleUrl(), requester)
+                : jobService.get().accept(request.articleUrl(), requester);
         AcceptedResponse response = AcceptedResponse.from(acceptance);
         ResponseEntity.BodyBuilder responseBuilder = ResponseEntity.accepted()
                 .location(URI.create("/api/analyses/health/" + acceptance.analysisId()))
@@ -185,7 +190,12 @@ public class HealthAnalysisJobController {
     }
 
     /** 분석 대상 URL 요청 */
-    public record AnalysisRequest(@NotBlank String articleUrl) {
+    public record AnalysisRequest(@NotBlank String articleUrl, Boolean reanalyze) {
+
+        /** 선택적 재분석 동의 값 변환 */
+        private boolean reanalysisRequested() {
+            return Boolean.TRUE.equals(reanalyze);
+        }
     }
 
     /** 분석 이용량 응답 */

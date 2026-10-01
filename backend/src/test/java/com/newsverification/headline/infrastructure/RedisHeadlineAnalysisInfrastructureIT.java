@@ -92,6 +92,21 @@ class RedisHeadlineAnalysisInfrastructureIT {
         assertThat(queue.take()).isEmpty();
     }
 
+    /** 재분석 동의 표시의 제목 Stream 왕복 보존 */
+    @Test
+    void preservesHeadlineReanalysisRequestFlag() {
+        HeadlineAnalysisTask task = new HeadlineAnalysisTask(
+                "headline-reanalyze",
+                "https://news.example/general/changed",
+                HeadlineAnalysisUserType.MEMBER,
+                List.of("member-key"),
+                true
+        );
+
+        assertThat(queue.enqueue(task)).isTrue();
+        assertThat(queue.take()).contains(task);
+    }
+
     /** 비회원 5회와 회원 10회의 독립 제목 한도 */
     @Test
     void appliesHeadlineSpecificDailyLimits() {

@@ -46,6 +46,21 @@ class DefaultHeadlineAnalysisJobServiceTest {
         assertThat(queue.task.userType()).isEqualTo(HeadlineAnalysisUserType.GUEST);
     }
 
+    /** 사용자 동의 재분석의 Queue 표시 전달 */
+    @Test
+    void marksConfirmedReanalysisTask() {
+        InMemoryJobStore store = new InMemoryJobStore();
+        RecordingQueue queue = new RecordingQueue(true);
+        HeadlineAnalysisJobService service = service(store, queue);
+
+        service.reanalyze(
+                "https://news.example/general",
+                new HeadlineAnalysisJobService.Requester("member-1", null, null, "203.0.113.10")
+        );
+
+        assertThat(queue.task.reanalysisRequested()).isTrue();
+    }
+
     /** 다른 비회원 자격의 작업 조회 차단 */
     @Test
     void hidesJobFromDifferentGuestAccessToken() {

@@ -200,6 +200,11 @@ class DefaultReportServiceTest {
         }
 
         @Override
+        public Acceptance reanalyze(String articleUrl, Requester requester) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public Optional<Progress> find(String analysisId, Requester requester) {
             if (!"42".equals(requester.memberId())) {
                 return Optional.empty();
@@ -217,6 +222,11 @@ class DefaultReportServiceTest {
     private static final class FixedHeadlineJobs implements HeadlineAnalysisJobService {
         @Override
         public Acceptance accept(String articleUrl, Requester requester) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Acceptance reanalyze(String articleUrl, Requester requester) {
             throw new UnsupportedOperationException();
         }
 

@@ -14,6 +14,9 @@ public interface HealthAnalysisJobService {
     /** 건강 분석 작업 접수 */
     Acceptance accept(String articleUrl, Requester requester);
 
+    /** 기사 변경 확인 뒤 건강 분석 재접수 */
+    Acceptance reanalyze(String articleUrl, Requester requester);
+
     /** 소유권을 포함한 건강 분석 작업 조회 */
     Optional<Progress> find(String analysisId, Requester requester);
 

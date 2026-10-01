@@ -6,6 +6,8 @@ import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.health.application.HealthAnalysisJobIdentityService;
+import com.newsverification.health.application.HealthEvidenceLinkChecker;
+import com.newsverification.health.application.HealthEvidenceLinkValidationService;
 import com.newsverification.health.application.HealthAnalysisPort;
 import com.newsverification.health.application.HealthAnalysisQueue;
 import com.newsverification.health.application.HealthAnalysisUseCase;
@@ -61,6 +63,8 @@ class HealthAnalysisConfigTest {
             assertThat(context).hasSingleBean(Clock.class);
             assertThat(context).hasSingleBean(HealthArticleTopicClassifier.class);
             assertThat(context).hasSingleBean(HealthAnalysisPort.class);
+            assertThat(context).hasSingleBean(HealthEvidenceLinkChecker.class);
+            assertThat(context).hasSingleBean(HealthEvidenceLinkValidationService.class);
             assertThat(context).hasSingleBean(HealthAnalysisJobIdentityService.class);
             assertThat(context).hasSingleBean(HealthAnalysisUseCase.class);
             assertThat(context).hasSingleBean(HealthAnalysisJobService.class);
