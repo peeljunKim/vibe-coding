@@ -424,6 +424,50 @@ test('분석 접수 불가 상태에는 안전한 재시도 안내를 표시한�
   browserErrors.set(page, [])
 })
 
+test('요청 제한 안내는 Polling 없이 Desktop 너비에서 유지된다', async ({
+  page,
+}) => {
+  let pollCount = 0
+  await page.route('**/api/analyses/health/*', (route) => {
+    pollCount += 1
+    return route.abort()
+  })
+  await page.route('**/api/analyses/health', (route) =>
+    route.fulfill({
+      status: 429,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        code: 'ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED',
+        detail: '내부 요청 제한 정보',
+      }),
+    }),
+  )
+  await writeArticleUrl(page)
+
+  await page.getByRole('button', { name: '복사한 건강 기사 확인하기' }).click()
+
+  await expect(page.getByRole('alert')).toHaveText(
+    '요청이 너무 많습니다. 1분 후 다시 시도해 주세요.',
+  )
+  await expect(page.getByText('내부 요청 제한 정보')).toHaveCount(0)
+  expect(pollCount).toBe(0)
+  for (const width of [1024, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(page.getByRole('alert')).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
+  }
+  const errors = browserErrors.get(page) ?? []
+  expect(errors.some((message) => message.includes('429'))).toBe(true)
+  browserErrors.set(
+    page,
+    errors.filter((message) => !message.includes('429')),
+  )
+})
+
 test('분석 취소 뒤 늦게 도착한 완료 결과를 폐기한다', async ({ page }) => {
   await page.route('**/api/analyses/health', (route) =>
     route.fulfill({

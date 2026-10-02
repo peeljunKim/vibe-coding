@@ -452,6 +452,43 @@ describe('App', () => {
     },
   )
 
+  it.each([
+    ['건강', '복사한 건강 기사 확인하기'],
+    ['제목', '복사한 기사 제목 확인하기'],
+  ])(
+    '%s 분석 요청 제한을 안내하고 Polling하지 않는다',
+    async (_feature, buttonName) => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          readText: vi
+            .fn()
+            .mockResolvedValue('https://news.example.com/rate-limited'),
+        },
+      })
+      document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          json: () =>
+            Promise.resolve({ code: 'ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED' }),
+        })
+      vi.stubGlobal('fetch', fetchMock)
+      renderApp()
+
+      fireEvent.click(screen.getByRole('button', { name: buttonName }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        '요청이 너무 많습니다. 1분 후 다시 시도해 주세요.',
+      )
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(screen.getByRole('button', { name: buttonName })).toBeEnabled()
+    },
+  )
+
   it('변경된 건강 기사는 사용자 동의 뒤 같은 URL을 재분석한다', async () => {
     const articleUrl = 'https://news.example.com/changed-health-article'
     Object.defineProperty(navigator, 'clipboard', {

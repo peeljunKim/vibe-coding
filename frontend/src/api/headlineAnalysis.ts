@@ -65,8 +65,13 @@ const acceptHeadlineAnalysis = async (
     ),
   })
   if (!response.ok) {
+    const problem = (await response.json().catch(() => ({}))) as {
+      code?: string
+    }
     throw new Error(
-      '기사 제목을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      problem.code === 'ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED'
+        ? '요청이 너무 많습니다. 1분 후 다시 시도해 주세요.'
+        : '기사 제목을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
     )
   }
 

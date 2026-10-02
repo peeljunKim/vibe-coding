@@ -423,7 +423,10 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Docker Redis 8.8 분석 작업·Cache·Queue·이용량·접수 제한 통합 검증: PASS (51개, 실패·오류·Skip 0)
 - Backend 전체 Maven·Harness 회귀: PASS (246개, 실패·오류·Skip 0; Docs·Backend Scope와 Secret·Diff 검사)
 - 실제 Gemini·PubMed·외부 근거 링크 호출: NOT APPLICABLE (기존 Mock Adapter 사용)
-- Frontend 변경과 Browser 검증: NOT APPLICABLE (이번 범위 제외)
+- 건강·제목 분석의 `429 ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED` 사용자 안내와 Polling 미시작: PASS
+- Frontend 단위 회귀: PASS (18개 Test File·84개 Test)
+- 건강·제목 Chrome E2E와 Desktop 1024·1280·1440px 오류 화면: PASS (10개)
+- Frontend TypeScript·Lint·Build: PASS
 
 ## 회원 탈퇴와 보관 수명주기
 
