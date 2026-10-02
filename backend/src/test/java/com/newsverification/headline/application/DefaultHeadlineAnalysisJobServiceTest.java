@@ -5,6 +5,8 @@ import com.newsverification.analysis.application.AnalysisJobLifecycleService;
 import com.newsverification.analysis.application.AnalysisJobOutcome;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
 import com.newsverification.analysis.application.AnalysisJobStore;
+import com.newsverification.analysis.application.AnalysisRequestRateLimitExceededException;
+import com.newsverification.analysis.application.AnalysisRequestRateLimiter;
 import com.newsverification.analysis.domain.AnalysisJob;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -122,8 +124,75 @@ class DefaultHeadlineAnalysisJobServiceTest {
         assertThat(store.jobs.values()).allMatch(job -> job.status().name().equals("FAILED"));
     }
 
+    /** 동일 사용자의 과도한 제목 분석 접수를 Queue 전에 차단 */
+    @Test
+    void rejectsSixthRequestBeforeCreatingJobOrUsingQueue() {
+        InMemoryJobStore store = new InMemoryJobStore();
+        RecordingQueue queue = new RecordingQueue(true);
+        var rateLimiter = new RecordingRequestRateLimiter(5);
+        HeadlineAnalysisJobService service = service(store, queue, rateLimiter);
+        var requester = new HeadlineAnalysisJobService.Requester(
+                "member-1",
+                null,
+                null,
+                "203.0.113.10"
+        );
+
+        for (int index = 0; index < 5; index++) {
+            service.accept("https://news.example/general", requester);
+        }
+
+        assertThatThrownBy(() -> service.accept("https://news.example/general", requester))
+                .isInstanceOf(AnalysisRequestRateLimitExceededException.class);
+        assertThat(store.jobs).hasSize(5);
+        assertThat(queue.enqueueCount).isEqualTo(5);
+    }
+
+    /** 요청 제한 Redis 장애의 제목 작업 생성 전 서비스 장애 변환 */
+    @Test
+    void rejectsAcceptanceBeforeCreatingJobWhenRateLimiterFails() {
+        InMemoryJobStore store = new InMemoryJobStore();
+        RecordingQueue queue = new RecordingQueue(true);
+        HeadlineAnalysisJobService service = service(store, queue, (feature, identifiers) -> {
+            throw new IllegalStateException("Redis unavailable");
+        });
+
+        assertThatThrownBy(() -> service.accept(
+                "https://news.example/general",
+                new HeadlineAnalysisJobService.Requester("member-1", null, null, "203.0.113.10")
+        )).isInstanceOf(HeadlineAnalysisServiceUnavailableException.class);
+        assertThat(store.jobs).isEmpty();
+        assertThat(queue.enqueueCount).isZero();
+    }
+
+    /** 제목 상태 Polling의 분석 접수 제한 제외 */
+    @Test
+    void doesNotRateLimitPollingRequests() {
+        InMemoryJobStore store = new InMemoryJobStore();
+        var rateLimiter = new RecordingRequestRateLimiter(1);
+        HeadlineAnalysisJobService service = service(store, new RecordingQueue(true), rateLimiter);
+        var requester = new HeadlineAnalysisJobService.Requester(
+                "member-1", null, null, "203.0.113.10"
+        );
+        HeadlineAnalysisJobService.Acceptance accepted = service.accept(
+                "https://news.example/general", requester);
+
+        assertThat(service.find(accepted.analysisId(), requester)).isPresent();
+        assertThat(service.find(accepted.analysisId(), requester)).isPresent();
+        assertThat(rateLimiter.count).isEqualTo(1);
+    }
+
     /** 고정 시각 기반 Service 구성 */
     private HeadlineAnalysisJobService service(InMemoryJobStore store, HeadlineAnalysisQueue queue) {
+        return service(store, queue, AnalysisRequestRateLimiter.unlimited());
+    }
+
+    /** 요청 제한 정책 포함 제목 Service 구성 */
+    private HeadlineAnalysisJobService service(
+            InMemoryJobStore store,
+            HeadlineAnalysisQueue queue,
+            AnalysisRequestRateLimiter requestRateLimiter
+    ) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         return new DefaultHeadlineAnalysisJobService(
                 new AnalysisJobLifecycleService(store, clock),
@@ -137,6 +206,7 @@ class DefaultHeadlineAnalysisJobServiceTest {
                         false
                 ),
                 new StubUsagePolicy(),
+                requestRateLimiter,
                 new ObjectMapper()
         );
     }
@@ -193,6 +263,7 @@ class DefaultHeadlineAnalysisJobServiceTest {
         private final boolean accepts;
         private final RuntimeException failure;
         private HeadlineAnalysisTask task;
+        private int enqueueCount;
 
         private RecordingQueue(boolean accepts) {
             this.accepts = accepts;
@@ -210,6 +281,7 @@ class DefaultHeadlineAnalysisJobServiceTest {
                 throw failure;
             }
             this.task = task;
+            enqueueCount++;
             return accepts;
         }
 
@@ -225,6 +297,25 @@ class DefaultHeadlineAnalysisJobServiceTest {
 
         @Override
         public void releaseWorker(String ownerToken) {
+        }
+    }
+
+    /** 테스트용 메모리 요청 제한 정책 */
+    private static final class RecordingRequestRateLimiter implements AnalysisRequestRateLimiter {
+
+        private final int limit;
+        private int count;
+
+        private RecordingRequestRateLimiter(int limit) {
+            this.limit = limit;
+        }
+
+        @Override
+        public void acquire(Feature feature, java.util.List<String> identifierKeys) {
+            if (count >= limit) {
+                throw new AnalysisRequestRateLimitExceededException();
+            }
+            count++;
         }
     }
 
