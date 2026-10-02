@@ -36,6 +36,43 @@ test.afterEach(({ page }) => {
   expect(browserErrors.get(page)).toEqual([])
 })
 
+test('제목 분석 요청 제한을 안내하고 Polling하지 않는다', async ({ page }) => {
+  let pollCount = 0
+  await page.route('**/api/analyses/headline/*', (route) => {
+    pollCount += 1
+    return route.abort()
+  })
+  await page.route('**/api/analyses/headline', (route) =>
+    route.fulfill({
+      status: 429,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        code: 'ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED',
+        detail: '내부 요청 제한 정보',
+      }),
+    }),
+  )
+  await page.goto('/')
+  await page.evaluate(
+    (articleUrl) => navigator.clipboard.writeText(articleUrl),
+    ARTICLE_URL,
+  )
+
+  await page.getByRole('button', { name: '복사한 기사 제목 확인하기' }).click()
+
+  await expect(page.getByRole('alert')).toHaveText(
+    '요청이 너무 많습니다. 1분 후 다시 시도해 주세요.',
+  )
+  await expect(page.getByText('내부 요청 제한 정보')).toHaveCount(0)
+  expect(pollCount).toBe(0)
+  const errors = browserErrors.get(page) ?? []
+  expect(errors.some((message) => message.includes('429'))).toBe(true)
+  browserErrors.set(
+    page,
+    errors.filter((message) => !message.includes('429')),
+  )
+})
+
 test('변경된 기사 제목은 사용자 확인 뒤 최신 내용으로 재분석한다', async ({
   page,
 }) => {

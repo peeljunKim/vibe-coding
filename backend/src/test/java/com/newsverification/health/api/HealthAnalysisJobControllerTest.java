@@ -3,6 +3,7 @@ package com.newsverification.health.api;
 
 import com.newsverification.analysis.domain.AnalysisJobStage;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
+import com.newsverification.analysis.application.AnalysisRequestRateLimitExceededException;
 import com.newsverification.config.SecurityConfig;
 import com.newsverification.health.application.HealthAnalysisJobService;
 import com.newsverification.health.application.HealthAnalysisResult;
@@ -268,6 +269,22 @@ class HealthAnalysisJobControllerTest {
                                 """))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("ANALYSIS_SERVICE_UNAVAILABLE"));
+    }
+
+    /** 과도한 분석 접수의 429 공통 오류 응답 */
+    @Test
+    void returnsTooManyRequestsWhenAdmissionLimitIsExceeded() throws Exception {
+        when(jobService.accept(eq("https://news.example/article"), any()))
+                .thenThrow(new AnalysisRequestRateLimitExceededException());
+
+        mockMvc.perform(post("/api/analyses/health")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"articleUrl":"https://news.example/article"}
+                                """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED"));
     }
 
     /** 존재·만료·소유권 불일치의 동일한 404 응답 검증 */

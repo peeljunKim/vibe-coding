@@ -37,6 +37,9 @@ pwsh -NoProfile -File scripts/agent/seed-news-publishers.ps1 -Target Development
 # Native MySQL Schema와 테스트 연결 회귀 검사
 pwsh -NoProfile -File scripts/agent/native-mysql-validation.Tests.ps1
 
+# Docker Redis 분석 작업·Cache·Queue·이용량·접수 제한 통합 검증
+pwsh -NoProfile -File scripts/agent/verify-redis-analysis-job.ps1
+
 # 승인된 초기 언론사 실제 기사 추출 시험
 pwsh -NoProfile -File scripts/agent/verify-publisher-extraction.ps1 `
     -TimeoutSeconds <확정값> `

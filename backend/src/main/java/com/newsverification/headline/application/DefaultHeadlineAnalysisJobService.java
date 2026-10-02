@@ -4,6 +4,8 @@ package com.newsverification.headline.application;
 import com.newsverification.analysis.application.AnalysisJobLifecycleService;
 import com.newsverification.analysis.application.AnalysisJobOutcome;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
+import com.newsverification.analysis.application.AnalysisRequestRateLimitExceededException;
+import com.newsverification.analysis.application.AnalysisRequestRateLimiter;
 import com.newsverification.analysis.domain.AnalysisJob;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
     private final HeadlineAnalysisQueue queue;
     private final HeadlineAnalysisJobIdentityService identityService;
     private final HeadlineAnalysisUsagePolicy usagePolicy;
+    private final AnalysisRequestRateLimiter requestRateLimiter;
     private final ObjectMapper objectMapper;
 
     /** 작업 수명·종료 결과·Queue·소유권 구성 */
@@ -31,6 +34,7 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
             HeadlineAnalysisQueue queue,
             HeadlineAnalysisJobIdentityService identityService,
             HeadlineAnalysisUsagePolicy usagePolicy,
+            AnalysisRequestRateLimiter requestRateLimiter,
             ObjectMapper objectMapper
     ) {
         this.lifecycleService = lifecycleService;
@@ -38,6 +42,7 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
         this.queue = queue;
         this.identityService = identityService;
         this.usagePolicy = usagePolicy;
+        this.requestRateLimiter = requestRateLimiter;
         this.objectMapper = objectMapper;
     }
 
@@ -59,6 +64,10 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
         HeadlineAnalysisUsageResult currentUsage;
         AnalysisJob job = null;
         try {
+            requestRateLimiter.acquire(
+                    AnalysisRequestRateLimiter.Feature.HEADLINE,
+                    identity.usageSubject().identifierKeys()
+            );
             currentUsage = usagePolicy.currentUsage(identity.usageSubject());
             job = lifecycleService.accept(UUID.randomUUID().toString(), identity.owner());
             boolean enqueued = queue.enqueue(new HeadlineAnalysisTask(
@@ -74,6 +83,9 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
         } catch (RuntimeException exception) {
             if (job != null) {
                 rejectAcceptedJob(job.id());
+            }
+            if (exception instanceof AnalysisRequestRateLimitExceededException rateLimited) {
+                throw rateLimited;
             }
             if (exception instanceof HeadlineAnalysisServiceUnavailableException unavailable) {
                 throw unavailable;

@@ -95,6 +95,8 @@ const HEALTH_ANALYSIS_ERROR_MESSAGES: Record<string, string> = {
     '분석 제한 시간을 초과했습니다. 다시 시도해 주세요.',
   ANALYSIS_SERVICE_UNAVAILABLE:
     '분석 서비스를 현재 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+  ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED:
+    '요청이 너무 많습니다. 1분 후 다시 시도해 주세요.',
 }
 
 const toHealthAnalysisErrorMessage = (code?: string) =>

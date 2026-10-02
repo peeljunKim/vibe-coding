@@ -4,6 +4,7 @@ package com.newsverification.config;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
 import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.application.AnalysisJobLifecycleService;
+import com.newsverification.analysis.application.AnalysisRequestRateLimiter;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.article.application.PublisherArticleReader;
 import com.newsverification.headline.application.DefaultHeadlineAnalysisJobService;
@@ -39,6 +40,7 @@ class HeadlineAnalysisConfigTest {
                     () -> mock(AnalysisJobLifecycleService.class)
             )
             .withBean(AnalysisJobStore.class, () -> mock(AnalysisJobStore.class))
+            .withBean(AnalysisRequestRateLimiter.class, AnalysisRequestRateLimiter::unlimited)
             .withBean(AnalysisJobOutcomeStore.class, () -> mock(AnalysisJobOutcomeStore.class))
             .withBean(HeadlineAnalysisQueue.class, () -> mock(HeadlineAnalysisQueue.class))
             .withBean(HeadlineAnalysisResultCache.class, HeadlineAnalysisResultCache::disabled)

@@ -3,6 +3,7 @@ package com.newsverification.headline.api;
 
 import com.newsverification.analysis.domain.AnalysisJobStage;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
+import com.newsverification.analysis.application.AnalysisRequestRateLimitExceededException;
 import com.newsverification.config.SecurityConfig;
 import com.newsverification.headline.application.HeadlineAnalysisJobService;
 import com.newsverification.headline.application.HeadlineAnalysisResult;
@@ -165,6 +166,20 @@ class HeadlineAnalysisJobControllerTest {
                         .header("X-Analysis-Access-Token", "wrong-token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ANALYSIS_NOT_FOUND"));
+    }
+
+    /** 과도한 제목 분석 접수의 429 공통 오류 응답 */
+    @Test
+    void returnsTooManyRequestsWhenAdmissionLimitIsExceeded() throws Exception {
+        when(jobService.accept(eq("https://news.example/article"), any()))
+                .thenThrow(new AnalysisRequestRateLimitExceededException());
+
+        mockMvc.perform(post("/api/analyses/headline")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"articleUrl\":\"https://news.example/article\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED"));
     }
 
     /** 빈 URL의 Application Port 진입 전 거절 검증 */

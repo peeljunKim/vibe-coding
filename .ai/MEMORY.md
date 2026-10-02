@@ -62,6 +62,8 @@
 - 기사 변경 시 건강·제목 화면에서 명시적 재분석 확인·취소를 제공하고, 동의 요청만 Queue 표시를 거쳐 기존 분석·이용량 흐름과 Cache 교체를 실행함; Backend 전체 233개 Test, Docker Redis 통합 44개 Test, Frontend 17개 Test File·80개 Test와 Chrome 전체 E2E 20개 PASS
 - Cache 건강 근거 링크는 교체 가능한 Port로 중복 제거 후 확인하고 일시 오류를 1회 재확인함; 사라진 링크가 있으면 Cache를 제거하고 전역 단일 Worker Lease 안에서 이용량 미차감 자동 재분석을 실행하며 실패 시 깨진 근거 의존 주장을 제거한 제한 결과와 재계산한 확인률을 Cache에 저장함
 - 실제 외부 근거 링크 HTTP 상태 확인 Adapter는 아직 미구현이며 현재 Mock은 외부 호출 없이 정상 상태를 반환함
+- 건강·제목 분석 접수는 기사 수집·Queue 적재 전에 기능별·사용자별 Redis 고정 시간 제한을 적용함; 각 기능 1분 5회, HMAC 식별값 추가 Digest, 비회원 다중 식별 신호 카운터 동기화, 초과 `429`, Redis 장애 `503`, Polling·자동 근거 재분석 제외
+- Frontend는 건강·제목 분석의 `429 ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED`를 공통 사용자 안내로 표시하고 Polling을 시작하지 않으며 Desktop 1024·1280·1440px에서 오류 화면을 검증함
 
 ## Deferred
 

@@ -1,7 +1,7 @@
 <!-- Repository 구조와 위험 근거 -->
 # Project Discovery와 Risk Guardrail
 
-기준일: 2026-08-31
+기준일: 2026-10-02
 
 ## Confirmed
 
@@ -18,7 +18,7 @@
 | Architecture | React Page·API Adapter와 Spring Boot Domain별 API·Application·Infrastructure 계층 |
 | Domain Structure | 건강 뉴스·제목 확인, 일반 회원가입·이메일 인증·로그인·계정 복구·회원 탈퇴 수명주기, 건강 분석 저장·목록·만료 정리, 문제 신고·관리자 처리와 건강·제목 결과 공유 구현; 소셜 가입은 아직 미구현 |
 | Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 지원 언론사·일반 회원·건강 분석 저장 기록 Entity와 Repository 존재 |
-| Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session 구현; 건강·제목 기능별 3일 공용 Cache, 기사 변경 Fingerprint, 사용자별 최초 열람 차감과 사용자 동의 재분석, 건강 근거 링크 Mock 재검증·무차감 자동 재분석 구현 |
+| Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session 구현; 건강·제목 기능별 3일 공용 Cache, 기사 변경 Fingerprint, 사용자별 최초 열람 차감과 사용자 동의 재분석, 건강 근거 링크 Mock 재검증·무차감 자동 재분석, 기능별 1분 5회 분석 접수 제한 구현 |
 | External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock 존재; 실제 PubMed·Gemini·Google/Kakao/Naver OAuth Provider Adapter는 미구현 |
 | Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구·탈퇴 복구 확인과 Redis Session 구현; 소셜 인증 흐름은 미구현 |
 | Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
@@ -126,6 +126,7 @@
 | 개인정보·Secret 노출 | OAuth, SMTP, AI key, IP hash 설정 | 실제 `.env` 금지, 기사 원문·IP·개인정보 Log 금지 |
 | 인증·관리자 권한 누락 | Security와 `ADMIN` 서버 검사 요구 | Frontend 숨김과 무관한 서버 인가 테스트 필수 |
 | Redis 장애 시 비용 제한 우회 | Cache·세션·이용량·Lock 책임 집중 | 이용량 또는 Lock 확인 불가 시 새 AI 분석 중단 |
+| 반복 Cache 검증의 기사 수집 비용 | 무료 Cache 재조회도 안전한 기사 수집을 선행 | 기사 수집·Queue 전 기능별 Redis 요청 제한, Polling·시스템 자동 재분석 제외 |
 | Schema drift | `ddl-auto: validate`, Local 초기 SQL과 이후 GitHub Version SQL 방식, DB 이력 Table 미사용 | Entity와 V0002 이후 호환 SQL을 함께 추가하고 Commit·PR에 적용 결과 기록 |
 | 무료 AI 데이터 처리 | Gemini 무료 등급을 Prototype에 사용 | 공개 기사·허용 근거만 전송하고 개인정보·기밀정보 차단 |
 | 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |

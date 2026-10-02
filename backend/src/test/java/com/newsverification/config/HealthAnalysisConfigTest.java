@@ -4,6 +4,7 @@ package com.newsverification.config;
 import com.newsverification.article.application.PublisherArticleReader;
 import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
+import com.newsverification.analysis.application.AnalysisRequestRateLimiter;
 import com.newsverification.analysiscache.application.AnalysisCacheVersions;
 import com.newsverification.health.application.HealthAnalysisJobIdentityService;
 import com.newsverification.health.application.HealthEvidenceLinkChecker;
@@ -36,6 +37,7 @@ class HealthAnalysisConfigTest {
                     HealthAnalysisWorker.class
             )
             .withBean(AnalysisJobStore.class, () -> mock(AnalysisJobStore.class))
+            .withBean(AnalysisRequestRateLimiter.class, AnalysisRequestRateLimiter::unlimited)
             .withBean(
                     AnalysisJobOutcomeStore.class,
                     () -> mock(AnalysisJobOutcomeStore.class)

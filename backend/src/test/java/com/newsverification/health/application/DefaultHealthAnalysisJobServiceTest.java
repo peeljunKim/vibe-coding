@@ -5,6 +5,8 @@ import com.newsverification.analysis.application.AnalysisJobOutcome;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
 import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.application.AnalysisJobLifecycleService;
+import com.newsverification.analysis.application.AnalysisRequestRateLimitExceededException;
+import com.newsverification.analysis.application.AnalysisRequestRateLimiter;
 import com.newsverification.analysis.domain.AnalysisJob;
 import org.junit.jupiter.api.Test;
 
@@ -171,6 +173,64 @@ class DefaultHealthAnalysisJobServiceTest {
         assertThat(queue.task.reanalysisRequested()).isTrue();
     }
 
+    /** 동일 사용자의 과도한 접수를 작업 생성 전에 차단 */
+    @Test
+    void rejectsSixthRequestBeforeCreatingJobOrUsingQueue() {
+        var store = new InMemoryJobStore();
+        var queue = new RecordingQueue(true);
+        var rateLimiter = new RecordingRequestRateLimiter(5);
+        HealthAnalysisJobService service = service(store, queue, 0, rateLimiter);
+        var requester = new HealthAnalysisJobService.Requester(
+                "member-1",
+                null,
+                null,
+                "203.0.113.7"
+        );
+
+        for (int index = 0; index < 5; index++) {
+            service.accept("https://news.example/article", requester);
+        }
+
+        assertThatThrownBy(() -> service.accept("https://news.example/article", requester))
+                .isInstanceOf(AnalysisRequestRateLimitExceededException.class);
+        assertThat(store.jobs).hasSize(5);
+        assertThat(queue.enqueueCount).isEqualTo(5);
+    }
+
+    /** 요청 제한 Redis 장애의 작업 생성 전 서비스 장애 변환 */
+    @Test
+    void rejectsAcceptanceBeforeCreatingJobWhenRateLimiterFails() {
+        var store = new InMemoryJobStore();
+        var queue = new RecordingQueue(true);
+        HealthAnalysisJobService service = service(store, queue, 0, (feature, identifiers) -> {
+            throw new IllegalStateException("Redis unavailable");
+        });
+
+        assertThatThrownBy(() -> service.accept(
+                "https://news.example/article",
+                new HealthAnalysisJobService.Requester("member-1", null, null, "203.0.113.7")
+        )).isInstanceOf(HealthAnalysisServiceUnavailableException.class);
+        assertThat(store.jobs).isEmpty();
+        assertThat(queue.enqueueCount).isZero();
+    }
+
+    /** 상태 Polling의 분석 접수 제한 제외 */
+    @Test
+    void doesNotRateLimitPollingRequests() {
+        var store = new InMemoryJobStore();
+        var rateLimiter = new RecordingRequestRateLimiter(1);
+        HealthAnalysisJobService service = service(store, new RecordingQueue(true), 0, rateLimiter);
+        var requester = new HealthAnalysisJobService.Requester(
+                "member-1", null, null, "203.0.113.7"
+        );
+        HealthAnalysisJobService.Acceptance accepted = service.accept(
+                "https://news.example/article", requester);
+
+        assertThat(service.find(accepted.analysisId(), requester)).isPresent();
+        assertThat(service.find(accepted.analysisId(), requester)).isPresent();
+        assertThat(rateLimiter.count).isEqualTo(1);
+    }
+
     /** 고정 시각 기반 Service 구성 */
     private HealthAnalysisJobService service(InMemoryJobStore store, HealthAnalysisQueue queue) {
         return service(store, queue, 0);
@@ -181,6 +241,16 @@ class DefaultHealthAnalysisJobServiceTest {
             InMemoryJobStore store,
             HealthAnalysisQueue queue,
             int currentUsed
+    ) {
+        return service(store, queue, currentUsed, AnalysisRequestRateLimiter.unlimited());
+    }
+
+    /** 요청 제한 정책 포함 Service 구성 */
+    private HealthAnalysisJobService service(
+            InMemoryJobStore store,
+            HealthAnalysisQueue queue,
+            int currentUsed,
+            AnalysisRequestRateLimiter requestRateLimiter
     ) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         var identityService = new HealthAnalysisJobIdentityService(
@@ -196,6 +266,7 @@ class DefaultHealthAnalysisJobServiceTest {
                 queue,
                 identityService,
                 new StubUsagePolicy(currentUsed),
+                requestRateLimiter,
                 new ObjectMapper()
         );
     }
@@ -252,6 +323,7 @@ class DefaultHealthAnalysisJobServiceTest {
         private final boolean accepts;
         private final RuntimeException failure;
         private HealthAnalysisTask task;
+        private int enqueueCount;
 
         private RecordingQueue(boolean accepts) {
             this.accepts = accepts;
@@ -269,6 +341,7 @@ class DefaultHealthAnalysisJobServiceTest {
                 throw failure;
             }
             this.task = task;
+            enqueueCount++;
             return accepts;
         }
 
@@ -284,6 +357,25 @@ class DefaultHealthAnalysisJobServiceTest {
 
         @Override
         public void releaseWorker(String ownerToken) {
+        }
+    }
+
+    /** 테스트용 메모리 요청 제한 정책 */
+    private static final class RecordingRequestRateLimiter implements AnalysisRequestRateLimiter {
+
+        private final int limit;
+        private int count;
+
+        private RecordingRequestRateLimiter(int limit) {
+            this.limit = limit;
+        }
+
+        @Override
+        public void acquire(Feature feature, java.util.List<String> identifierKeys) {
+            if (count >= limit) {
+                throw new AnalysisRequestRateLimitExceededException();
+            }
+            count++;
         }
     }
 

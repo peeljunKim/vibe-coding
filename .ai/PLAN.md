@@ -409,6 +409,25 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend 전체 Maven·Harness 회귀: PASS (238개, 실패·오류·Skip 0)
 - 실제 외부 근거 링크 HTTP 호출: NOT APPLICABLE (교체 가능한 Port와 Mock만 구현)
 
+## 건강·제목 분석 접수 요청 제한 Vertical Slice
+
+- 분석 이용 횟수와 분리된 기사 수집·Queue 적재 전 Redis 요청 제한: PASS
+- 사용자별 건강·제목 기능 독립 1분 5회와 여섯 번째 요청 차단: PASS
+- 기존 HMAC 식별값의 추가 SHA-256 Digest Key와 원문·IP 미저장: PASS
+- 비회원 브라우저·IP 다중 식별값 카운터 동기화와 단일 신호 변경 우회 차단: PASS
+- 고정 시간 TTL 무연장과 제한 시간 만료 후 재허용: PASS
+- 제한 초과 공통 `429 ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED`: PASS
+- Redis 장애의 작업 생성·Queue 전 `503` 변환: PASS
+- Polling과 시스템 자동 근거 재분석의 요청 제한 제외: PASS
+- 무료 Cache 재조회와 다른 사용자 최초 열람 차감 정책 회귀: PASS
+- Docker Redis 8.8 분석 작업·Cache·Queue·이용량·접수 제한 통합 검증: PASS (51개, 실패·오류·Skip 0)
+- Backend 전체 Maven·Harness 회귀: PASS (246개, 실패·오류·Skip 0; Docs·Backend Scope와 Secret·Diff 검사)
+- 실제 Gemini·PubMed·외부 근거 링크 호출: NOT APPLICABLE (기존 Mock Adapter 사용)
+- 건강·제목 분석의 `429 ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED` 사용자 안내와 Polling 미시작: PASS
+- Frontend 단위 회귀: PASS (18개 Test File·84개 Test)
+- 건강·제목 Chrome E2E와 Desktop 1024·1280·1440px 오류 화면: PASS (10개)
+- Frontend TypeScript·Lint·Build: PASS
+
 ## 회원 탈퇴와 보관 수명주기
 
 - ACTIVE 회원 탈퇴 신청·Session 전체 만료·`WITHDRAWAL_PENDING` 전환: PASS

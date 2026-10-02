@@ -2,6 +2,7 @@
 package com.newsverification.headline.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.newsverification.analysis.application.AnalysisRequestRateLimitExceededException;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
 import com.newsverification.headline.application.HeadlineAnalysisJobService;
 import com.newsverification.headline.application.HeadlineAnalysisResult;
@@ -145,6 +146,14 @@ public class HeadlineAnalysisJobController {
     @ExceptionHandler(HeadlineAnalysisServiceUnavailableException.class)
     public ResponseEntity<ProblemDetail> unavailableAnalysisService() {
         return serviceUnavailable();
+    }
+
+    /** 짧은 시간의 과도한 분석 접수 응답 */
+    @ExceptionHandler(AnalysisRequestRateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> tooManyAnalysisRequests() {
+        return problem(HttpStatus.TOO_MANY_REQUESTS, "Too many analysis requests",
+                "요청이 너무 많습니다. 1분 후 다시 시도해 주세요.",
+                "ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED");
     }
 
     /** 공통 ProblemDetail 응답 생성 */
