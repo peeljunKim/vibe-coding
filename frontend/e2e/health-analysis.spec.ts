@@ -267,6 +267,7 @@ test('로그인 회원은 완료된 건강 분석 결과를 명시적으로 저�
       contentType: 'application/json',
       body: JSON.stringify({
         id: 31,
+        articleUrl: ARTICLE_URL,
         title: '저장할 건강 기사',
         overallStatus: 'CAUTION',
         analyzedAt: '2026-09-20T00:00:03Z',
@@ -306,6 +307,7 @@ test('로그인 회원의 만료되지 않은 저장 기록을 목록에 표시�
         items: [
           {
             id: 31,
+            articleUrl: ARTICLE_URL,
             title: '목록에 저장된 건강 기사',
             overallStatus: 'CAUTION',
             analyzedAt: '2026-09-20T00:00:03Z',
@@ -328,6 +330,7 @@ test('로그인 회원의 만료되지 않은 저장 기록을 목록에 표시�
         items: [
           {
             id: 11,
+            articleUrl: 'https://news.example.com/previous-health-article',
             title: '다음 페이지에 저장된 건강 기사',
             overallStatus: 'RELIABLE',
             analyzedAt: '2026-09-19T00:00:03Z',
@@ -355,6 +358,176 @@ test('로그인 회원의 만료되지 않은 저장 기록을 목록에 표시�
   ).toBeVisible()
   await expect(page.getByRole('button', { name: '이전 페이지' })).toBeEnabled()
   await expect(page.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
+})
+
+test('저장 기록을 개별 삭제하고 남은 기록을 모두 삭제한다', async ({ page }) => {
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        userId: '42',
+        role: 'USER',
+        expiresInSeconds: 7200,
+      }),
+    }),
+  )
+  let deletedRecordId: string | undefined
+  let deletedAll = false
+  await page.route('**/api/health-records**', async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    if (request.method() === 'DELETE') {
+      if (url.pathname === '/api/health-records') {
+        deletedAll = true
+      } else {
+        deletedRecordId = url.pathname.split('/').at(-1)
+      }
+      return route.fulfill({ status: 204 })
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: 31,
+            articleUrl: ARTICLE_URL,
+            title: '첫 번째 저장 기사',
+            overallStatus: 'CAUTION',
+            analyzedAt: '2026-09-20T00:00:03Z',
+            expiresAt: '2026-10-20T00:00:03Z',
+          },
+          {
+            id: 32,
+            articleUrl: 'https://news.example.com/second-health-article',
+            title: '두 번째 저장 기사',
+            overallStatus: 'RELIABLE',
+            analyzedAt: '2026-09-19T00:00:03Z',
+            expiresAt: '2026-10-19T00:00:03Z',
+          },
+        ],
+        page: 0,
+        size: 20,
+        totalElements: 2,
+        totalPages: 1,
+        hasNext: false,
+      }),
+    })
+  })
+  page.on('dialog', (dialog) => dialog.accept())
+
+  await page.goto('/saved')
+  await page.getByRole('article').filter({ hasText: '첫 번째 저장 기사' })
+    .getByRole('button', { name: '삭제' }).click()
+
+  await expect(page.getByRole('heading', { name: '첫 번째 저장 기사' }))
+    .toHaveCount(0)
+  expect(deletedRecordId).toBe('31')
+
+  await page.getByRole('button', { name: '전체 기록 삭제' }).click()
+
+  await expect(page.getByText('저장한 건강 뉴스가 없습니다.')).toBeVisible()
+  expect(deletedAll).toBe(true)
+})
+
+test('저장 기록 재분석 성공 뒤 기존 기록을 새 결과로 교체한다', async ({ page }) => {
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        userId: '42',
+        role: 'USER',
+        expiresInSeconds: 7200,
+      }),
+    }),
+  )
+  await page.route('**/api/health-records?page=0&size=20', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [{
+          id: 31,
+          articleUrl: ARTICLE_URL,
+          title: '다시 분석할 저장 기사',
+          overallStatus: 'CAUTION',
+          analyzedAt: '2026-09-20T00:00:03Z',
+          expiresAt: '2026-10-20T00:00:03Z',
+        }],
+        page: 0,
+        size: 20,
+        totalElements: 1,
+        totalPages: 1,
+        hasNext: false,
+      }),
+    }),
+  )
+  await page.route('**/api/analyses/health', (route) =>
+    route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analysisId: 'health-reanalysis-completed',
+        deadlineAt: '2099-09-20T00:01:30Z',
+        pollAfterSeconds: 0,
+      }),
+    }),
+  )
+  await page.route('**/api/analyses/health/health-reanalysis-completed', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        analysisId: 'health-reanalysis-completed',
+        status: 'COMPLETED',
+        stage: 'COMPLETED',
+        result: {
+          article: {
+            url: ARTICLE_URL,
+            title: '다시 분석한 건강 기사',
+            publisher: '테스트 언론사',
+          },
+          analyzedAt: '2026-09-21T00:00:03Z',
+          claims: [{
+            order: 1,
+            claim: '다시 분석한 주장',
+            status: 'INSUFFICIENT',
+            reason: '근거가 부족합니다.',
+            evidences: [],
+          }],
+        },
+      }),
+    }),
+  )
+  let replacementAnalysisId: string | undefined
+  await page.route('**/api/health-records/31', async (route) => {
+    replacementAnalysisId = (route.request().postDataJSON() as { analysisId: string }).analysisId
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 32,
+        articleUrl: ARTICLE_URL,
+        title: '다시 분석한 건강 기사',
+        overallStatus: 'CAUTION',
+        analyzedAt: '2026-09-21T00:00:03Z',
+        expiresAt: '2026-10-21T00:00:03Z',
+      }),
+    })
+  })
+  page.on('dialog', (dialog) => dialog.accept())
+
+  await page.goto('/saved')
+  await page.getByRole('button', { name: '다시 분석' }).click()
+
+  await expect(page).toHaveURL('/results/health')
+  await expect(page.getByRole('heading', { name: '다시 분석한 주장' }))
+    .toBeVisible()
+  expect(replacementAnalysisId).toBe('health-reanalysis-completed')
 })
 
 test('건강 분야가 아닌 기사는 내부 상세 없이 중단 안내를 표시한다', async ({

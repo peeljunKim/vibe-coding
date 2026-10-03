@@ -4,7 +4,7 @@ package com.newsverification.healthrecord.application;
 import java.time.Instant;
 import java.util.List;
 
-/** 회원의 명시적 건강 분석 저장과 목록 조회 경계 */
+/** 회원의 건강 분석 저장 기록 관리 경계 */
 public interface HealthRecordService {
 
     /** 완료된 회원 분석 저장 */
@@ -13,9 +13,19 @@ public interface HealthRecordService {
     /** 회원 저장 기록 페이지 조회 */
     PageResult findAll(String memberId, int page, int size);
 
+    /** 회원 저장 기록 개별 삭제 */
+    void delete(String memberId, long recordId);
+
+    /** 회원 저장 기록 전체 삭제 */
+    int deleteAll(String memberId);
+
+    /** 완료된 새 분석으로 기존 저장 기록 교체 */
+    Summary replace(String memberId, long recordId, String analysisId);
+
     /** 저장 기록 목록 항목 */
     record Summary(
             long id,
+            String articleUrl,
             String title,
             String overallStatus,
             Instant analyzedAt,

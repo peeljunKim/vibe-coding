@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Optional;
 
-/** 중복 결과 확인과 회원별 최신 기록 조회 */
+/** 건강 분석 기록 조회와 삭제 */
 public interface HealthAnalysisRecordRepository extends JpaRepository<HealthAnalysisRecordEntity, Long> {
 
     Optional<HealthAnalysisRecordEntity> findByUserIdAndNormalizedUrlDigestAndAnalyzedAt(
@@ -25,6 +25,17 @@ public interface HealthAnalysisRecordRepository extends JpaRepository<HealthAnal
             Instant activeAt,
             Pageable pageable
     );
+
+    Optional<HealthAnalysisRecordEntity> findByIdAndUserIdAndExpiresAtAfter(
+            long id,
+            long userId,
+            Instant activeAt
+    );
+
+    /** 회원의 모든 저장 기록 삭제 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from HealthAnalysisRecordEntity record where record.userId = :userId")
+    int deleteAllByUserId(@Param("userId") long userId);
 
     /** 기준 시각 이하 만료 기록 일괄 삭제 */
     @Modifying(clearAutomatically = true, flushAutomatically = true)

@@ -53,6 +53,7 @@
 - 건강 분석 Worker는 Redis Streams 최대 대기 20개, 전역 동시 실행 1개, 자동 재시도 없음, 90초 Deadline과 늦은 결과 폐기를 적용
 - Local 건강 분석은 외부 API를 호출하지 않는 Mock 분야 판별·구조화 결과 Port를 사용
 - 건강 분석 저장 기록은 한국시간 매일 03:10에 `expires_at <= 현재 시각` 조건으로 삭제하며 하위 기록은 기존 Foreign Key Cascade를 사용
+- 로그인 회원은 건강 분석 저장 기록을 개별·전체 삭제할 수 있으며, 재분석 성공 뒤 기존 Aggregate를 새 결과로 원자 교체함; 교체 실패 시 기존 기록을 유지하고 성공 시 이전 공유 링크는 Cascade 삭제하되 독립 신고 Snapshot은 유지함
 - 문제 신고 Vertical Slice의 최신 변경 범위 Harness 검증은 PASS이며 Backend 185개 Test와 Frontend 10개 Test File·57개 Test를 통과함; Native MySQL 신고 Repository 실제 실행도 PASS
 - 공유 Token은 256bit Base64URL 원문을 URL Fragment와 Header로만 전달하고 MySQL에는 SHA-256 Digest만 저장함
 - 공개 공유 조회는 비로그인 읽기 전용·`no-store`·검색 수집 차단이며 AI·검색·기사 추출·이용량 Port를 호출하지 않음

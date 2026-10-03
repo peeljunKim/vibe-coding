@@ -244,6 +244,21 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Native MySQL 저장 기록 실제 실행: PASS (2개, 실패·오류·Skip 0)
 - Local API 계약 JSON 파싱·Git 제외 확인: PASS
 
+## 건강 분석 저장 기록 삭제·재분석 교체
+
+- 본인 저장 기록 개별 삭제와 타인·없는 기록의 동일 404 응답: PASS
+- 본인 저장 기록 전체 삭제: PASS
+- 기존 건강 분석 Queue·이용량·90초 제한을 통한 재분석 실행: PASS
+- 완료된 새 분석 결과만 기존 저장 기록과 단일 Transaction 교체: PASS
+- 재분석·교체 실패 시 기존 기록 유지: PASS (Application 단위와 Transaction Rollback 통합 테스트 소스)
+- 교체 성공 시 이전 Aggregate·공유 링크 Cascade 삭제와 독립 신고 Snapshot 유지: PASS (통합 테스트 소스)
+- Backend 단위·MVC 전체 회귀: PASS (259개, 실패·오류·Skip 0; `*IT` 제외)
+- Frontend Test·Lint·TypeScript·Build: PASS (19개 Test File·89개 Test)
+- Chrome 건강 분석·저장 기록 Browser E2E: PASS (10개, Runtime·Console 오류 0건)
+- Docker Redis 분석 Queue·Cache·이용량 회귀: PASS
+- Native MySQL 저장 기록 삭제·교체 실제 실행: NOT RUN (마스킹 테스트 계정 비밀번호 입력 필요)
+- Local API 계약 JSON 파싱·Git 제외 확인: PASS
+
 ## PR 26 CodeRabbit 보완
 
 - 동일 완료 결과의 동시 저장 DB UNIQUE 제약과 충돌 복구: PASS (코드·Version SQL·통합 테스트 소스)

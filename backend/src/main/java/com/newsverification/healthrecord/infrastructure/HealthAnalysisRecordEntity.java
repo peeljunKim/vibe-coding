@@ -135,6 +135,10 @@ public class HealthAnalysisRecordEntity {
         return articleTitle;
     }
 
+    String articleUrl() {
+        return articleUrl;
+    }
+
     HealthAnalysisResult.OverallStatus overallStatus() {
         return overallStatus;
     }
