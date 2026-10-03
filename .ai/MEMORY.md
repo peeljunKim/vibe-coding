@@ -23,7 +23,8 @@
 - 의료 전문 보완 후보: 청년의사, 의협신문, 데일리메디, 메디게이트뉴스, 라포르시안, 병원신문, 메디칼업저버, 의학신문
 - Deployment: AWS Free Plan의 단일 EC2, DuckDNS, Local과 동일한 Native MySQL 8.0.30과 동일 서버 Redis
 - Availability: EC2 장애 대응이 아닌 Blue/Green 애플리케이션 배포 중 무중단만 보장
-- E2E: Playwright, Vite Preview, PR Chromium, Release 전 Chrome·Edge 검증
+- E2E: Playwright, Vite 개발 서버, PR Chromium, Release 전 Chrome·Edge 검증
+- Local MVP 전체 회귀: `verify-local-mvp.ps1`이 Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E를 기존 Mock Adapter로 순차 실행
 - Local OAuth: 서비스 기준 URL `http://localhost:8080`
 - Local OAuth Callback: Naver `/oauth/naver`, Naver 연결 끊기 `/oauth/naver/disconnect`, Kakao `/oauth/kakao`, Google `/oauth/google`
 - Secret 입력 책임: Gemini API Key, Gmail App Password, OAuth Client Key·Secret은 사용자가 Local `.env`에 직접 입력

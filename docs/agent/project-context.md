@@ -74,7 +74,7 @@
 ### E2E
 
 - `frontend/playwright.config.ts`, `frontend/e2e/*.spec.ts` 구조
-- Local/CI Base URL `http://127.0.0.1:4173`, Vite Preview 사용
+- Local/CI Base URL `http://127.0.0.1:4173`, Vite 개발 서버 사용
 - Pull Request는 bundled Chromium, Release 전 Stable Chrome·Edge 검증
 - 외부 AI·검색은 기본 Mock, 실제 Backend 흐름은 별도 Smoke Test
 - Retry는 CI 2회와 Local 0회, 첫 Retry Trace와 실패 Screenshot 보관

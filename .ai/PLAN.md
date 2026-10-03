@@ -452,3 +452,15 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 실제 Browser 렌더링 시각 검토: PASS
 - Frontend Test·TypeScript·Lint·Build: PASS (16 files, 76 tests)
 - Backend·Native MySQL 변경과 검증: NOT APPLICABLE
+
+## Local MVP 통합 회귀 Harness
+
+- 기존 전체 Repository·Native MySQL·Docker Redis·Playwright 검증 진입점 재사용: PASS
+- 첫 실패 즉시 중단과 실행 순서 회귀 테스트: PASS
+- 새 Dependency·외부 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE
+- Frontend Lint·단위 테스트·Build: PASS (18개 Test File·84개 Test)
+- Backend Maven 회귀: PASS (246개, 실패·오류·Skip 0)
+- Docker Redis 8.8 통합 회귀: PASS
+- Chrome Browser E2E: PASS (22개)
+- Native MySQL Repository 통합 테스트 재실행: NOT RUN (`TEST_DB_PASSWORD` 미설정으로 마스킹 사용자 입력 필요)
+- 단일 `verify-local-mvp.ps1` 전체 실행: NOT RUN (위 Native MySQL 입력 경계)
