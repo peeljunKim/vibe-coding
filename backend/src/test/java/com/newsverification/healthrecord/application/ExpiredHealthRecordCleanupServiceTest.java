@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,6 +49,21 @@ class ExpiredHealthRecordCleanupServiceTest {
         public int deleteExpiredAtOrBefore(Instant cutoff) {
             this.cutoff = cutoff;
             return 2;
+        }
+
+        @Override
+        public boolean delete(long userId, long recordId, Instant activeAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int deleteAll(long userId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<SavedRecord> replace(ReplaceCommand command, Instant activeAt) {
+            throw new UnsupportedOperationException();
         }
     }
 }

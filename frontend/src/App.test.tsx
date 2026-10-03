@@ -10,7 +10,13 @@ import {
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSession, login, logout } from './api/auth'
-import { listHealthRecords, saveHealthRecord } from './api/healthRecords'
+import {
+  deleteAllHealthRecords,
+  deleteHealthRecord,
+  listHealthRecords,
+  replaceHealthRecord,
+  saveHealthRecord,
+} from './api/healthRecords'
 import {
   createReport,
   getAdminReport,
@@ -56,7 +62,10 @@ vi.mock('./api/accountWithdrawal', () => ({
 }))
 
 vi.mock('./api/healthRecords', () => ({
+  deleteAllHealthRecords: vi.fn(),
+  deleteHealthRecord: vi.fn(),
   listHealthRecords: vi.fn(),
+  replaceHealthRecord: vi.fn(),
   saveHealthRecord: vi.fn(),
 }))
 
@@ -87,6 +96,9 @@ beforeEach(() => {
   vi.mocked(verifyUsernameRecovery).mockReset()
   vi.mocked(requestAccountWithdrawal).mockReset()
   vi.mocked(listHealthRecords).mockReset()
+  vi.mocked(deleteHealthRecord).mockReset()
+  vi.mocked(deleteAllHealthRecords).mockReset()
+  vi.mocked(replaceHealthRecord).mockReset()
   vi.mocked(saveHealthRecord).mockReset()
   vi.mocked(createReport).mockReset()
   vi.mocked(getAdminReport).mockReset()
@@ -113,6 +125,8 @@ beforeEach(() => {
     totalPages: 0,
     hasNext: false,
   })
+  vi.mocked(deleteHealthRecord).mockResolvedValue(undefined)
+  vi.mocked(deleteAllHealthRecords).mockResolvedValue(undefined)
   const emptyReports = {
     items: [],
     page: 0,
@@ -1170,6 +1184,7 @@ describe('App', () => {
       items: [
         {
           id: '31',
+          articleUrl: 'https://news.example/article-31',
           title: '저장된 건강 기사',
           overallStatus: 'CAUTION',
           analyzedAt: '2026-09-24T01:00:00Z',
@@ -1206,6 +1221,7 @@ describe('App', () => {
         items: [
           {
             id: '31',
+            articleUrl: 'https://news.example/article-31',
             title: '첫 페이지 기록',
             overallStatus: 'CAUTION',
             analyzedAt: '2026-09-24T01:00:00Z',
@@ -1222,6 +1238,7 @@ describe('App', () => {
         items: [
           {
             id: '11',
+            articleUrl: 'https://news.example/article-11',
             title: '둘째 페이지 기록',
             overallStatus: 'RELIABLE',
             analyzedAt: '2026-09-23T01:00:00Z',

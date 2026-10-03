@@ -24,8 +24,9 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
-/** 건강 분석 Aggregate의 MySQL 저장과 목록 조회 */
+/** 건강 분석 Aggregate의 MySQL 영속 관리 */
 @Component
 public class JpaHealthRecordStore implements HealthRecordStore {
 
@@ -99,6 +100,44 @@ public class JpaHealthRecordStore implements HealthRecordStore {
                 records.getTotalPages(),
                 records.hasNext()
         );
+    }
+
+    /** 본인 활성 저장 기록 개별 삭제 */
+    @Override
+    public boolean delete(long userId, long recordId, java.time.Instant activeAt) {
+        return Boolean.TRUE.equals(writeTransaction.execute(status -> {
+            Optional<HealthAnalysisRecordEntity> record =
+                    recordRepository.findByIdAndUserIdAndExpiresAtAfter(recordId, userId, activeAt);
+            record.ifPresent(recordRepository::delete);
+            return record.isPresent();
+        }));
+    }
+
+    /** 본인 저장 기록 전체 삭제 */
+    @Override
+    public int deleteAll(long userId) {
+        return Objects.requireNonNull(
+                writeTransaction.execute(status -> recordRepository.deleteAllByUserId(userId))
+        );
+    }
+
+    /** 기존 Aggregate 삭제와 새 분석 저장의 단일 Transaction */
+    @Override
+    public Optional<SavedRecord> replace(ReplaceCommand command, java.time.Instant activeAt) {
+        return Objects.requireNonNull(writeTransaction.execute(status -> {
+            Optional<HealthAnalysisRecordEntity> existing =
+                    recordRepository.findByIdAndUserIdAndExpiresAtAfter(
+                            command.recordId(), command.userId(), activeAt);
+            if (existing.isEmpty()) {
+                return Optional.empty();
+            }
+            recordRepository.delete(existing.get());
+            recordRepository.flush();
+            return Optional.of(saveNew(
+                    new SaveCommand(command.userId(), command.result(), command.expiresAt()),
+                    digest(command.result().article().url().normalize().toASCIIString())
+            ));
+        }));
     }
 
     /** 기준 시각 이하 만료 기록 일괄 삭제 */
@@ -208,6 +247,7 @@ public class JpaHealthRecordStore implements HealthRecordStore {
     private static SavedRecord toSavedRecord(HealthAnalysisRecordEntity entity) {
         return new SavedRecord(
                 entity.id(),
+                entity.articleUrl(),
                 entity.articleTitle(),
                 entity.overallStatus().name(),
                 entity.analyzedAt(),

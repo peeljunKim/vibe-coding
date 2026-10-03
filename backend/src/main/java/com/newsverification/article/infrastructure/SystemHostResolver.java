@@ -2,6 +2,7 @@
 package com.newsverification.article.infrastructure;
 
 import com.newsverification.article.application.HostResolver;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.net.InetAddress;
@@ -10,6 +11,7 @@ import java.util.List;
 
 /** 운영 DNS 조회 구현 */
 @Component
+@Profile("!e2e")
 public final class SystemHostResolver implements HostResolver {
 
     /** 시스템 Resolver의 전체 IP 조회 */
