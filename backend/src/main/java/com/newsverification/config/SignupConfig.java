@@ -37,6 +37,7 @@ public class SignupConfig {
     }
 
     @Bean
+    @Profile("!e2e")
     VerificationCodeGenerator verificationCodeGenerator() {
         return new SecureVerificationCodeGenerator();
     }

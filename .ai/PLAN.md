@@ -462,5 +462,24 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 회귀: PASS (246개, 실패·오류·Skip 0)
 - Docker Redis 8.8 통합 회귀: PASS
 - Chrome Browser E2E: PASS (22개)
-- Native MySQL Repository 통합 테스트 재실행: NOT RUN (`TEST_DB_PASSWORD` 미설정으로 마스킹 사용자 입력 필요)
-- 단일 `verify-local-mvp.ps1` 전체 실행: NOT RUN (위 Native MySQL 입력 경계)
+- Native MySQL Repository 통합 테스트 재실행: PASS (`verify-local-mvp.ps1` 사용자 실행 결과)
+- 단일 `verify-local-mvp.ps1` 전체 실행: PASS (Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E)
+
+## Local Full-stack Smoke E2E
+
+- 실제 Browser → Backend HTTP → Native MySQL 테스트 Database → Docker Redis 연결: PASS
+- 회원가입·로그인·CSRF 거부·건강 및 제목 분석·건강 결과 저장·로그아웃·보호 API 차단: PASS (Chromium 1개 Scenario)
+- 실행별 MySQL·Redis 시험 데이터와 임시 로그 정리: PASS
+- 실제 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE (`e2e` Profile 고정 기사 입력·Mock Adapter)
+- Backend 전체 Maven Package: PASS (248개, 실패·오류·Skip 0)
+- Frontend 변경 범위 Test·Lint·TypeScript·Build: PASS (18개 Test File·84개 Test)
+- 변경 범위 Harness·Secret·Diff 공백 검사: PASS
+
+## Local API 계약 동기화
+
+- Controller·DTO·SecurityConfig 기준 구현 Endpoint 31개와 Local OpenAPI 대조: PASS
+- 회원가입·Session 인증·계정 복구·공유 누락 계약 보완: PASS
+- 미구현 `GET /api/usage`를 구현 API와 분리하고 `NOT_IMPLEMENTED` 표시: PASS
+- 언론사 `CANDIDATE → UNSUPPORTED`, 건강 기록 만료 정리와 Native MySQL·Docker Redis 검증 상태 최신화: PASS
+- OpenAPI JSON 파싱·내부 `$ref`·구현 Endpoint 목록 검사: PASS
+- Backend·Frontend Runtime 회귀: NOT RUN (문서 전용 변경)
