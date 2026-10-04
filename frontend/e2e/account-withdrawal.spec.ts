@@ -1,5 +1,6 @@
 // 회원 탈퇴 일정과 확인 흐름 Browser 검증
 import { expect, test, type Page } from '@playwright/test'
+import { mockDailyUsage } from './support/daily-usage'
 
 const browserErrors = new WeakMap<Page, string[]>()
 
@@ -11,6 +12,7 @@ test.beforeEach(async ({ page }) => {
   })
   page.on('pageerror', (error) => errors.push(error.message))
 
+  await mockDailyUsage(page)
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({
       status: 200,

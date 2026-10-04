@@ -25,6 +25,7 @@ public class SecurityConfig {
                         .csrfTokenRequestHandler(csrfTokenRequestHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/csrf").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/usage").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/publishers").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/analyses/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/analyses/health/*").permitAll()

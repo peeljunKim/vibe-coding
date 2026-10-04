@@ -25,16 +25,16 @@
 - Availability: EC2 장애 대응이 아닌 Blue/Green 애플리케이션 배포 중 무중단만 보장
 - E2E: Playwright, Vite 개발 서버, PR Chromium, Release 전 Chrome·Edge 검증
 - Local MVP 전체 회귀: `verify-local-mvp.ps1`이 Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E를 기존 Mock Adapter로 순차 실행하며 전체 PASS 확인
-- Agent Script 구성: 직접 실행하는 Setup·검증 진입점은 권한·필수 서비스별로 유지하고, 반복되는 `.env` 값 처리와 Java 17 탐색은 `script-utilities.ps1`, Harness·Local MVP 실행 순서 회귀는 `verify.Tests.ps1`로 통합
+- Agent Script 구성: 직접 실행하는 Setup·검증 진입점은 권한·필수 서비스별로 유지하고, 반복되는 `.env` 값 처리와 Java 17 탐색은 `script-utilities.ps1`, Harness·Local MVP 실행 순서 회귀는 `verify.Tests.ps1`로 통합; 통합 후 Local MVP와 Full-stack Smoke 실제 환경 검증 PASS
 - Local Full-stack Smoke: `verify-full-stack-smoke.ps1`이 실제 Browser·Backend HTTP·Native MySQL 테스트 Database·실행별 Docker Redis를 연결하고 외부 Gemini·PubMed·OAuth·Gmail SMTP 없이 핵심 사용자 흐름을 검증함
-- Local API 계약: `docs/api/openapi.json`은 Controller 기준 구현 Endpoint 31개와 미구현 `GET /api/usage` 제안을 상태로 구분하며, 상세 문서는 Git 제외 Local 전용으로 유지
+- Local API 계약: `docs/api/openapi.json`은 Controller 기준 구현 Endpoint 32개를 기록하며, 상세 문서는 Git 제외 Local 전용으로 유지
 - Local OAuth: 서비스 기준 URL `http://localhost:8080`
 - Local OAuth Callback: Naver `/oauth/naver`, Naver 연결 끊기 `/oauth/naver/disconnect`, Kakao `/oauth/kakao`, Google `/oauth/google`
 - Secret 입력 책임: Gemini API Key, Gmail App Password, OAuth Client Key·Secret은 사용자가 Local `.env`에 직접 입력
 - 회원가입 이메일 발송: 기본 Profile은 Mock, `smtp`·`prod` Profile은 Gmail SMTP Adapter 사용
 - 미인증 일반 계정: 가입 후 7일 경과 시 일일 정리, 공개 중복 오류는 계정 정보 단일 코드 사용
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
-- 현재 구현: Frontend Desktop 화면·도움말과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유, 분리된 3일 공용 Cache와 건강 근거 링크 재검증 Port·Mock
+- 현재 구현: Frontend Desktop 화면·도움말과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태·기능별 당일 이용량 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유, 분리된 3일 공용 Cache와 건강 근거 링크 재검증 Port·Mock
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
 - 프로젝트 구조·위험: `docs/agent/project-context.md`
 - Backend 구현 표준: `docs/agent/backend-development.md` (채택 기준, 업무 기능 구현 완료 아님)
@@ -69,6 +69,7 @@
 - 실제 외부 근거 링크 HTTP 상태 확인 Adapter는 아직 미구현이며 현재 Mock은 외부 호출 없이 정상 상태를 반환함
 - 건강·제목 분석 접수는 기사 수집·Queue 적재 전에 기능별·사용자별 Redis 고정 시간 제한을 적용함; 각 기능 1분 5회, HMAC 식별값 추가 Digest, 비회원 다중 식별 신호 카운터 동기화, 초과 `429`, Redis 장애 `503`, Polling·자동 근거 재분석 제외
 - Frontend는 건강·제목 분석의 `429 ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED`를 공통 사용자 안내로 표시하고 Polling을 시작하지 않으며 Desktop 1024·1280·1440px에서 오류 화면을 검증함
+- `GET /api/usage`는 회원·비회원의 건강·제목 당일 한도·사용·남은 횟수와 다음 한국시간 자정을 공개 조회하며, 조회만으로 횟수나 Redis TTL을 변경하지 않음; Redis 장애는 `503 USAGE_SERVICE_UNAVAILABLE`, Frontend는 초기·로그인·로그아웃·분석 완료 뒤 갱신하고 실패해도 분석 버튼을 유지함
 
 ## Deferred
 

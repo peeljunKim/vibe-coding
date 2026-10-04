@@ -1,5 +1,6 @@
 // 계정 복구 Browser 회귀 검증
 import { expect, test, type Page } from '@playwright/test'
+import { mockDailyUsage } from './support/daily-usage'
 
 const browserErrors = new WeakMap<Page, string[]>()
 
@@ -10,6 +11,7 @@ test.beforeEach(async ({ page }) => {
     if (message.type() === 'error') errors.push(message.text())
   })
   page.on('pageerror', (error) => errors.push(error.message))
+  await mockDailyUsage(page)
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({
       status: 200,
