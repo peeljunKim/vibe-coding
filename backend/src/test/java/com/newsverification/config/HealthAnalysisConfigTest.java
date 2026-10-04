@@ -21,7 +21,10 @@ import com.newsverification.health.application.DefaultHealthAnalysisJobService;
 import com.newsverification.health.application.HealthAnalysisJobService;
 import com.newsverification.health.application.HealthAnalysisResultCache;
 import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
+import com.newsverification.health.application.PubMedEvidenceSearchPort;
+import com.newsverification.health.application.PubMedEvidenceSearchService;
 import com.newsverification.health.infrastructure.HttpHealthEvidenceLinkChecker;
+import com.newsverification.health.infrastructure.HttpPubMedEvidenceSearchAdapter;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -73,6 +76,8 @@ class HealthAnalysisConfigTest {
             assertThat(context).hasSingleBean(HealthAnalysisPort.class);
             assertThat(context).hasSingleBean(HealthEvidenceLinkChecker.class);
             assertThat(context).hasSingleBean(HealthEvidenceLinkValidationService.class);
+            assertThat(context).hasSingleBean(PubMedEvidenceSearchPort.class);
+            assertThat(context).hasSingleBean(PubMedEvidenceSearchService.class);
             assertThat(context).hasSingleBean(HealthAnalysisJobIdentityService.class);
             assertThat(context).hasSingleBean(HealthAnalysisUseCase.class);
             assertThat(context).hasSingleBean(HealthAnalysisJobService.class);
@@ -122,5 +127,40 @@ class HealthAnalysisConfigTest {
                 .withBean(ArticleUrlValidator.class, () -> mock(ArticleUrlValidator.class))
                 .withBean(ArticleHttpClient.class, () -> mock(ArticleHttpClient.class))
                 .run(context -> assertThat(context).hasFailed());
+    }
+
+    /** 운영 Profile의 PubMed HTTP Adapter 교체 */
+    @Test
+    void wiresHttpPubMedAdapterWithContactEmail() {
+        pubMedContextRunner()
+                .withUserConfiguration(PubMedConfig.class)
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("pubmed-http"))
+                .withPropertyValues(
+                        "app.analysis.provider=gemini",
+                        "PUBMED_CONTACT_EMAIL=developer@example.com"
+                )
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(PubMedEvidenceSearchPort.class);
+                    assertThat(context.getBean(PubMedEvidenceSearchPort.class))
+                            .isInstanceOf(HttpPubMedEvidenceSearchAdapter.class);
+                });
+    }
+
+    /** 운영 PubMed Profile의 연락처 누락 차단 */
+    @Test
+    void failsHttpPubMedProfileWithoutContactEmail() {
+        pubMedContextRunner()
+                .withUserConfiguration(PubMedConfig.class)
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("pubmed-http"))
+                .withPropertyValues("app.analysis.provider=gemini")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    /** PubMed 구성 전용 최소 Context */
+    private static ApplicationContextRunner pubMedContextRunner() {
+        return new ApplicationContextRunner()
+                .withBean(ObjectMapper.class, ObjectMapper::new)
+                .withBean(Clock.class, Clock::systemUTC);
     }
 }
