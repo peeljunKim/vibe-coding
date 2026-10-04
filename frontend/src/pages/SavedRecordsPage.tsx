@@ -8,9 +8,10 @@ interface SavedRecordsPageProps {
   records?: SavedRecordViewData[]
   onOpenReports?: () => void
   onOpenAccountSettings?: () => void
-  onReanalyze?: (recordId: string) => void
-  onDelete?: (recordId: string) => void
-  onDeleteAll?: () => void
+  onReanalyze?: (record: SavedRecordViewData) => Promise<void>
+  onDelete?: (recordId: string) => Promise<void>
+  onDeleteAll?: () => Promise<void>
+  actionError?: string | null
 }
 
 const statusLabels: Record<SavedRecordViewData['overallStatus'], string> = {
@@ -45,10 +46,15 @@ function SavedRecordsPage({
   onReanalyze,
   onDelete,
   onDeleteAll,
+  actionError,
 }: SavedRecordsPageProps) {
   const [loadedPage, setLoadedPage] = useState<HealthRecordPage>()
   const [currentPage, setCurrentPage] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [localRecords, setLocalRecords] = useState(records)
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [localActionError, setLocalActionError] = useState<string | null>(null)
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
 
   useEffect(() => {
     if (records) {
@@ -77,8 +83,92 @@ function SavedRecordsPage({
     }
   }, [currentPage, records])
 
-  const visibleRecords = records ?? loadedPage?.items
-  const totalRecords = records ? records.length : loadedPage?.totalElements
+  const visibleRecords = records ? localRecords : loadedPage?.items
+  const totalRecords = records ? localRecords?.length : loadedPage?.totalElements
+
+  const actionFailure = (error: unknown, fallback: string) => {
+    setLocalActionError(error instanceof Error ? error.message : fallback)
+  }
+
+  const deleteRecord = async (recordId: string) => {
+    if (!onDelete || !window.confirm('이 저장 기록을 삭제하시겠습니까?')) {
+      return
+    }
+    setPendingAction(`delete:${recordId}`)
+    setLocalActionError(null)
+    setActionMessage(null)
+    try {
+      await onDelete(recordId)
+      setActionMessage('저장 기록을 삭제했습니다.')
+      if (records) {
+        setLocalRecords((current) => current?.filter((item) => item.id !== recordId))
+      } else if (loadedPage?.items.length === 1 && currentPage > 0) {
+        setCurrentPage((page) => page - 1)
+      } else {
+        setLoadedPage((current) => current && ({
+          ...current,
+          items: current.items.filter((item) => item.id !== recordId),
+          totalElements: Math.max(0, current.totalElements - 1),
+          totalPages: Math.ceil(Math.max(0, current.totalElements - 1) / current.size),
+          hasNext: current.page + 1 < Math.ceil(
+            Math.max(0, current.totalElements - 1) / current.size,
+          ),
+        }))
+      }
+    } catch (error) {
+      actionFailure(error, '저장 기록을 삭제하지 못했습니다.')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  const deleteAllRecords = async () => {
+    if (!onDeleteAll || !window.confirm('저장 기록을 모두 삭제하시겠습니까?')) {
+      return
+    }
+    setPendingAction('delete-all')
+    setLocalActionError(null)
+    setActionMessage(null)
+    try {
+      await onDeleteAll()
+      setActionMessage('저장 기록을 모두 삭제했습니다.')
+      if (records) {
+        setLocalRecords([])
+      } else {
+        setCurrentPage(0)
+        setLoadedPage((current) => current && ({
+          ...current,
+          items: [],
+          page: 0,
+          totalElements: 0,
+          totalPages: 0,
+          hasNext: false,
+        }))
+      }
+    } catch (error) {
+      actionFailure(error, '저장 기록을 모두 삭제하지 못했습니다.')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  const reanalyze = async (record: SavedRecordViewData) => {
+    if (!onReanalyze || !window.confirm(
+      '다시 분석하면 일일 횟수 1회를 사용합니다. 계속하시겠습니까?',
+    )) {
+      return
+    }
+    setPendingAction(`reanalyze:${record.id}`)
+    setLocalActionError(null)
+    setActionMessage(null)
+    try {
+      await onReanalyze(record)
+    } catch (error) {
+      actionFailure(error, '다시 분석을 시작하지 못했습니다.')
+    } finally {
+      setPendingAction(null)
+    }
+  }
 
   return (
     <div className="app-page saved-page">
@@ -122,7 +212,10 @@ function SavedRecordsPage({
           </div>
 
           <div className="saved-records">
-            {loadError ? <div role="alert">{loadError}</div> : null}
+            {loadError || localActionError || actionError ? (
+              <div role="alert">{loadError ?? localActionError ?? actionError}</div>
+            ) : null}
+            {actionMessage ? <div role="status">{actionMessage}</div> : null}
             {visibleRecords?.length ? (
               visibleRecords.map((record) => (
                 <article className="saved-record" key={record.id}>
@@ -141,15 +234,15 @@ function SavedRecordsPage({
                   <div className="saved-record__actions">
                     <button
                       type="button"
-                      disabled={!onReanalyze}
-                      onClick={() => onReanalyze?.(record.id)}
+                      disabled={!onReanalyze || pendingAction !== null}
+                      onClick={() => void reanalyze(record)}
                     >
                       다시 분석
                     </button>
                     <button
                       type="button"
-                      disabled={!onDelete}
-                      onClick={() => onDelete?.(record.id)}
+                      disabled={!onDelete || pendingAction !== null}
+                      onClick={() => void deleteRecord(record.id)}
                     >
                       삭제
                     </button>
@@ -190,14 +283,14 @@ function SavedRecordsPage({
           <aside className="saved-notice" role="note">
             <h2>다시 분석 안내</h2>
             <p>다시 분석은 건강 뉴스 일일 횟수 1회를 사용합니다.</p>
-            <p>성공하면 기존 결과와 공유 링크가 새 결과로 교체됩니다.</p>
+            <p>성공하면 기존 결과가 교체되고 공유 링크는 만료됩니다.</p>
           </aside>
 
           <button
             className="text-action text-action--danger saved-delete-all"
             type="button"
-            disabled={!visibleRecords?.length || !onDeleteAll}
-            onClick={onDeleteAll}
+            disabled={!visibleRecords?.length || !onDeleteAll || pendingAction !== null}
+            onClick={() => void deleteAllRecords()}
           >
             전체 기록 삭제
           </button>

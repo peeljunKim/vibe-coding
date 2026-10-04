@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** 실제 MySQL의 결과·주장·근거 저장과 목록 조회 */
 @SpringBootTest(classes = NewsVerificationApplication.class)
@@ -225,6 +226,159 @@ class HealthRecordStoreIT {
                     "SELECT COUNT(*) FROM health_analysis_records WHERE id = ?",
                     Integer.class,
                     active.id()
+            )).isEqualTo(1);
+        } finally {
+            cleanupFixture();
+        }
+    }
+
+    /** 재분석 교체의 Aggregate·공유 삭제와 신고 Snapshot 유지 */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void replacesOwnedAggregateAndKeepsIndependentReportSnapshot() {
+        cleanupFixture();
+        long userId = insertUser();
+        insertPublisherDomain();
+
+        try {
+            HealthRecordStore.SavedRecord original = store.save(new HealthRecordStore.SaveCommand(
+                    userId,
+                    result(),
+                    ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60)
+            ));
+            jdbcTemplate.update("""
+                    INSERT INTO health_share_links (
+                        health_analysis_record_id, token_digest, short_summary, expires_at
+                    ) VALUES (?, UNHEX(SHA2('replace-record-it', 256)), ?, DATE_ADD(CURRENT_TIMESTAMP(6), INTERVAL 7 DAY))
+                    """,
+                    original.id(),
+                    "교체 전 공유 요약"
+            );
+            jdbcTemplate.update("""
+                    INSERT INTO analysis_reports (
+                        reporter_user_id, report_type, analysis_type, description,
+                        article_url, article_title, result_snapshot, status
+                    ) VALUES (?, 'WRONG_JUDGMENT', 'HEALTH', ?, ?, ?, JSON_OBJECT('schemaVersion', 1), 'OPEN')
+                    """,
+                    userId,
+                    "교체 전 신고 Snapshot",
+                    original.articleUrl(),
+                    original.title()
+            );
+            HealthAnalysisResult newResult = result(
+                    "https://news.example/article",
+                    ANALYZED_AT.plusSeconds(60)
+            );
+
+            HealthRecordStore.SavedRecord replaced = store.replace(
+                            new HealthRecordStore.ReplaceCommand(
+                                    userId,
+                                    original.id(),
+                                    newResult,
+                                    newResult.analyzedAt().plusSeconds(30L * 24 * 60 * 60)
+                            ),
+                            ANALYZED_AT
+                    )
+                    .orElseThrow();
+
+            assertThat(replaced.id()).isNotEqualTo(original.id());
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_analysis_records WHERE id = ?",
+                    Integer.class,
+                    original.id()
+            )).isZero();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_share_links WHERE health_analysis_record_id = ?",
+                    Integer.class,
+                    original.id()
+            )).isZero();
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM analysis_reports WHERE reporter_user_id = ?",
+                    Integer.class,
+                    userId
+            )).isEqualTo(1);
+            assertThat(replaced.expiresAt())
+                    .isEqualTo(newResult.analyzedAt().plusSeconds(30L * 24 * 60 * 60));
+        } finally {
+            cleanupFixture();
+        }
+    }
+
+    /** 회원 경계를 지키는 개별·전체 삭제 */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void deletesOnlyOwnedRecords() {
+        cleanupFixture();
+        long userId = insertUser();
+        insertPublisherDomain();
+
+        try {
+            HealthRecordStore.SavedRecord first = store.save(new HealthRecordStore.SaveCommand(
+                    userId,
+                    result("https://news.example/first", ANALYZED_AT),
+                    ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60)
+            ));
+            store.save(new HealthRecordStore.SaveCommand(
+                    userId,
+                    result("https://news.example/second", ANALYZED_AT.plusSeconds(1)),
+                    ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60)
+            ));
+
+            assertThat(store.delete(userId + 1, first.id(), ANALYZED_AT)).isFalse();
+            assertThat(store.delete(userId, first.id(), ANALYZED_AT)).isTrue();
+            assertThat(store.deleteAll(userId)).isEqualTo(1);
+            assertThat(store.findAll(userId, ANALYZED_AT, 0, 20).items()).isEmpty();
+        } finally {
+            cleanupFixture();
+        }
+    }
+
+    /** 교체 저장 실패 시 기존 Aggregate와 공유 링크 복원 */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void keepsExistingAggregateWhenReplacementSaveFails() {
+        cleanupFixture();
+        long userId = insertUser();
+        insertPublisherDomain();
+
+        try {
+            HealthRecordStore.SavedRecord original = store.save(new HealthRecordStore.SaveCommand(
+                    userId,
+                    result(),
+                    ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60)
+            ));
+            jdbcTemplate.update("""
+                    INSERT INTO health_share_links (
+                        health_analysis_record_id, token_digest, short_summary, expires_at
+                    ) VALUES (?, UNHEX(SHA2('replace-rollback-it', 256)), ?, DATE_ADD(CURRENT_TIMESTAMP(6), INTERVAL 7 DAY))
+                    """,
+                    original.id(),
+                    "교체 실패 전 공유 요약"
+            );
+            HealthAnalysisResult invalidResult = result(
+                    "https://missing.example/article",
+                    ANALYZED_AT.plusSeconds(60)
+            );
+
+            assertThatThrownBy(() -> store.replace(
+                    new HealthRecordStore.ReplaceCommand(
+                            userId,
+                            original.id(),
+                            invalidResult,
+                            invalidResult.analyzedAt().plusSeconds(30L * 24 * 60 * 60)
+                    ),
+                    ANALYZED_AT
+            )).isInstanceOf(IllegalStateException.class);
+
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_analysis_records WHERE id = ?",
+                    Integer.class,
+                    original.id()
+            )).isEqualTo(1);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM health_share_links WHERE health_analysis_record_id = ?",
+                    Integer.class,
+                    original.id()
             )).isEqualTo(1);
         } finally {
             cleanupFixture();

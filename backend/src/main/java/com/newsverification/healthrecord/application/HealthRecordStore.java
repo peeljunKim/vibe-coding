@@ -5,8 +5,9 @@ import com.newsverification.health.application.HealthAnalysisResult;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
-/** 건강 분석 결과와 목록의 영속 경계 */
+/** 건강 분석 저장 기록의 영속 경계 */
 public interface HealthRecordStore {
 
     /** 같은 분석 결과의 중복 생성을 막는 저장 */
@@ -15,6 +16,15 @@ public interface HealthRecordStore {
     /** 회원별 최신 기록 페이지 조회 */
     PageResult findAll(long userId, Instant activeAt, int page, int size);
 
+    /** 본인 저장 기록 개별 삭제 */
+    boolean delete(long userId, long recordId, Instant activeAt);
+
+    /** 본인 저장 기록 전체 삭제 */
+    int deleteAll(long userId);
+
+    /** 완료된 새 분석으로 기존 기록 교체 */
+    Optional<SavedRecord> replace(ReplaceCommand command, Instant activeAt);
+
     /** 기준 시각 이하 만료 기록 삭제 */
     int deleteExpiredAtOrBefore(Instant cutoff);
 
@@ -22,9 +32,19 @@ public interface HealthRecordStore {
     record SaveCommand(long userId, HealthAnalysisResult result, Instant expiresAt) {
     }
 
+    /** 저장 기록 교체 입력 */
+    record ReplaceCommand(
+            long userId,
+            long recordId,
+            HealthAnalysisResult result,
+            Instant expiresAt
+    ) {
+    }
+
     /** 저장 기록 요약 */
     record SavedRecord(
             long id,
+            String articleUrl,
             String title,
             String overallStatus,
             Instant analyzedAt,

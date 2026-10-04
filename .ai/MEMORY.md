@@ -23,7 +23,10 @@
 - 의료 전문 보완 후보: 청년의사, 의협신문, 데일리메디, 메디게이트뉴스, 라포르시안, 병원신문, 메디칼업저버, 의학신문
 - Deployment: AWS Free Plan의 단일 EC2, DuckDNS, Local과 동일한 Native MySQL 8.0.30과 동일 서버 Redis
 - Availability: EC2 장애 대응이 아닌 Blue/Green 애플리케이션 배포 중 무중단만 보장
-- E2E: Playwright, Vite Preview, PR Chromium, Release 전 Chrome·Edge 검증
+- E2E: Playwright, Vite 개발 서버, PR Chromium, Release 전 Chrome·Edge 검증
+- Local MVP 전체 회귀: `verify-local-mvp.ps1`이 Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E를 기존 Mock Adapter로 순차 실행하며 전체 PASS 확인
+- Local Full-stack Smoke: `verify-full-stack-smoke.ps1`이 실제 Browser·Backend HTTP·Native MySQL 테스트 Database·실행별 Docker Redis를 연결하고 외부 Gemini·PubMed·OAuth·Gmail SMTP 없이 핵심 사용자 흐름을 검증함
+- Local API 계약: `docs/api/openapi.json`은 Controller 기준 구현 Endpoint 31개와 미구현 `GET /api/usage` 제안을 상태로 구분하며, 상세 문서는 Git 제외 Local 전용으로 유지
 - Local OAuth: 서비스 기준 URL `http://localhost:8080`
 - Local OAuth Callback: Naver `/oauth/naver`, Naver 연결 끊기 `/oauth/naver/disconnect`, Kakao `/oauth/kakao`, Google `/oauth/google`
 - Secret 입력 책임: Gemini API Key, Gmail App Password, OAuth Client Key·Secret은 사용자가 Local `.env`에 직접 입력
@@ -50,6 +53,7 @@
 - 건강 분석 Worker는 Redis Streams 최대 대기 20개, 전역 동시 실행 1개, 자동 재시도 없음, 90초 Deadline과 늦은 결과 폐기를 적용
 - Local 건강 분석은 외부 API를 호출하지 않는 Mock 분야 판별·구조화 결과 Port를 사용
 - 건강 분석 저장 기록은 한국시간 매일 03:10에 `expires_at <= 현재 시각` 조건으로 삭제하며 하위 기록은 기존 Foreign Key Cascade를 사용
+- 로그인 회원은 건강 분석 저장 기록을 개별·전체 삭제할 수 있으며, 재분석 성공 뒤 기존 Aggregate를 새 결과로 원자 교체함; 교체 실패 시 기존 기록을 유지하고 성공 시 이전 공유 링크는 Cascade 삭제하되 독립 신고 Snapshot은 유지함
 - 문제 신고 Vertical Slice의 최신 변경 범위 Harness 검증은 PASS이며 Backend 185개 Test와 Frontend 10개 Test File·57개 Test를 통과함; Native MySQL 신고 Repository 실제 실행도 PASS
 - 공유 Token은 256bit Base64URL 원문을 URL Fragment와 Header로만 전달하고 MySQL에는 SHA-256 Digest만 저장함
 - 공개 공유 조회는 비로그인 읽기 전용·`no-store`·검색 수집 차단이며 AI·검색·기사 추출·이용량 Port를 호출하지 않음

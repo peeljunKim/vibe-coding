@@ -77,6 +77,7 @@ export interface TitleResultViewData {
 
 export interface SavedRecordViewData {
   id: string
+  articleUrl: string
   title: string
   overallStatus: 'RELIABLE' | 'CAUTION' | 'DOUBTFUL'
   analyzedAt: string

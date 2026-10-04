@@ -1,6 +1,7 @@
 // 저장 건강 분석 API
 export interface HealthRecordSummary {
   id: string
+  articleUrl: string
   title: string
   overallStatus: 'RELIABLE' | 'CAUTION' | 'DOUBTFUL'
   analyzedAt: string
@@ -52,6 +53,9 @@ const readError = async (
   }
   if (problem.code === 'ANALYSIS_NOT_COMPLETED') {
     return '분석이 완료된 뒤 저장해 주세요.'
+  }
+  if (problem.code === 'HEALTH_RECORD_NOT_FOUND') {
+    return '저장 기록을 찾을 수 없습니다. 목록을 새로 확인해 주세요.'
   }
   return fallback
 }
@@ -113,4 +117,70 @@ export const listHealthRecords = async (page = 0, size = 20) => {
     ...pageResult,
     items: pageResult.items.map((item) => ({ ...item, id: String(item.id) })),
   }
+}
+
+/** 회원 저장 기록 개별 삭제 */
+export const deleteHealthRecord = async (recordId: string) => {
+  const token = await csrfToken()
+  const response = await fetch(`/api/health-records/${recordId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'X-XSRF-TOKEN': token },
+  })
+  if (!response.ok) {
+    throw new Error(
+      await readError(
+        response,
+        '저장 기록을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+        '로그인 후 저장 기록을 삭제할 수 있습니다.',
+      ),
+    )
+  }
+}
+
+/** 회원 저장 기록 전체 삭제 */
+export const deleteAllHealthRecords = async () => {
+  const token = await csrfToken()
+  const response = await fetch('/api/health-records', {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'X-XSRF-TOKEN': token },
+  })
+  if (!response.ok) {
+    throw new Error(
+      await readError(
+        response,
+        '저장 기록을 모두 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+        '로그인 후 저장 기록을 삭제할 수 있습니다.',
+      ),
+    )
+  }
+}
+
+/** 완료된 새 분석으로 기존 저장 기록 교체 */
+export const replaceHealthRecord = async (
+  recordId: string,
+  analysisId: string,
+) => {
+  const token = await csrfToken()
+  const response = await fetch(`/api/health-records/${recordId}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-XSRF-TOKEN': token,
+    },
+    body: JSON.stringify({ analysisId }),
+  })
+  if (!response.ok) {
+    throw new Error(
+      await readError(
+        response,
+        '새 분석 결과로 교체하지 못했습니다. 기존 기록은 유지됩니다.',
+        '로그인 후 저장 기록을 다시 분석할 수 있습니다.',
+      ),
+    )
+  }
+  const saved = await readJson<BackendHealthRecordSummary>(response)
+  return { ...saved, id: String(saved.id) }
 }

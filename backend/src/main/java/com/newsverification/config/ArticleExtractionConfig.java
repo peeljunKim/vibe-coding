@@ -9,6 +9,7 @@ import com.newsverification.article.application.SafeArticleReader;
 import com.newsverification.article.infrastructure.ApacheArticleHttpClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.time.Duration;
 
@@ -34,6 +35,7 @@ public class ArticleExtractionConfig {
 
     /** 검증 IP 고정 HTTP Client 구성 */
     @Bean
+    @Profile("!e2e")
     ArticleHttpClient articleHttpClient() {
         return new ApacheArticleHttpClient();
     }

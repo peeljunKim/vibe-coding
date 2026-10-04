@@ -10,7 +10,13 @@ import {
 import { ArticleChangedError } from './api/analysisErrors'
 import { analyzeHealthArticle } from './api/healthAnalysis'
 import { analyzeHeadline } from './api/headlineAnalysis'
-import { saveHealthRecord } from './api/healthRecords'
+import {
+  deleteAllHealthRecords,
+  deleteHealthRecord,
+  replaceHealthRecord,
+  saveHealthRecord,
+  type HealthRecordSummary,
+} from './api/healthRecords'
 import { createReport } from './api/reports'
 import {
   createHeadlineShare,
@@ -55,6 +61,7 @@ function App() {
   const [healthAnalysisError, setHealthAnalysisError] = useState<string | null>(
     null,
   )
+  const [savedRecordsError, setSavedRecordsError] = useState<string | null>(null)
   const [pendingReanalysis, setPendingReanalysis] =
     useState<PendingReanalysis>()
   const [healthAnalysisData, setHealthAnalysisData] =
@@ -159,6 +166,7 @@ function App() {
   const runHealthAnalysis = async (
     articleUrl: string,
     reanalyze = false,
+    replacementRecordId?: string,
   ) => {
     const controller = new AbortController()
     healthAnalysisController.current?.abort()
@@ -180,6 +188,9 @@ function App() {
       ) {
         return
       }
+      if (replacementRecordId) {
+        await replaceHealthRecord(replacementRecordId, result.analysisId)
+      }
       setHealthResultData(result)
       void navigate('/results/health')
     } catch (error) {
@@ -190,6 +201,15 @@ function App() {
         setPendingReanalysis({ feature: 'health', articleUrl })
         setHealthAnalysisError(null)
         void navigate('/')
+        return
+      }
+      if (replacementRecordId) {
+        setSavedRecordsError(
+          error instanceof Error
+            ? error.message
+            : '다시 분석하지 못했습니다. 기존 기록은 유지됩니다.',
+        )
+        void navigate('/saved')
         return
       }
       setHealthAnalysisError(
@@ -321,7 +341,19 @@ function App() {
         path="/saved"
         element={
           <SavedRecordsPage
-            onReanalyze={() => goTo('/analysis/health')}
+            actionError={savedRecordsError}
+            onReanalyze={async (record: HealthRecordSummary) => {
+              setSavedRecordsError(null)
+              await runHealthAnalysis(record.articleUrl, true, record.id)
+            }}
+            onDelete={async (recordId) => {
+              setSavedRecordsError(null)
+              await deleteHealthRecord(recordId)
+            }}
+            onDeleteAll={async () => {
+              setSavedRecordsError(null)
+              await deleteAllHealthRecords()
+            }}
             onOpenReports={() => goTo('/reports')}
             onOpenAccountSettings={() => goTo('/settings/account')}
           />

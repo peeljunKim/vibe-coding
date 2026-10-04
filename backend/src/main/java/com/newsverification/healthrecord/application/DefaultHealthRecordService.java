@@ -33,15 +33,7 @@ public class DefaultHealthRecordService implements HealthRecordService {
     @Override
     public Summary save(String memberId, String analysisId) {
         long userId = userId(memberId);
-        HealthAnalysisJobService.Progress progress = jobService.find(
-                        analysisId,
-                        new HealthAnalysisJobService.Requester(memberId, null, null, null)
-                )
-                .orElseThrow(() -> new HealthRecordException("ANALYSIS_NOT_FOUND"));
-        HealthAnalysisResult result = progress.result();
-        if (progress.status() != AnalysisJobStatus.COMPLETED || result == null) {
-            throw new HealthRecordException("ANALYSIS_NOT_COMPLETED");
-        }
+        HealthAnalysisResult result = completedResult(memberId, analysisId);
 
         return toSummary(store.save(new HealthRecordStore.SaveCommand(
                 userId,
@@ -72,6 +64,52 @@ public class DefaultHealthRecordService implements HealthRecordService {
         );
     }
 
+    /** 본인 저장 기록 개별 삭제 */
+    @Override
+    public void delete(String memberId, long recordId) {
+        boolean deleted = store.delete(userId(memberId), recordId, clock.instant());
+        if (!deleted) {
+            throw new HealthRecordException("HEALTH_RECORD_NOT_FOUND");
+        }
+    }
+
+    /** 본인 저장 기록 전체 삭제 */
+    @Override
+    public int deleteAll(String memberId) {
+        return store.deleteAll(userId(memberId));
+    }
+
+    /** 재분석 성공 뒤 기존 기록 원자 교체 */
+    @Override
+    public Summary replace(String memberId, long recordId, String analysisId) {
+        long userId = userId(memberId);
+        HealthAnalysisResult result = completedResult(memberId, analysisId);
+        return store.replace(
+                        new HealthRecordStore.ReplaceCommand(
+                                userId,
+                                recordId,
+                                result,
+                                result.analyzedAt().plus(RETENTION)
+                        ),
+                        clock.instant()
+                )
+                .map(DefaultHealthRecordService::toSummary)
+                .orElseThrow(() -> new HealthRecordException("HEALTH_RECORD_NOT_FOUND"));
+    }
+
+    private HealthAnalysisResult completedResult(String memberId, String analysisId) {
+        HealthAnalysisJobService.Progress progress = jobService.find(
+                        analysisId,
+                        new HealthAnalysisJobService.Requester(memberId, null, null, null)
+                )
+                .orElseThrow(() -> new HealthRecordException("ANALYSIS_NOT_FOUND"));
+        HealthAnalysisResult result = progress.result();
+        if (progress.status() != AnalysisJobStatus.COMPLETED || result == null) {
+            throw new HealthRecordException("ANALYSIS_NOT_COMPLETED");
+        }
+        return result;
+    }
+
     private long userId(String memberId) {
         try {
             return Long.parseLong(memberId);
@@ -83,6 +121,7 @@ public class DefaultHealthRecordService implements HealthRecordService {
     private static Summary toSummary(HealthRecordStore.SavedRecord record) {
         return new Summary(
                 record.id(),
+                record.articleUrl(),
                 record.title(),
                 record.overallStatus(),
                 record.analyzedAt(),

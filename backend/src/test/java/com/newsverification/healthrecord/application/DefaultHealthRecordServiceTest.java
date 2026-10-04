@@ -96,6 +96,7 @@ class DefaultHealthRecordServiceTest {
         store.pageResult = new HealthRecordStore.PageResult(
                 List.of(new HealthRecordStore.SavedRecord(
                         31L,
+                        "https://news.example/article",
                         "건강 기사 제목",
                         "CAUTION",
                         ANALYZED_AT,
@@ -113,6 +114,81 @@ class DefaultHealthRecordServiceTest {
         assertThat(page.items()).hasSize(1);
         assertThat(store.listedUserId).isEqualTo(42L);
         assertThat(store.listedAt).isEqualTo(ANALYZED_AT);
+    }
+
+    /** 본인 저장 기록 개별 삭제 */
+    @Test
+    void deletesOwnedRecord() {
+        store.deleteResult = true;
+
+        service.delete("42", 31L);
+
+        assertThat(store.deletedUserId).isEqualTo(42L);
+        assertThat(store.deletedRecordId).isEqualTo(31L);
+        assertThat(store.deletedAt).isEqualTo(ANALYZED_AT);
+    }
+
+    /** 타인 또는 없는 저장 기록 삭제의 동일 실패 */
+    @Test
+    void hidesMissingOrUnauthorizedRecordDelete() {
+        assertThatThrownBy(() -> service.delete("42", 31L))
+                .isInstanceOf(HealthRecordException.class)
+                .hasMessage("HEALTH_RECORD_NOT_FOUND");
+    }
+
+    /** 회원 저장 기록 전체 삭제 */
+    @Test
+    void deletesAllOwnedRecords() {
+        store.deleteAllResult = 2;
+
+        assertThat(service.deleteAll("42")).isEqualTo(2);
+        assertThat(store.deletedAllUserId).isEqualTo(42L);
+    }
+
+    /** 완료된 새 분석으로 기존 기록 교체와 보관 기한 재시작 */
+    @Test
+    void replacesRecordOnlyWithCompletedOwnedAnalysis() {
+        when(jobService.find(any(), any())).thenReturn(Optional.of(completedProgress()));
+        store.replaceResult = Optional.of(new HealthRecordStore.SavedRecord(
+                32L,
+                "https://news.example/article",
+                "건강 기사 제목",
+                "CAUTION",
+                ANALYZED_AT,
+                ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60)
+        ));
+
+        HealthRecordService.Summary replaced = service.replace("42", 31L, "analysis-1");
+
+        assertThat(replaced.id()).isEqualTo(32L);
+        assertThat(store.replaceCommand.userId()).isEqualTo(42L);
+        assertThat(store.replaceCommand.recordId()).isEqualTo(31L);
+        assertThat(store.replaceCommand.expiresAt())
+                .isEqualTo(ANALYZED_AT.plusSeconds(30L * 24 * 60 * 60));
+    }
+
+    /** 새 분석 실패 시 기존 기록 교체 미수행 */
+    @Test
+    void keepsRecordWhenReanalysisIsNotCompleted() {
+        when(jobService.find(any(), any())).thenReturn(Optional.of(new HealthAnalysisJobService.Progress(
+                "analysis-1",
+                AnalysisJobStatus.FAILED,
+                AnalysisJobStage.FAILED,
+                ANALYZED_AT.plusSeconds(90),
+                ANALYZED_AT.plusSeconds(1800),
+                null,
+                null,
+                new HealthAnalysisJobService.Failure(
+                        "ANALYSIS_FAILED",
+                        "분석 실패",
+                        null
+                )
+        )));
+
+        assertThatThrownBy(() -> service.replace("42", 31L, "analysis-1"))
+                .isInstanceOf(HealthRecordException.class)
+                .hasMessage("ANALYSIS_NOT_COMPLETED");
+        assertThat(store.replaceCommand).isNull();
     }
 
     private HealthAnalysisJobService.Progress completedProgress() {
@@ -164,12 +240,21 @@ class DefaultHealthRecordServiceTest {
         private long listedUserId;
         private Instant listedAt;
         private PageResult pageResult;
+        private boolean deleteResult;
+        private int deleteAllResult;
+        private Optional<SavedRecord> replaceResult = Optional.empty();
+        private long deletedUserId;
+        private long deletedRecordId;
+        private long deletedAllUserId;
+        private Instant deletedAt;
+        private ReplaceCommand replaceCommand;
 
         @Override
         public SavedRecord save(SaveCommand command) {
             this.command = command;
             return new SavedRecord(
                     31L,
+                    command.result().article().url().toASCIIString(),
                     command.result().article().title(),
                     command.result().overallStatus().name(),
                     command.result().analyzedAt(),
@@ -187,6 +272,26 @@ class DefaultHealthRecordServiceTest {
         @Override
         public int deleteExpiredAtOrBefore(Instant cutoff) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean delete(long userId, long recordId, Instant activeAt) {
+            deletedUserId = userId;
+            deletedRecordId = recordId;
+            deletedAt = activeAt;
+            return deleteResult;
+        }
+
+        @Override
+        public int deleteAll(long userId) {
+            deletedAllUserId = userId;
+            return deleteAllResult;
+        }
+
+        @Override
+        public Optional<SavedRecord> replace(ReplaceCommand command, Instant activeAt) {
+            replaceCommand = command;
+            return replaceResult;
         }
     }
 }

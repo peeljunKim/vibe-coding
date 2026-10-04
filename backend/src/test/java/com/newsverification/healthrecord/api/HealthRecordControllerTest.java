@@ -26,7 +26,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -156,9 +158,83 @@ class HealthRecordControllerTest {
                 .andExpect(jsonPath("$.code").value("INVALID_PAGINATION"));
     }
 
+    /** 본인 저장 기록 개별 삭제 */
+    @Test
+    void deletesOwnedRecord() throws Exception {
+        mockMvc.perform(delete("/api/health-records/31")
+                        .with(user("42").roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(service).delete("42", 31L);
+    }
+
+    /** 본인 저장 기록 전체 삭제 */
+    @Test
+    void deletesAllOwnedRecords() throws Exception {
+        mockMvc.perform(delete("/api/health-records")
+                        .with(user("42").roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(service).deleteAll("42");
+    }
+
+    /** 완료된 새 분석으로 기존 저장 기록 교체 */
+    @Test
+    void replacesOwnedRecord() throws Exception {
+        when(service.replace("42", 31L, "analysis-2")).thenReturn(summary(32L));
+
+        mockMvc.perform(put("/api/health-records/31")
+                        .with(user("42").roles("USER"))
+                        .with(csrf())
+                        .contentType("application/json")
+                        .content("""
+                                {"analysisId":"analysis-2"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("32"))
+                .andExpect(jsonPath("$.articleUrl").value("https://news.example/article"));
+
+        verify(service).replace("42", 31L, "analysis-2");
+    }
+
+    /** 타인 또는 없는 저장 기록의 동일 공개 응답 */
+    @Test
+    void hidesMissingOrUnauthorizedRecord() throws Exception {
+        org.mockito.Mockito.doThrow(new HealthRecordException("HEALTH_RECORD_NOT_FOUND"))
+                .when(service).delete("42", 31L);
+
+        mockMvc.perform(delete("/api/health-records/31")
+                        .with(user("42").roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("HEALTH_RECORD_NOT_FOUND"));
+    }
+
+    /** 비로그인 삭제 요청 차단 */
+    @Test
+    void rejectsAnonymousDelete() throws Exception {
+        mockMvc.perform(delete("/api/health-records/31").with(csrf()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /** CSRF 없는 교체 요청 차단 */
+    @Test
+    void rejectsReplaceWithoutCsrf() throws Exception {
+        mockMvc.perform(put("/api/health-records/31")
+                        .with(user("42").roles("USER"))
+                        .contentType("application/json")
+                        .content("""
+                                {"analysisId":"analysis-2"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
     private HealthRecordService.Summary summary(long id) {
         return new HealthRecordService.Summary(
                 id,
+                "https://news.example/article",
                 "건강 기사 제목",
                 "CAUTION",
                 ANALYZED_AT,

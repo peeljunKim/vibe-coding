@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-/** 저장·목록 오류의 공개 ProblemDetail 변환 */
+/** 저장 기록 오류의 공개 ProblemDetail 변환 */
 @RestControllerAdvice(assignableTypes = HealthRecordController.class)
 public class HealthRecordErrorHandler {
 
@@ -31,6 +31,12 @@ public class HealthRecordErrorHandler {
                     "Analysis not completed",
                     "완료된 건강 분석 결과만 저장할 수 있습니다.",
                     "ANALYSIS_NOT_COMPLETED"
+            );
+            case "HEALTH_RECORD_NOT_FOUND" -> problem(
+                    HttpStatus.NOT_FOUND,
+                    "Health record not found",
+                    "요청한 저장 기록을 찾을 수 없습니다.",
+                    "HEALTH_RECORD_NOT_FOUND"
             );
             case "INVALID_PAGINATION" -> invalidPagination();
             default -> problem(

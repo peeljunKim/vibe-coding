@@ -244,6 +244,21 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Native MySQL 저장 기록 실제 실행: PASS (2개, 실패·오류·Skip 0)
 - Local API 계약 JSON 파싱·Git 제외 확인: PASS
 
+## 건강 분석 저장 기록 삭제·재분석 교체
+
+- 본인 저장 기록 개별 삭제와 타인·없는 기록의 동일 404 응답: PASS
+- 본인 저장 기록 전체 삭제: PASS
+- 기존 건강 분석 Queue·이용량·90초 제한을 통한 재분석 실행: PASS
+- 완료된 새 분석 결과만 기존 저장 기록과 단일 Transaction 교체: PASS
+- 재분석·교체 실패 시 기존 기록 유지: PASS (Application 단위와 Transaction Rollback 통합 테스트 소스)
+- 교체 성공 시 이전 Aggregate·공유 링크 Cascade 삭제와 독립 신고 Snapshot 유지: PASS (통합 테스트 소스)
+- Backend 단위·MVC 전체 회귀: PASS (259개, 실패·오류·Skip 0; `*IT` 제외)
+- Frontend Test·Lint·TypeScript·Build: PASS (19개 Test File·89개 Test)
+- Chrome 건강 분석·저장 기록 Browser E2E: PASS (10개, Runtime·Console 오류 0건)
+- Docker Redis 분석 Queue·Cache·이용량 회귀: PASS
+- Native MySQL 저장 기록 삭제·교체 실제 실행: NOT RUN (마스킹 테스트 계정 비밀번호 입력 필요)
+- Local API 계약 JSON 파싱·Git 제외 확인: PASS
+
 ## PR 26 CodeRabbit 보완
 
 - 동일 완료 결과의 동시 저장 DB UNIQUE 제약과 충돌 복구: PASS (코드·Version SQL·통합 테스트 소스)
@@ -452,3 +467,34 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 실제 Browser 렌더링 시각 검토: PASS
 - Frontend Test·TypeScript·Lint·Build: PASS (16 files, 76 tests)
 - Backend·Native MySQL 변경과 검증: NOT APPLICABLE
+
+## Local MVP 통합 회귀 Harness
+
+- 기존 전체 Repository·Native MySQL·Docker Redis·Playwright 검증 진입점 재사용: PASS
+- 첫 실패 즉시 중단과 실행 순서 회귀 테스트: PASS
+- 새 Dependency·외부 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE
+- Frontend Lint·단위 테스트·Build: PASS (18개 Test File·84개 Test)
+- Backend Maven 회귀: PASS (246개, 실패·오류·Skip 0)
+- Docker Redis 8.8 통합 회귀: PASS
+- Chrome Browser E2E: PASS (22개)
+- Native MySQL Repository 통합 테스트 재실행: PASS (`verify-local-mvp.ps1` 사용자 실행 결과)
+- 단일 `verify-local-mvp.ps1` 전체 실행: PASS (Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E)
+
+## Local Full-stack Smoke E2E
+
+- 실제 Browser → Backend HTTP → Native MySQL 테스트 Database → Docker Redis 연결: PASS
+- 회원가입·로그인·CSRF 거부·건강 및 제목 분석·건강 결과 저장·로그아웃·보호 API 차단: PASS (Chromium 1개 Scenario)
+- 실행별 MySQL·Redis 시험 데이터와 임시 로그 정리: PASS
+- 실제 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE (`e2e` Profile 고정 기사 입력·Mock Adapter)
+- Backend 전체 Maven Package: PASS (248개, 실패·오류·Skip 0)
+- Frontend 변경 범위 Test·Lint·TypeScript·Build: PASS (18개 Test File·84개 Test)
+- 변경 범위 Harness·Secret·Diff 공백 검사: PASS
+
+## Local API 계약 동기화
+
+- Controller·DTO·SecurityConfig 기준 구현 Endpoint 31개와 Local OpenAPI 대조: PASS
+- 회원가입·Session 인증·계정 복구·공유 누락 계약 보완: PASS
+- 미구현 `GET /api/usage`를 구현 API와 분리하고 `NOT_IMPLEMENTED` 표시: PASS
+- 언론사 `CANDIDATE → UNSUPPORTED`, 건강 기록 만료 정리와 Native MySQL·Docker Redis 검증 상태 최신화: PASS
+- OpenAPI JSON 파싱·내부 `$ref`·구현 Endpoint 목록 검사: PASS
+- Backend·Frontend Runtime 회귀: NOT RUN (문서 전용 변경)
