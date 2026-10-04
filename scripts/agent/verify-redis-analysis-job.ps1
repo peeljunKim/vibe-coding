@@ -4,37 +4,14 @@ param()
 
 $ErrorActionPreference = 'Stop'
 
-# Java 17 실행 파일 탐색
-function Resolve-Java17Path {
-    $candidates = [Collections.Generic.List[string]]::new()
-    if ($env:JAVA_HOME) {
-        $candidates.Add((Join-Path $env:JAVA_HOME 'bin\java.exe'))
-    }
-
-    $pathJavaCommands = Get-Command 'java.exe' -All -ErrorAction SilentlyContinue
-    foreach ($pathJava in $pathJavaCommands) {
-        $candidates.Add($pathJava.Source)
-    }
-
-    $candidates.Add('C:\Program Files\Java\jdk-17\bin\java.exe')
-    $candidates.Add('C:\Users\82109\scoop\apps\openjdk17\current\bin\java.exe')
-
-    foreach ($candidate in $candidates | Select-Object -Unique) {
-        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
-            continue
-        }
-        $versionOutput = & $candidate -version 2>&1 | Out-String
-        if ($LASTEXITCODE -eq 0 -and $versionOutput -match 'version "17(?:[.\-"]|$)') {
-            return (Resolve-Path -LiteralPath $candidate).Path
-        }
-    }
-
-    throw 'Java 17 executable not found in JAVA_HOME, PATH, or known Local paths'
-}
-
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $environmentPath = Join-Path $repoRoot '.env'
+$utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
+if (-not (Test-Path -LiteralPath $utilitiesPath -PathType Leaf)) {
+    throw "Required Redis integration test file missing: $utilitiesPath"
+}
+. $utilitiesPath
 $javaPath = Resolve-Java17Path
 $wrapperJar = Join-Path $backendRoot '.mvn\wrapper\maven-wrapper.jar'
 $containerName = "news-verification-redis-test-$([Guid]::NewGuid().ToString('N'))"
@@ -44,21 +21,6 @@ foreach ($requiredPath in @($javaPath, $wrapperJar)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Redis integration test file missing: $requiredPath"
     }
-}
-
-function Read-EnvironmentValues {
-    param(
-        [Parameter(Mandatory)]
-        [string] $Path
-    )
-
-    $values = @{}
-    foreach ($line in Get-Content -LiteralPath $Path) {
-        if ($line -match '^(?<name>[A-Z0-9_]+)=(?<value>.*)$') {
-            $values[$Matches.name] = $Matches.value
-        }
-    }
-    return $values
 }
 
 $localValues = @{}

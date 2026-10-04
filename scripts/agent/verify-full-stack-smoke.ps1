@@ -4,38 +4,20 @@ param()
 
 $ErrorActionPreference = 'Stop'
 
-# Java 17 실행 파일 탐색
-function Resolve-Java17Path {
-    $candidates = [Collections.Generic.List[string]]::new()
-    if ($env:JAVA_HOME) {
-        $candidates.Add((Join-Path $env:JAVA_HOME 'bin\java.exe'))
-    }
-
-    foreach ($pathJava in Get-Command 'java.exe' -All -ErrorAction SilentlyContinue) {
-        $candidates.Add($pathJava.Source)
-    }
-
-    $candidates.Add('C:\Program Files\Java\jdk-17\bin\java.exe')
-    $candidates.Add('C:\Users\82109\scoop\apps\openjdk17\current\bin\java.exe')
-
-    foreach ($candidate in $candidates | Select-Object -Unique) {
-        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
-            continue
-        }
-        $versionOutput = & $candidate -version 2>&1 | Out-String
-        if ($LASTEXITCODE -eq 0 -and $versionOutput -match 'version "17(?:[.\-"]|$)') {
-            return (Resolve-Path -LiteralPath $candidate).Path
-        }
-    }
-
-    throw 'Java 17 executable not found in JAVA_HOME, PATH, or known Local paths'
-}
-
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $frontendRoot = Join-Path $repoRoot 'frontend'
 $environmentPath = Join-Path $repoRoot '.env'
 $validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
+$utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
+$requiredUtilityPaths = @($validationPath, $utilitiesPath)
+foreach ($requiredPath in $requiredUtilityPaths) {
+    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+        throw "Required Full-stack Smoke file missing: $requiredPath"
+    }
+}
+. $validationPath
+. $utilitiesPath
 $javaPath = Resolve-Java17Path
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
 $wrapperJar = Join-Path $backendRoot '.mvn\wrapper\maven-wrapper.jar'
@@ -62,7 +44,6 @@ $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) "news-verification-fu
 
 foreach ($requiredPath in @(
         $environmentPath,
-        $validationPath,
         $javaPath,
         $mysqlPath,
         $wrapperJar,
@@ -71,34 +52,6 @@ foreach ($requiredPath in @(
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Full-stack Smoke file missing: $requiredPath"
     }
-}
-
-. $validationPath
-
-function Read-EnvironmentValues {
-    param([Parameter(Mandatory)][string] $Path)
-
-    $values = @{}
-    foreach ($line in Get-Content -LiteralPath $Path) {
-        if ($line -match '^(?<name>[A-Z0-9_]+)=(?<value>.*)$') {
-            $values[$Matches.name] = $Matches.value
-        }
-    }
-    return $values
-}
-
-function Get-ConfiguredValue {
-    param(
-        [Parameter(Mandatory)][hashtable] $Values,
-        [Parameter(Mandatory)][string] $Name,
-        [string] $Fallback = ''
-    )
-
-    $value = $Values[$Name]
-    if ($value -and $value -notmatch '^replace-with-') {
-        return $value
-    }
-    return $Fallback
 }
 
 function Invoke-MySql {

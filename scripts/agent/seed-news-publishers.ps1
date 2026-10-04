@@ -11,46 +11,16 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $environmentPath = Join-Path $repoRoot '.env'
 $seedPath = Join-Path $repoRoot 'infra\mysql\seed\initial-news-publishers.sql'
+$utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
 
-foreach ($requiredPath in @($environmentPath, $seedPath, $mysqlPath)) {
+foreach ($requiredPath in @($environmentPath, $seedPath, $utilitiesPath, $mysqlPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required publisher seed file missing: $requiredPath"
     }
 }
 
-function Read-EnvironmentValues {
-    param(
-        [Parameter(Mandatory)]
-        [string] $Path
-    )
-
-    $values = @{}
-    foreach ($line in Get-Content -LiteralPath $Path) {
-        if ($line -match '^(?<name>[A-Z0-9_]+)=(?<value>.*)$') {
-            $values[$Matches.name] = $Matches.value
-        }
-    }
-    return $values
-}
-
-function Get-ConfiguredValue {
-    param(
-        [Parameter(Mandatory)]
-        [hashtable] $Values,
-
-        [Parameter(Mandatory)]
-        [string] $Name,
-
-        [string] $Fallback = ''
-    )
-
-    $value = $Values[$Name]
-    if ($value -and $value -notmatch '^replace-with-') {
-        return $value
-    }
-    return $Fallback
-}
+. $utilitiesPath
 
 function Invoke-MySql {
     param(

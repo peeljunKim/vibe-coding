@@ -25,6 +25,7 @@
 - Availability: EC2 장애 대응이 아닌 Blue/Green 애플리케이션 배포 중 무중단만 보장
 - E2E: Playwright, Vite 개발 서버, PR Chromium, Release 전 Chrome·Edge 검증
 - Local MVP 전체 회귀: `verify-local-mvp.ps1`이 Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E를 기존 Mock Adapter로 순차 실행하며 전체 PASS 확인
+- Agent Script 구성: 직접 실행하는 Setup·검증 진입점은 권한·필수 서비스별로 유지하고, 반복되는 `.env` 값 처리와 Java 17 탐색은 `script-utilities.ps1`, Harness·Local MVP 실행 순서 회귀는 `verify.Tests.ps1`로 통합
 - Local Full-stack Smoke: `verify-full-stack-smoke.ps1`이 실제 Browser·Backend HTTP·Native MySQL 테스트 Database·실행별 Docker Redis를 연결하고 외부 Gemini·PubMed·OAuth·Gmail SMTP 없이 핵심 사용자 흐름을 검증함
 - Local API 계약: `docs/api/openapi.json`은 Controller 기준 구현 Endpoint 31개와 미구현 `GET /api/usage` 제안을 상태로 구분하며, 상세 문서는 Git 제외 Local 전용으로 유지
 - Local OAuth: 서비스 기준 URL `http://localhost:8080`

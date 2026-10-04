@@ -11,6 +11,7 @@ $backendRoot = Join-Path $repoRoot 'backend'
 $schemaDirectory = Join-Path $repoRoot 'infra\mysql\schema'
 $initialSchemaPath = Join-Path $schemaDirectory 'V0001__create_initial_domain_schema.sql'
 $validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
+$utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
 $environmentTemplatePath = Join-Path $repoRoot '.env.example'
 $environmentPath = Join-Path $repoRoot '.env'
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
@@ -25,47 +26,14 @@ $ddlProbeTable = "agent_ddl_probe_$PID"
 $stdoutPath = Join-Path ([IO.Path]::GetTempPath()) "news-verification-jpa-$PID.stdout.log"
 $stderrPath = Join-Path ([IO.Path]::GetTempPath()) "news-verification-jpa-$PID.stderr.log"
 
-foreach ($requiredPath in @($mysqlPath, $javaPath, $wrapperJar, $initialSchemaPath, $validationPath, $environmentTemplatePath)) {
+foreach ($requiredPath in @($mysqlPath, $javaPath, $wrapperJar, $initialSchemaPath, $validationPath, $utilitiesPath, $environmentTemplatePath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required verification file missing: $requiredPath"
     }
 }
 
 . $validationPath
-
-function Read-EnvironmentValues {
-    param(
-        [Parameter(Mandatory)]
-        [string] $Path
-    )
-
-    $values = @{}
-    foreach ($line in Get-Content -LiteralPath $Path) {
-        if ($line -match '^(?<Name>[A-Z0-9_]+)=(?<Value>.*)$') {
-            $values[$Matches.Name] = $Matches.Value
-        }
-    }
-    return $values
-}
-
-function Set-EnvironmentValue {
-    param(
-        [Parameter(Mandatory)]
-        [string] $Content,
-
-        [Parameter(Mandatory)]
-        [string] $Name,
-
-        [Parameter(Mandatory)]
-        [string] $Value
-    )
-
-    $escapedName = [regex]::Escape($Name)
-    if ($Content -match "(?m)^$escapedName=") {
-        return [regex]::Replace($Content, "(?m)^$escapedName=.*$", "$Name=$Value")
-    }
-    return "$($Content.TrimEnd())`r`n$Name=$Value`r`n"
-}
+. $utilitiesPath
 
 function Invoke-MySql {
     param(
