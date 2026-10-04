@@ -214,6 +214,54 @@ describe('App', () => {
     ).toBeEnabled()
   })
 
+  it('로그인 전 이용량 응답이 늦게 도착해도 회원 이용량을 유지한다', async () => {
+    let resolveGuestUsage: ((value: Awaited<ReturnType<typeof getDailyUsage>>) => void) | undefined
+    const guestUsage = new Promise<Awaited<ReturnType<typeof getDailyUsage>>>((resolve) => {
+      resolveGuestUsage = resolve
+    })
+    vi.mocked(getDailyUsage)
+      .mockImplementationOnce(() => guestUsage)
+      .mockResolvedValueOnce({
+        timezone: 'Asia/Seoul',
+        resetsAt: '2026-10-04T15:00:00Z',
+        health: { limit: 5, used: 1, remaining: 4 },
+        headline: { limit: 10, used: 1, remaining: 9 },
+      })
+    vi.mocked(login).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      username: 'health26',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+    renderApp('/login')
+
+    fireEvent.change(screen.getByLabelText('아이디'), {
+      target: { value: 'health26' },
+    })
+    fireEvent.change(screen.getByLabelText('비밀번호'), {
+      target: { value: 'test-Password23!' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }))
+
+    expect(
+      await screen.findByText('오늘 남은 횟수 건강 4 · 제목 9'),
+    ).toBeInTheDocument()
+
+    await act(async () => {
+      resolveGuestUsage?.({
+        timezone: 'Asia/Seoul',
+        resetsAt: '2026-10-04T15:00:00Z',
+        health: { limit: 2, used: 2, remaining: 0 },
+        headline: { limit: 5, used: 5, remaining: 0 },
+      })
+      await guestUsage
+    })
+
+    expect(screen.getByText('오늘 남은 횟수 건강 4 · 제목 9')).toBeInTheDocument()
+    expect(screen.queryByText('오늘 남은 횟수 건강 0 · 제목 0')).not.toBeInTheDocument()
+  })
+
   it('Backend 지원 상태를 펼치고 키보드로 다시 닫는다', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

@@ -579,3 +579,12 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 새 Dependency·Public API·DB·Frontend 변경: NOT APPLICABLE
 - 실제 NCBI E-utilities 제한 호출: NOT RUN
 - 실제 NCBI 연락처 이메일 설정: REQUIRED
+
+## PR 40 이용량 조회 리뷰 보완
+
+- 회원·비회원 식별 준비와 Redis 조회의 확인된 가용성 오류를 `503 USAGE_SERVICE_UNAVAILABLE`로 변환: PASS
+- 입력·프로그래밍 오류를 범용 `503`으로 오분류하지 않도록 예외 경계 축소: PASS
+- 겹친 Frontend 이용량 조회에서 최신 요청만 화면 상태를 갱신: PASS
+- Backend Maven 전체 검증: PASS (293개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·96개 Test)
+- 실제 Browser E2E: NOT RUN (시각 UI 변경 없음)

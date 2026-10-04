@@ -81,46 +81,41 @@ function App() {
   const [usageUnavailable, setUsageUnavailable] = useState(false)
   const healthAnalysisController = useRef<AbortController | null>(null)
   const authRevision = useRef(0)
+  const usageRequestRevision = useRef(0)
   const goTo = (path: string) => {
     void navigate(path)
   }
 
   const refreshDailyUsage = useCallback(async () => {
+    const requestedRevision = ++usageRequestRevision.current
     try {
       const current = await getDailyUsage()
+      if (requestedRevision !== usageRequestRevision.current) {
+        return
+      }
       setUsage({
         healthRemaining: current.health.remaining,
         headlineRemaining: current.headline.remaining,
       })
       setUsageUnavailable(false)
     } catch {
+      if (requestedRevision !== usageRequestRevision.current) {
+        return
+      }
       setUsage(undefined)
       setUsageUnavailable(true)
     }
   }, [])
 
   useEffect(() => {
-    let active = true
-    void getDailyUsage()
-      .then((current) => {
-        if (active) {
-          setUsage({
-            healthRemaining: current.health.remaining,
-            headlineRemaining: current.headline.remaining,
-          })
-          setUsageUnavailable(false)
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setUsage(undefined)
-          setUsageUnavailable(true)
-        }
-      })
+    const requestTimer = window.setTimeout(() => {
+      void refreshDailyUsage()
+    }, 0)
     return () => {
-      active = false
+      window.clearTimeout(requestTimer)
+      usageRequestRevision.current += 1
     }
-  }, [])
+  }, [refreshDailyUsage])
 
   useEffect(() => {
     let active = true

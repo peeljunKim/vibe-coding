@@ -69,7 +69,7 @@
 - 건강 근거 링크 운영 HTTP Adapter는 `evidence-http` Profile과 `app.analysis.evidence-allowed-hosts`의 쉼표 구분 Host 목록에서만 활성화되며 HTTPS·공개 IP·Redirect 재검증, 10초 Timeout·Redirect 최대 3회·1 KiB 응답 제한을 적용함; 2xx는 정상, 404·410은 누락, DNS·전송·그 밖의 HTTP 오류는 일시 오류로 분류하고 기본 Profile은 외부 호출 없는 Mock을 유지함
 - 건강·제목 분석 접수는 기사 수집·Queue 적재 전에 기능별·사용자별 Redis 고정 시간 제한을 적용함; 각 기능 1분 5회, HMAC 식별값 추가 Digest, 비회원 다중 식별 신호 카운터 동기화, 초과 `429`, Redis 장애 `503`, Polling·자동 근거 재분석 제외
 - Frontend는 건강·제목 분석의 `429 ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED`를 공통 사용자 안내로 표시하고 Polling을 시작하지 않으며 Desktop 1024·1280·1440px에서 오류 화면을 검증함
-- `GET /api/usage`는 회원·비회원의 건강·제목 당일 한도·사용·남은 횟수와 다음 한국시간 자정을 공개 조회하며, 조회만으로 횟수나 Redis TTL을 변경하지 않음; Redis 장애는 `503 USAGE_SERVICE_UNAVAILABLE`, Frontend는 초기·로그인·로그아웃·분석 완료 뒤 갱신하고 실패해도 분석 버튼을 유지함
+- `GET /api/usage`는 회원·비회원의 건강·제목 당일 한도·사용·남은 횟수와 다음 한국시간 자정을 공개 조회하며, 조회만으로 횟수나 Redis TTL을 변경하지 않음; 식별 준비·Redis 가용성 오류는 `503 USAGE_SERVICE_UNAVAILABLE`, Frontend는 초기·로그인·로그아웃·분석 완료 뒤 갱신하고 겹친 요청의 오래된 응답을 폐기하며 실패해도 분석 버튼을 유지함
 
 ## Deferred
 

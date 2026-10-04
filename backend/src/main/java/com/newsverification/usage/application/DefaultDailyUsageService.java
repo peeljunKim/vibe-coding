@@ -10,6 +10,7 @@ import com.newsverification.health.application.HealthAnalysisJobService;
 import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
 import com.newsverification.health.application.HealthTopicFailureUsageResult;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -49,23 +50,22 @@ public class DefaultDailyUsageService implements DailyUsageService {
     @Override
     public Snapshot get(Requester requester) {
         Objects.requireNonNull(requester);
-        HealthAnalysisJobIdentityService.PreparedIdentity healthIdentity = healthIdentityService.prepare(
-                new HealthAnalysisJobService.Requester(
-                        requester.memberId(), requester.guestBrowserId(), null, requester.clientIp()
-                )
-        );
-        GuestBrowserCookie guestCookie = toGuestCookie(healthIdentity.guestBrowserCookie());
-        String guestBrowserId = requester.guestBrowserId();
-        if (guestCookie != null) {
-            guestBrowserId = guestCookie.value();
-        }
-        HeadlineAnalysisJobIdentityService.PreparedIdentity headlineIdentity = headlineIdentityService.prepare(
-                new HeadlineAnalysisJobService.Requester(
-                        requester.memberId(), guestBrowserId, null, requester.clientIp()
-                )
-        );
-
         try {
+            HealthAnalysisJobIdentityService.PreparedIdentity healthIdentity = healthIdentityService.prepare(
+                    new HealthAnalysisJobService.Requester(
+                            requester.memberId(), requester.guestBrowserId(), null, requester.clientIp()
+                    )
+            );
+            GuestBrowserCookie guestCookie = toGuestCookie(healthIdentity.guestBrowserCookie());
+            String guestBrowserId = requester.guestBrowserId();
+            if (guestCookie != null) {
+                guestBrowserId = guestCookie.value();
+            }
+            HeadlineAnalysisJobIdentityService.PreparedIdentity headlineIdentity = headlineIdentityService.prepare(
+                    new HeadlineAnalysisJobService.Requester(
+                            requester.memberId(), guestBrowserId, null, requester.clientIp()
+                    )
+            );
             HealthTopicFailureUsageResult health = healthUsagePolicy.currentUsage(
                     healthIdentity.usageSubject()
             );
@@ -87,7 +87,7 @@ public class DefaultDailyUsageService implements DailyUsageService {
                     ),
                     guestCookie
             );
-        } catch (RuntimeException exception) {
+        } catch (IllegalStateException | DataAccessException exception) {
             throw new DailyUsageServiceUnavailableException(exception);
         }
     }
