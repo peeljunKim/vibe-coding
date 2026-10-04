@@ -123,7 +123,7 @@
 
 ## Next Loop
 
-1. 실제 PubMed 근거 검색 Adapter와 안전한 근거 링크 HTTP 상태 확인 Adapter 구현
+1. 실제 PubMed 근거 검색 Adapter 구현
 2. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
 3. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
 4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
@@ -512,7 +512,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 전체 검증: PASS (266개, 실패·오류·Skip 0)
 - Docker Redis 일일 이용량 격리·무차감·TTL 무연장 통합 검증: PASS
 - Chrome 전체 Browser E2E: PASS (25개; 이용량 표시 1024·1280·1440px 포함)
-- Native MySQL Repository 통합 재검증: NOT RUN (테스트 계정 비밀번호 마스킹 입력 대기 중단, DB·Schema 변경 없음)
+- Native MySQL Repository 통합 재검증: PASS (`verify-publisher-native-mysql.ps1` 사용자 실행 결과; 언론사·회원가입·건강 저장 기록·신고·공유 통합 테스트)
 - 실제 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE
 
 ## Agent Script 중복 정리
@@ -525,5 +525,27 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - `native-mysql-validation.Tests.ps1`: PASS
 - `verify.Tests.ps1`: PASS
 - 변경 범위 Harness·Secret·Diff 공백 검사: PASS
-- `verify-local-mvp.ps1` 실제 Native MySQL·Docker Redis·Playwright 통합 회귀: PASS (Backend 259개, Frontend 91개, Browser 24개)
+- `verify-local-mvp.ps1` 실제 전체 회귀: PASS (현재 작업 트리에서 사용자 실행; Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E)
 - `verify-full-stack-smoke.ps1` 실제 Browser→Backend HTTP→Native MySQL→Docker Redis Smoke: PASS (Browser 1개)
+
+## PR 39 재분석 취소 경쟁 보완
+
+- 저장 기록 교체 대기 중 취소된 분석의 늦은 성공·실패 응답 폐기: PASS
+- 취소 후 늦은 교체 실패가 결과 화면을 다시 열지 않는 회귀 테스트: PASS
+- Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·95개 Test)
+- Native MySQL Repository 통합 재검증: PASS (`verify-publisher-native-mysql.ps1` 사용자 실행 결과)
+- Local MVP 전체 회귀: PASS (`verify-local-mvp.ps1` 사용자 실행 결과)
+- 실제 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE
+
+## 건강 근거 링크 운영 HTTP 상태 확인
+
+- 기존 `HealthEvidenceLinkChecker` Port와 Cache 재검증 흐름 유지: PASS
+- `evidence-http` Profile의 운영 HTTP Adapter와 기본 Mock 분리: PASS
+- `app.analysis.evidence-allowed-hosts`의 명시적 허용 Host 누락 시 시작 실패: PASS
+- HTTPS·허용 Host·공개 IP와 매 Redirect 대상 재검증: PASS
+- 2xx 정상, 404·410 누락, DNS·전송·그 밖의 HTTP 오류 일시 실패 분류: PASS
+- Timeout 10초, Redirect 최대 3회, 응답 1 KiB 제한: PASS
+- 외부 사이트 없는 Adapter·구성·기존 로컬 HTTPS 전송 Fixture 검증: PASS
+- Backend Maven 전체 검증: PASS (275개, 실패·오류·Skip 0)
+- 새 Dependency·Frontend·Public API 변경: NOT APPLICABLE
+- 실제 공식 기관·PubMed 외부 링크 호출: NOT RUN (정확한 운영 허용 Host 목록 확정 후 별도 Smoke Test)
