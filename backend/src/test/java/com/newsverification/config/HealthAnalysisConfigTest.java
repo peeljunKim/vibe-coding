@@ -2,6 +2,9 @@
 package com.newsverification.config;
 
 import com.newsverification.article.application.PublisherArticleReader;
+import com.newsverification.article.application.ArticleHttpClient;
+import com.newsverification.article.application.ArticleHttpResponse;
+import com.newsverification.article.application.ArticleUrlValidator;
 import com.newsverification.analysis.application.AnalysisJobStore;
 import com.newsverification.analysis.application.AnalysisJobOutcomeStore;
 import com.newsverification.analysis.application.AnalysisRequestRateLimiter;
@@ -18,10 +21,13 @@ import com.newsverification.health.application.DefaultHealthAnalysisJobService;
 import com.newsverification.health.application.HealthAnalysisJobService;
 import com.newsverification.health.application.HealthAnalysisResultCache;
 import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
+import com.newsverification.health.infrastructure.HttpHealthEvidenceLinkChecker;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import java.net.InetAddress;
 import java.time.Clock;
+import java.util.List;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,6 +85,42 @@ class HealthAnalysisConfigTest {
     void failsWhenAnalysisProviderIsNotExplicitlyConfigured() {
         contextRunner
                 .withPropertyValues("app.analysis.provider=")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    /** 운영 Profile의 HTTP 근거 링크 Adapter 교체 */
+    @Test
+    void wiresHttpEvidenceCheckerOnlyWithExplicitAllowedHosts() throws Exception {
+        InetAddress publicAddress = InetAddress.getByAddress(new byte[]{1, 1, 1, 1});
+        contextRunner
+                .withUserConfiguration(HealthEvidenceLinkConfig.class)
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("evidence-http"))
+                .withBean(
+                        ArticleUrlValidator.class,
+                        () -> new ArticleUrlValidator(hostname -> List.of(publicAddress))
+                )
+                .withBean(
+                        ArticleHttpClient.class,
+                        () -> (target, timeout, maxResponseBytes) ->
+                                new ArticleHttpResponse(200, "text/html", "", 0, null)
+                )
+                .withPropertyValues("app.analysis.evidence-allowed-hosts=evidence.example")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(HealthEvidenceLinkChecker.class);
+                    assertThat(context.getBean(HealthEvidenceLinkChecker.class))
+                            .isInstanceOf(HttpHealthEvidenceLinkChecker.class);
+                });
+    }
+
+    /** 운영 Profile의 빈 허용 Host 설정 차단 */
+    @Test
+    void failsHttpEvidenceProfileWithoutAllowedHosts() {
+        contextRunner
+                .withUserConfiguration(HealthEvidenceLinkConfig.class)
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("evidence-http"))
+                .withBean(ArticleUrlValidator.class, () -> mock(ArticleUrlValidator.class))
+                .withBean(ArticleHttpClient.class, () -> mock(ArticleHttpClient.class))
                 .run(context -> assertThat(context).hasFailed());
     }
 }

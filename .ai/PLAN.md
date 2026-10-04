@@ -123,7 +123,7 @@
 
 ## Next Loop
 
-1. 실제 PubMed 근거 검색 Adapter와 안전한 근거 링크 HTTP 상태 확인 Adapter 구현
+1. 실제 PubMed 근거 검색 Adapter 구현
 2. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
 3. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
 4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
@@ -473,10 +473,10 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 기존 전체 Repository·Native MySQL·Docker Redis·Playwright 검증 진입점 재사용: PASS
 - 첫 실패 즉시 중단과 실행 순서 회귀 테스트: PASS
 - 새 Dependency·외부 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE
-- Frontend Lint·단위 테스트·Build: PASS (18개 Test File·84개 Test)
-- Backend Maven 회귀: PASS (246개, 실패·오류·Skip 0)
+- Frontend Lint·단위 테스트·Build: PASS (19개 Test File·91개 Test)
+- Backend Maven 회귀: PASS (259개, 실패·오류·Skip 0)
 - Docker Redis 8.8 통합 회귀: PASS
-- Chrome Browser E2E: PASS (22개)
+- Chrome Browser E2E: PASS (24개)
 - Native MySQL Repository 통합 테스트 재실행: PASS (`verify-local-mvp.ps1` 사용자 실행 결과)
 - 단일 `verify-local-mvp.ps1` 전체 실행: PASS (Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E)
 
@@ -486,18 +486,34 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 회원가입·로그인·CSRF 거부·건강 및 제목 분석·건강 결과 저장·로그아웃·보호 API 차단: PASS (Chromium 1개 Scenario)
 - 실행별 MySQL·Redis 시험 데이터와 임시 로그 정리: PASS
 - 실제 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE (`e2e` Profile 고정 기사 입력·Mock Adapter)
-- Backend 전체 Maven Package: PASS (248개, 실패·오류·Skip 0)
-- Frontend 변경 범위 Test·Lint·TypeScript·Build: PASS (18개 Test File·84개 Test)
+- Backend 전체 Maven Package: PASS (259개, 실패·오류·Skip 0)
+- Frontend 변경 범위 Test·Lint·TypeScript·Build: PASS (19개 Test File·91개 Test)
 - 변경 범위 Harness·Secret·Diff 공백 검사: PASS
 
 ## Local API 계약 동기화
 
-- Controller·DTO·SecurityConfig 기준 구현 Endpoint 31개와 Local OpenAPI 대조: PASS
+- Controller·DTO·SecurityConfig 기준 구현 Endpoint 32개와 Local OpenAPI 대조: PASS
 - 회원가입·Session 인증·계정 복구·공유 누락 계약 보완: PASS
-- 미구현 `GET /api/usage`를 구현 API와 분리하고 `NOT_IMPLEMENTED` 표시: PASS
+- `GET /api/usage`의 구현 계약·Redis 장애 응답과 Docker Redis 검증 상태 반영: PASS
 - 언론사 `CANDIDATE → UNSUPPORTED`, 건강 기록 만료 정리와 Native MySQL·Docker Redis 검증 상태 최신화: PASS
 - OpenAPI JSON 파싱·내부 `$ref`·구현 Endpoint 목록 검사: PASS
-- Backend·Frontend Runtime 회귀: NOT RUN (문서 전용 변경)
+- Backend·Frontend Runtime 회귀: PASS (Backend 266개, Frontend 20개 Test File·94개 Test)
+
+## 기능별 당일 이용량 조회와 홈 연결
+
+- 비로그인 공개 `GET /api/usage`와 회원·비회원 기존 비식별 식별 경계 재사용: PASS
+- 건강·제목 한도·사용·남은 횟수와 다음 한국시간 자정 응답: PASS
+- 조회 시 이용 횟수 무차감·Redis TTL 무연장: PASS (Docker Redis 실제 검증)
+- 최초 비회원 공통 Browser Cookie 발급과 로그인 회원 Cookie 미발급: PASS
+- Redis 장애의 `503 USAGE_SERVICE_UNAVAILABLE` 공통 오류 응답: PASS
+- 홈 초기·로그인·로그아웃·건강 및 제목 분석 완료 뒤 남은 횟수 갱신: PASS
+- 조회 실패 안내와 기존 분석 버튼 사용 가능 상태 유지: PASS
+- Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·94개 Test)
+- Backend Maven 전체 검증: PASS (266개, 실패·오류·Skip 0)
+- Docker Redis 일일 이용량 격리·무차감·TTL 무연장 통합 검증: PASS
+- Chrome 전체 Browser E2E: PASS (25개; 이용량 표시 1024·1280·1440px 포함)
+- Native MySQL Repository 통합 재검증: PASS (`verify-publisher-native-mysql.ps1` 사용자 실행 결과; 언론사·회원가입·건강 저장 기록·신고·공유 통합 테스트)
+- 실제 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE
 
 ## Agent Script 중복 정리
 
@@ -509,3 +525,27 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - `native-mysql-validation.Tests.ps1`: PASS
 - `verify.Tests.ps1`: PASS
 - 변경 범위 Harness·Secret·Diff 공백 검사: PASS
+- `verify-local-mvp.ps1` 실제 전체 회귀: PASS (현재 작업 트리에서 사용자 실행; Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E)
+- `verify-full-stack-smoke.ps1` 실제 Browser→Backend HTTP→Native MySQL→Docker Redis Smoke: PASS (Browser 1개)
+
+## PR 39 재분석 취소 경쟁 보완
+
+- 저장 기록 교체 대기 중 취소된 분석의 늦은 성공·실패 응답 폐기: PASS
+- 취소 후 늦은 교체 실패가 결과 화면을 다시 열지 않는 회귀 테스트: PASS
+- Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·95개 Test)
+- Native MySQL Repository 통합 재검증: PASS (`verify-publisher-native-mysql.ps1` 사용자 실행 결과)
+- Local MVP 전체 회귀: PASS (`verify-local-mvp.ps1` 사용자 실행 결과)
+- 실제 Gemini·PubMed·OAuth·Gmail SMTP 호출: NOT APPLICABLE
+
+## 건강 근거 링크 운영 HTTP 상태 확인
+
+- 기존 `HealthEvidenceLinkChecker` Port와 Cache 재검증 흐름 유지: PASS
+- `evidence-http` Profile의 운영 HTTP Adapter와 기본 Mock 분리: PASS
+- `app.analysis.evidence-allowed-hosts`의 명시적 허용 Host 누락 시 시작 실패: PASS
+- HTTPS·허용 Host·공개 IP와 매 Redirect 대상 재검증: PASS
+- 2xx 정상, 404·410 누락, DNS·전송·그 밖의 HTTP 오류 일시 실패 분류: PASS
+- Timeout 10초, Redirect 최대 3회, 응답 1 KiB 제한: PASS
+- 외부 사이트 없는 Adapter·구성·기존 로컬 HTTPS 전송 Fixture 검증: PASS
+- Backend Maven 전체 검증: PASS (275개, 실패·오류·Skip 0)
+- 새 Dependency·Frontend·Public API 변경: NOT APPLICABLE
+- 실제 공식 기관·PubMed 외부 링크 호출: NOT RUN (정확한 운영 허용 Host 목록 확정 후 별도 Smoke Test)

@@ -1,5 +1,6 @@
 // 분석 결과 공유 Browser 흐름 검증
 import { expect, test, type Page } from '@playwright/test'
+import { mockDailyUsage } from './support/daily-usage'
 
 const ARTICLE_URL = 'https://news.example.com/share-article'
 const SHARE_TOKEN = 'health-share-browser-token'
@@ -12,6 +13,7 @@ test.beforeEach(async ({ page }) => {
     if (message.type() === 'error') errors.push(message.text())
   })
   page.on('pageerror', (error) => errors.push(error.message))
+  await mockDailyUsage(page)
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({
       status: 200,

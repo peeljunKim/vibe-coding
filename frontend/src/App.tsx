@@ -1,5 +1,5 @@
 // 데스크톱 화면 흐름 구성
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import {
   getSession,
@@ -24,6 +24,7 @@ import {
   revokeHeadlineShare,
   revokeHealthShare,
 } from './api/shares'
+import { getDailyUsage } from './api/usage'
 import AdminReportsPage from './pages/AdminReportsPage'
 import AccountSettingsPage from './pages/AccountSettingsPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
@@ -40,6 +41,7 @@ import TitleResultPage from './pages/TitleResultPage'
 import type {
   HealthAnalysisViewData,
   HealthResultViewData,
+  UsageViewData,
 } from './types/pageData'
 import './styles.css'
 
@@ -75,11 +77,50 @@ function App() {
     authenticated: false,
   })
   const [authError, setAuthError] = useState<string | null>(null)
+  const [usage, setUsage] = useState<UsageViewData>()
+  const [usageUnavailable, setUsageUnavailable] = useState(false)
   const healthAnalysisController = useRef<AbortController | null>(null)
   const authRevision = useRef(0)
   const goTo = (path: string) => {
     void navigate(path)
   }
+
+  const refreshDailyUsage = useCallback(async () => {
+    try {
+      const current = await getDailyUsage()
+      setUsage({
+        healthRemaining: current.health.remaining,
+        headlineRemaining: current.headline.remaining,
+      })
+      setUsageUnavailable(false)
+    } catch {
+      setUsage(undefined)
+      setUsageUnavailable(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    void getDailyUsage()
+      .then((current) => {
+        if (active) {
+          setUsage({
+            healthRemaining: current.health.remaining,
+            headlineRemaining: current.headline.remaining,
+          })
+          setUsageUnavailable(false)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setUsage(undefined)
+          setUsageUnavailable(true)
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -104,6 +145,7 @@ function App() {
     authRevision.current += 1
     setAuthError(null)
     setAuthSession(session)
+    void refreshDailyUsage()
     goTo('/')
   }
 
@@ -113,6 +155,7 @@ function App() {
     try {
       await logout()
       setAuthSession({ authenticated: false })
+      void refreshDailyUsage()
       goTo('/')
     } catch (error) {
       setAuthError(
@@ -146,6 +189,7 @@ function App() {
       )
     } finally {
       setHeadlineAnalysisPending(false)
+      void refreshDailyUsage()
     }
   }
 
@@ -196,11 +240,23 @@ function App() {
         try {
           await replaceHealthRecord(replacementRecordId, result.analysisId)
         } catch {
+          if (
+            controller.signal.aborted ||
+            healthAnalysisController.current !== controller
+          ) {
+            return
+          }
           setHealthResultData(result)
           setHealthResultNotice(
             '새 분석 결과를 기존 저장 기록에 반영하지 못했습니다. 새 결과를 별도로 저장할 수 있습니다.',
           )
           void navigate('/results/health')
+          return
+        }
+        if (
+          controller.signal.aborted ||
+          healthAnalysisController.current !== controller
+        ) {
           return
         }
       }
@@ -236,6 +292,7 @@ function App() {
         healthAnalysisController.current = null
         setHealthAnalysisPending(false)
       }
+      void refreshDailyUsage()
     }
   }
 
@@ -299,6 +356,8 @@ function App() {
             reanalysisFeature={pendingReanalysis?.feature}
             onConfirmReanalysis={confirmReanalysis}
             onCancelReanalysis={() => setPendingReanalysis(undefined)}
+            {...(usage ? { usage } : {})}
+            usageUnavailable={usageUnavailable}
           />
         }
       />

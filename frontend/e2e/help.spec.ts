@@ -1,5 +1,6 @@
 // 도움말 화면 Desktop Browser 검증
 import { expect, test, type Page } from '@playwright/test'
+import { mockDailyUsage } from './support/daily-usage'
 
 const browserErrors = new WeakMap<Page, string[]>()
 
@@ -11,6 +12,7 @@ test.beforeEach(async ({ page }) => {
   })
   page.on('pageerror', (error) => errors.push(error.message))
 
+  await mockDailyUsage(page)
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({
       status: 200,

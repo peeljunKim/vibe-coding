@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.nio.charset.StandardCharsets;
@@ -87,6 +88,7 @@ public class HealthAnalysisConfig {
 
     /** Local 근거 링크 상태 Mock */
     @Bean
+    @Profile("!evidence-http")
     @ConditionalOnProperty(
             prefix = "app.analysis",
             name = "provider",

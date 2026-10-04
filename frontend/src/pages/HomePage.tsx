@@ -37,6 +37,7 @@ interface HomePageProps {
   onConfirmReanalysis?: (() => void) | undefined
   onCancelReanalysis?: (() => void) | undefined
   usage?: UsageViewData
+  usageUnavailable?: boolean
 }
 
 function HomePage({
@@ -55,6 +56,7 @@ function HomePage({
   onConfirmReanalysis,
   onCancelReanalysis,
   usage,
+  usageUnavailable = false,
 }: HomePageProps) {
   const [isPublisherDirectoryOpen, setPublisherDirectoryOpen] = useState(false)
   const [publishers, setPublishers] = useState<PublisherViewData[]>([])
@@ -147,10 +149,12 @@ function HomePage({
             국내 언론사의 한국어 기사 링크만 확인할 수 있습니다.
             블로그·카페·SNS는 지원하지 않습니다.
           </p>
-          <div className="usage-pill">
+          <div className="usage-pill" aria-live="polite">
             {usage
               ? `오늘 남은 횟수 건강 ${usage.healthRemaining} · 제목 ${usage.headlineRemaining}`
-              : '[오늘의 기능별 남은 이용 횟수 데이터가 필요합니다.]'}
+              : usageUnavailable
+                ? '오늘 남은 횟수를 확인할 수 없습니다.'
+                : '오늘 남은 횟수를 확인하고 있습니다.'}
           </div>
         </section>
 

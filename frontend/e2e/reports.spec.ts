@@ -1,5 +1,6 @@
 // 문제 신고 사용자와 관리자 Browser 흐름 검증
 import { expect, test, type Page } from '@playwright/test'
+import { mockDailyUsage } from './support/daily-usage'
 
 const ARTICLE_URL = 'https://news.example.com/report-article'
 const browserErrors = new WeakMap<Page, string[]>()
@@ -11,6 +12,7 @@ test.beforeEach(async ({ page }) => {
     if (message.type() === 'error') errors.push(message.text())
   })
   page.on('pageerror', (error) => errors.push(error.message))
+  await mockDailyUsage(page)
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({
       status: 200,
