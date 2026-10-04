@@ -3,12 +3,40 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+
+# Java 17 실행 파일 탐색
+function Resolve-Java17Path {
+    $candidates = [Collections.Generic.List[string]]::new()
+    if ($env:JAVA_HOME) {
+        $candidates.Add((Join-Path $env:JAVA_HOME 'bin\java.exe'))
+    }
+
+    foreach ($pathJava in Get-Command 'java.exe' -All -ErrorAction SilentlyContinue) {
+        $candidates.Add($pathJava.Source)
+    }
+
+    $candidates.Add('C:\Program Files\Java\jdk-17\bin\java.exe')
+    $candidates.Add('C:\Users\82109\scoop\apps\openjdk17\current\bin\java.exe')
+
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            continue
+        }
+        $versionOutput = & $candidate -version 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0 -and $versionOutput -match 'version "17(?:[.\-"]|$)') {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+
+    throw 'Java 17 executable not found in JAVA_HOME, PATH, or known Local paths'
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $frontendRoot = Join-Path $repoRoot 'frontend'
 $environmentPath = Join-Path $repoRoot '.env'
 $validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
-$javaPath = 'C:\Program Files\Java\jdk-17\bin\java.exe'
+$javaPath = Resolve-Java17Path
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
 $wrapperJar = Join-Path $backendRoot '.mvn\wrapper\maven-wrapper.jar'
 $backendJar = Join-Path $backendRoot 'target\news-verification-backend-0.1.0-SNAPSHOT.jar'
@@ -206,6 +234,7 @@ Assert-NativeMySqlTestConnection `
 
 $environmentNames = @(
     'SPRING_PROFILES_ACTIVE', 'DB_URL', 'DB_USERNAME', 'DB_PASSWORD',
+    'SPRING_DATASOURCE_URL', 'SPRING_DATASOURCE_USERNAME', 'SPRING_DATASOURCE_PASSWORD',
     'REDIS_HOST', 'REDIS_PORT', 'REDIS_USERNAME', 'REDIS_PASSWORD', 'REDIS_SSL_ENABLED',
     'REDIS_KEY_PREFIX', 'REDIS_SESSION_NAMESPACE', 'HEALTH_ANALYSIS_PROVIDER',
     'LOOKUP_HMAC_KEY', 'INVITE_CODE_1', 'E2E_SIGNUP_CODE', 'SERVER_PORT',
@@ -251,6 +280,9 @@ try {
     $env:DB_URL = $testDatabaseUrl
     $env:DB_USERNAME = $testDatabaseUsername
     $env:DB_PASSWORD = $testPassword
+    $env:SPRING_DATASOURCE_URL = $testDatabaseUrl
+    $env:SPRING_DATASOURCE_USERNAME = $testDatabaseUsername
+    $env:SPRING_DATASOURCE_PASSWORD = $testPassword
     $env:REDIS_HOST = '127.0.0.1'
     $env:REDIS_PORT = $redisPort
     $env:REDIS_USERNAME = ''

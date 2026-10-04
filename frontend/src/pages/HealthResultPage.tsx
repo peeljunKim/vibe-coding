@@ -21,6 +21,7 @@ interface HealthResultPageProps {
   ) => Promise<void>
   authenticated?: boolean
   data?: HealthResultViewData
+  notice?: string | null
 }
 
 const claimStatus: Record<
@@ -41,6 +42,7 @@ function HealthResultPage({
   onReport,
   authenticated = false,
   data,
+  notice,
 }: HealthResultPageProps) {
   const status = data ? claimStatus[data.claimStatus] : undefined
   const [saveStatus, setSaveStatus] = useState<
@@ -222,6 +224,7 @@ function HealthResultPage({
             {reportNotice ? <span role="status">{reportNotice}</span> : null}
           </div>
           <div className="result-actions__buttons">
+            {notice ? <span role="alert">{notice}</span> : null}
             {saveError ? <span role="alert">{saveError}</span> : null}
             {saveStatus === 'saved' ? (
               <span role="status">결과가 저장되었습니다.</span>

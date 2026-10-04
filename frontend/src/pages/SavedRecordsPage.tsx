@@ -51,7 +51,6 @@ function SavedRecordsPage({
   const [loadedPage, setLoadedPage] = useState<HealthRecordPage>()
   const [currentPage, setCurrentPage] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [localRecords, setLocalRecords] = useState(records)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [localActionError, setLocalActionError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
@@ -83,8 +82,8 @@ function SavedRecordsPage({
     }
   }, [currentPage, records])
 
-  const visibleRecords = records ? localRecords : loadedPage?.items
-  const totalRecords = records ? localRecords?.length : loadedPage?.totalElements
+  const visibleRecords = records ?? loadedPage?.items
+  const totalRecords = records?.length ?? loadedPage?.totalElements
 
   const actionFailure = (error: unknown, fallback: string) => {
     setLocalActionError(error instanceof Error ? error.message : fallback)
@@ -100,11 +99,9 @@ function SavedRecordsPage({
     try {
       await onDelete(recordId)
       setActionMessage('저장 기록을 삭제했습니다.')
-      if (records) {
-        setLocalRecords((current) => current?.filter((item) => item.id !== recordId))
-      } else if (loadedPage?.items.length === 1 && currentPage > 0) {
+      if (!records && loadedPage?.items.length === 1 && currentPage > 0) {
         setCurrentPage((page) => page - 1)
-      } else {
+      } else if (!records) {
         setLoadedPage((current) => current && ({
           ...current,
           items: current.items.filter((item) => item.id !== recordId),
@@ -132,9 +129,7 @@ function SavedRecordsPage({
     try {
       await onDeleteAll()
       setActionMessage('저장 기록을 모두 삭제했습니다.')
-      if (records) {
-        setLocalRecords([])
-      } else {
+      if (!records) {
         setCurrentPage(0)
         setLoadedPage((current) => current && ({
           ...current,

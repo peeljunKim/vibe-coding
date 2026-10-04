@@ -1,4 +1,5 @@
 // 저장 기록 삭제와 재분석 상호작용 검증
+import { useState } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -19,13 +20,55 @@ afterEach(() => {
 })
 
 describe('SavedRecordsPage', () => {
+  it('부모가 새 저장 기록 목록을 전달하면 화면을 갱신한다', () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <SavedRecordsPage records={[record]} />
+      </MemoryRouter>,
+    )
+
+    rerender(
+      <MemoryRouter>
+        <SavedRecordsPage
+          records={[{
+            ...record,
+            id: '32',
+            title: '새로 전달된 건강 기사',
+          }]}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      screen.getByRole('heading', { name: '새로 전달된 건강 기사' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: '저장된 건강 기사' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('확인 후 저장 기록을 삭제하고 목록에서 제거한다', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
+    function ControlledRecordsPage() {
+      const [records, setRecords] = useState([record])
+      return (
+        <SavedRecordsPage
+          records={records}
+          onDelete={async (recordId) => {
+            await onDelete(recordId)
+            setRecords((current) =>
+              current.filter((item) => item.id !== recordId),
+            )
+          }}
+        />
+      )
+    }
+
     render(
       <MemoryRouter>
-        <SavedRecordsPage records={[record]} onDelete={onDelete} />
+        <ControlledRecordsPage />
       </MemoryRouter>,
     )
 
