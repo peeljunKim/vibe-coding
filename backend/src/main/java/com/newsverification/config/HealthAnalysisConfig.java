@@ -12,9 +12,12 @@ import com.newsverification.health.application.HealthAnalysisUseCase;
 import com.newsverification.health.application.HealthArticleScreeningService;
 import com.newsverification.health.application.HealthArticleTopicClassifier;
 import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
+import com.newsverification.health.application.PubMedEvidenceSearchPort;
+import com.newsverification.health.application.PubMedEvidenceSearchService;
 import com.newsverification.health.infrastructure.MockHealthAnalysisPort;
 import com.newsverification.health.infrastructure.MockHealthArticleTopicClassifier;
 import com.newsverification.health.infrastructure.MockHealthEvidenceLinkChecker;
+import com.newsverification.health.infrastructure.MockPubMedEvidenceSearchAdapter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -82,8 +85,11 @@ public class HealthAnalysisConfig {
             name = "provider",
             havingValue = "mock"
     )
-    HealthAnalysisPort healthAnalysisPort(Clock clock) {
-        return new MockHealthAnalysisPort(clock);
+    HealthAnalysisPort healthAnalysisPort(
+            Clock clock,
+            PubMedEvidenceSearchService pubMedSearchService
+    ) {
+        return new MockHealthAnalysisPort(clock, pubMedSearchService);
     }
 
     /** Local 근거 링크 상태 Mock */
@@ -96,6 +102,27 @@ public class HealthAnalysisConfig {
     )
     HealthEvidenceLinkChecker healthEvidenceLinkChecker() {
         return new MockHealthEvidenceLinkChecker();
+    }
+
+    /** Local PubMed 검색 Mock */
+    @Bean
+    @Profile("!pubmed-http")
+    @ConditionalOnProperty(
+            prefix = "app.analysis",
+            name = "provider",
+            havingValue = "mock"
+    )
+    PubMedEvidenceSearchPort pubMedEvidenceSearchPort(Clock clock) {
+        return new MockPubMedEvidenceSearchAdapter(clock);
+    }
+
+    /** 건강 분석 전용 PubMed 검색 결과 검증 */
+    @Bean
+    PubMedEvidenceSearchService pubMedEvidenceSearchService(
+            PubMedEvidenceSearchPort searchPort,
+            HealthEvidenceLinkChecker linkChecker
+    ) {
+        return new PubMedEvidenceSearchService(searchPort, linkChecker);
     }
 
     /** Cache 근거 링크 재확인 흐름 */

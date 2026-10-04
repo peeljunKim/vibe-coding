@@ -123,9 +123,9 @@
 
 ## Next Loop
 
-1. 실제 PubMed 근거 검색 Adapter 구현
-2. 실제 Gemini Adapter와 구조화 응답 검증·Local Smoke Test
-3. Google·Naver·Kakao OAuth Redirect 흐름 구현과 Provider 연동 검증
+1. PubMed Adapter의 제한된 실제 외부 Smoke Test
+2. Google·Naver·Kakao OAuth 2.0 Redirect 흐름 구현과 Provider 연동 검증
+3. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
 4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 5. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
 6. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
@@ -549,3 +549,48 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 전체 검증: PASS (275개, 실패·오류·Skip 0)
 - 새 Dependency·Frontend·Public API 변경: NOT APPLICABLE
 - 실제 공식 기관·PubMed 외부 링크 호출: NOT RUN (정확한 운영 허용 Host 목록 확정 후 별도 Smoke Test)
+
+## PubMed 검색 Port와 Mock Vertical Slice
+
+- 확인된 건강 주장 최대 3개·정규화 영문 Query·주장별 결과 제한·Deadline을 받는 검색 Port: PASS
+- PMID 중복 제거, 요청 결과 수 제한과 최소 근거 필드 보존: PASS
+- 결과 없음·검색 일시 오류·근거 링크 일시 오류 상태 분리: PASS
+- 누락 근거 링크 제외와 기존 `HealthEvidenceLinkChecker` 재사용: PASS
+- 건강 Mock 분석 결과의 PubMed Mock 근거 연결: PASS
+- 기사 제목 분석 경로 적용 제외: PASS
+- 외부 NCBI 호출 없는 Mock Adapter와 실제 HTTP Adapter 교체 경계: PASS
+- Backend Maven 전체 검증: PASS (284개, 실패·오류·Skip 0)
+- 새 Dependency·Frontend·Public API 변경: NOT APPLICABLE
+- 실제 NCBI E-utilities 호출: NOT RUN
+- 실제 검색어 구성과 주장별 최대 5개 운영 상한: PASS
+
+## 실제 PubMed E-utilities Adapter
+
+- 원문 한국어 주장과 정규화된 ASCII 영문 PubMed Query 분리: PASS
+- 주장별 후보 최대 5개·전체 주장 최대 3개 제한: PASS
+- 주장별 ESearch 후 중복 PMID의 단일 EFetch 조회: PASS
+- 초록·인간 대상 필터와 철회·사전 공개 논문 제외: PASS
+- 진료지침·체계적 문헌고찰·메타분석·무작위 대조시험·관찰 연구 유형 변환: PASS
+- API Key 미사용 기준 요청 간격 350ms·호출별 10초·응답 크기 제한·전체 Deadline: PASS
+- `PUBMED_CONTACT_EMAIL` 필수·`PUBMED_API_KEY` 선택 설정: PASS
+- `pubmed-http` Profile과 향후 `gemini` Provider가 함께 지정될 때만 Bean 활성화: PASS
+- 외부 사이트 없는 ESearch JSON·EFetch XML Fixture 검증: PASS
+- Backend Maven 전체 검증: PASS (292개, 실패·오류·Skip 0)
+- 새 Dependency·Public API·DB·Frontend 변경: NOT APPLICABLE
+- 실제 NCBI E-utilities 제한 호출: NOT RUN
+- 실제 NCBI 연락처 이메일 설정: REQUIRED
+
+## PR 40 이용량 조회 리뷰 보완
+
+- 회원·비회원 식별 준비와 Redis 조회의 확인된 가용성 오류를 `503 USAGE_SERVICE_UNAVAILABLE`로 변환: PASS
+- 입력·프로그래밍 오류를 범용 `503`으로 오분류하지 않도록 예외 경계 축소: PASS
+- 겹친 Frontend 이용량 조회에서 최신 요청만 화면 상태를 갱신: PASS
+- Backend Maven 전체 검증: PASS (293개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·96개 Test)
+- 실제 Browser E2E: NOT RUN (시각 UI 변경 없음)
+
+## PR 41 Frontend CI 안정화
+
+- 건강 분석 취소 회귀 테스트가 Polling 호출뿐 아니라 분석 화면 전환 완료도 대기하도록 보완: PASS
+- Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·96개 Test)
+- GitHub Actions 재실행: NOT RUN (수정 Commit Push 후 확인 필요)

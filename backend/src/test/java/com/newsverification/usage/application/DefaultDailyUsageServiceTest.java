@@ -8,6 +8,7 @@ import com.newsverification.headline.application.HeadlineAnalysisUsagePolicy;
 import com.newsverification.headline.application.HeadlineAnalysisUsageResult;
 import com.newsverification.headline.application.HeadlineAnalysisUsageSubject;
 import com.newsverification.health.application.HealthAnalysisJobIdentityService;
+import com.newsverification.health.application.HealthAnalysisJobService;
 import com.newsverification.health.application.HealthAnalysisUsageSubject;
 import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
 import com.newsverification.health.application.HealthTopicFailureUsageResult;
@@ -81,16 +82,53 @@ class DefaultDailyUsageServiceTest {
                 .hasCause(healthPolicy.failure);
     }
 
+    /** 식별자 준비 가용성 오류의 공개 서비스 장애 변환 */
+    @Test
+    void convertsIdentityPreparationFailureToServiceUnavailable() {
+        var failure = new IllegalStateException("HMAC-SHA256 unavailable");
+        Clock clock = Clock.fixed(NOW, ZoneId.of("UTC"));
+        var failingIdentityService = new HealthAnalysisJobIdentityService(
+                clock, KOREA_ZONE, HMAC_KEY, new SecureRandom(), false
+        ) {
+            @Override
+            public PreparedIdentity prepare(HealthAnalysisJobService.Requester requester) {
+                throw failure;
+            }
+        };
+
+        assertThatThrownBy(() -> service(
+                failingIdentityService,
+                new StubHealthUsagePolicy(0),
+                new StubHeadlineUsagePolicy(0)
+        ).get(new DailyUsageService.Requester("member-1", null, "203.0.113.10")))
+                .isInstanceOf(DailyUsageServiceUnavailableException.class)
+                .hasCause(failure);
+    }
+
     /** 고정 시각과 기존 분석 Identity Service 구성 */
     private DefaultDailyUsageService service(
             StubHealthUsagePolicy healthPolicy,
             StubHeadlineUsagePolicy headlinePolicy
     ) {
         Clock clock = Clock.fixed(NOW, ZoneId.of("UTC"));
-        return new DefaultDailyUsageService(
+        return service(
                 new HealthAnalysisJobIdentityService(
                         clock, KOREA_ZONE, HMAC_KEY, new SecureRandom(), false
                 ),
+                healthPolicy,
+                headlinePolicy
+        );
+    }
+
+    /** 주입된 건강 식별 Service와 기존 제목 식별 Service 구성 */
+    private DefaultDailyUsageService service(
+            HealthAnalysisJobIdentityService healthIdentityService,
+            StubHealthUsagePolicy healthPolicy,
+            StubHeadlineUsagePolicy headlinePolicy
+    ) {
+        Clock clock = Clock.fixed(NOW, ZoneId.of("UTC"));
+        return new DefaultDailyUsageService(
+                healthIdentityService,
                 new HeadlineAnalysisJobIdentityService(
                         clock, KOREA_ZONE, HMAC_KEY, new SecureRandom(), false
                 ),

@@ -34,7 +34,7 @@
 - 회원가입 이메일 발송: 기본 Profile은 Mock, `smtp`·`prod` Profile은 Gmail SMTP Adapter 사용
 - 미인증 일반 계정: 가입 후 7일 경과 시 일일 정리, 공개 중복 오류는 계정 정보 단일 코드 사용
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
-- 현재 구현: Frontend Desktop 화면·도움말과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태·기능별 당일 이용량 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유, 분리된 3일 공용 Cache와 건강 근거 링크 재검증 Port·Mock·운영 HTTP Adapter
+- 현재 구현: Frontend Desktop 화면·도움말과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태·기능별 당일 이용량 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유, 분리된 3일 공용 Cache, 건강 근거 링크 재검증 Port·Mock·운영 HTTP Adapter와 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
 - 프로젝트 구조·위험: `docs/agent/project-context.md`
 - Backend 구현 표준: `docs/agent/backend-development.md` (채택 기준, 업무 기능 구현 완료 아님)
@@ -43,7 +43,7 @@
 ## 현재 구현 경계
 
 - 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; 소셜 가입은 아직 없음
-- 실제 Gemini와 근거 검색 외부 연동은 아직 없음
+- 실제 Gemini 연동은 아직 없으며 PubMed 검색은 원문 주장·정규화 영문 Query·주장별 최대 5개·Deadline을 받는 Port, 외부 호출 없는 Mock과 NCBI ESearch·EFetch HTTP Adapter가 구현됨; 실제 NCBI Smoke Test와 Gemini 분석 흐름 연결은 아직 실행하지 않음
 - 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
@@ -69,7 +69,7 @@
 - 건강 근거 링크 운영 HTTP Adapter는 `evidence-http` Profile과 `app.analysis.evidence-allowed-hosts`의 쉼표 구분 Host 목록에서만 활성화되며 HTTPS·공개 IP·Redirect 재검증, 10초 Timeout·Redirect 최대 3회·1 KiB 응답 제한을 적용함; 2xx는 정상, 404·410은 누락, DNS·전송·그 밖의 HTTP 오류는 일시 오류로 분류하고 기본 Profile은 외부 호출 없는 Mock을 유지함
 - 건강·제목 분석 접수는 기사 수집·Queue 적재 전에 기능별·사용자별 Redis 고정 시간 제한을 적용함; 각 기능 1분 5회, HMAC 식별값 추가 Digest, 비회원 다중 식별 신호 카운터 동기화, 초과 `429`, Redis 장애 `503`, Polling·자동 근거 재분석 제외
 - Frontend는 건강·제목 분석의 `429 ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED`를 공통 사용자 안내로 표시하고 Polling을 시작하지 않으며 Desktop 1024·1280·1440px에서 오류 화면을 검증함
-- `GET /api/usage`는 회원·비회원의 건강·제목 당일 한도·사용·남은 횟수와 다음 한국시간 자정을 공개 조회하며, 조회만으로 횟수나 Redis TTL을 변경하지 않음; Redis 장애는 `503 USAGE_SERVICE_UNAVAILABLE`, Frontend는 초기·로그인·로그아웃·분석 완료 뒤 갱신하고 실패해도 분석 버튼을 유지함
+- `GET /api/usage`는 회원·비회원의 건강·제목 당일 한도·사용·남은 횟수와 다음 한국시간 자정을 공개 조회하며, 조회만으로 횟수나 Redis TTL을 변경하지 않음; 식별 준비·Redis 가용성 오류는 `503 USAGE_SERVICE_UNAVAILABLE`, Frontend는 초기·로그인·로그아웃·분석 완료 뒤 갱신하고 겹친 요청의 오래된 응답을 폐기하며 실패해도 분석 버튼을 유지함
 
 ## Deferred
 
@@ -84,5 +84,7 @@
 [Local 개발 완료 후 사용할 DuckDNS 서브도메인 이름이 필요합니다.]
 
 [운영 `evidence-http` Profile 활성화 전에 공식 기관·PubMed의 정확한 허용 Host 목록이 필요합니다.]
+
+[제한된 실제 PubMed Smoke Test 전에 NCBI 연락처 이메일을 `PUBMED_CONTACT_EMAIL`에 입력해야 합니다.]
 
 [Local 개발 완료 후 AWS 계정의 Free Plan 대상 여부 확인이 필요합니다.]
