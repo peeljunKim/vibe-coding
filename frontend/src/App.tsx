@@ -240,11 +240,23 @@ function App() {
         try {
           await replaceHealthRecord(replacementRecordId, result.analysisId)
         } catch {
+          if (
+            controller.signal.aborted ||
+            healthAnalysisController.current !== controller
+          ) {
+            return
+          }
           setHealthResultData(result)
           setHealthResultNotice(
             '새 분석 결과를 기존 저장 기록에 반영하지 못했습니다. 새 결과를 별도로 저장할 수 있습니다.',
           )
           void navigate('/results/health')
+          return
+        }
+        if (
+          controller.signal.aborted ||
+          healthAnalysisController.current !== controller
+        ) {
           return
         }
       }
