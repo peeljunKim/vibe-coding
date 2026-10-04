@@ -498,3 +498,14 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 언론사 `CANDIDATE → UNSUPPORTED`, 건강 기록 만료 정리와 Native MySQL·Docker Redis 검증 상태 최신화: PASS
 - OpenAPI JSON 파싱·내부 `$ref`·구현 Endpoint 목록 검사: PASS
 - Backend·Frontend Runtime 회귀: NOT RUN (문서 전용 변경)
+
+## Agent Script 중복 정리
+
+- Setup·검증 진입점의 권한·필수 서비스 경계 확인: PASS
+- 반복 `.env` 값 처리와 Java 17 탐색의 `script-utilities.ps1` 통합: PASS
+- Harness와 Local MVP 실행 순서 회귀 Test의 `verify.Tests.ps1` 통합: PASS
+- 기존 공개 Setup·검증 명령 호환성 유지: PASS
+- PowerShell 전체 Parser 검사: PASS
+- `native-mysql-validation.Tests.ps1`: PASS
+- `verify.Tests.ps1`: PASS
+- 변경 범위 Harness·Secret·Diff 공백 검사: PASS

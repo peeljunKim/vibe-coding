@@ -145,6 +145,10 @@ docs/agent/project-context.md     Discovery와 Risk 판단
 docs/agent/workflow.md            Plan부터 재검증까지의 Loop
 docs/agent/verification.md        명령, DoD, 실제 예제
 scripts/agent/verify.ps1          변경 범위별 자동 검증
+scripts/agent/script-utilities.ps1 Setup·검증 공통 환경값·Java 탐색
+scripts/agent/verify.Tests.ps1    Harness·Local MVP 실행 순서 회귀
 ```
+
+Setup과 검증 진입점은 개발 DB 생성, 제한된 테스트 DB 생성, Native MySQL IT, Docker Redis IT, Full-stack Smoke처럼 권한과 외부 서비스 경계가 다를 때 분리한다. 공통 값 처리만 유틸리티로 공유하며 이름이 비슷하다는 이유로 파괴성과 실행 조건이 다른 진입점을 합치지 않는다.
 
 현재 구현 규모에서는 Architecture, Domain, Security 문서를 더 쪼개지 않는다. 관련 코드가 생기고 한 문서에서 필요한 Context를 선택하기 어려워질 때 Module별 Harness 분리를 검토한다.

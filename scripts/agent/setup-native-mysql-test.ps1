@@ -7,69 +7,19 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $schemaDirectory = Join-Path $repoRoot 'infra\mysql\schema'
 $initialSchemaPath = Join-Path $schemaDirectory 'V0001__create_initial_domain_schema.sql'
 $validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
+$utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
 $environmentPath = Join-Path $repoRoot '.env'
 $verificationPath = Join-Path $PSScriptRoot 'verify-publisher-native-mysql.ps1'
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
 
-foreach ($requiredPath in @($mysqlPath, $environmentPath, $initialSchemaPath, $validationPath, $verificationPath)) {
+foreach ($requiredPath in @($mysqlPath, $environmentPath, $initialSchemaPath, $validationPath, $utilitiesPath, $verificationPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Native MySQL test setup file missing: $requiredPath"
     }
 }
 
 . $validationPath
-
-function Read-EnvironmentValues {
-    param(
-        [Parameter(Mandatory)]
-        [string] $Path
-    )
-
-    $values = @{}
-    foreach ($line in Get-Content -LiteralPath $Path) {
-        if ($line -match '^(?<name>[A-Z0-9_]+)=(?<value>.*)$') {
-            $values[$Matches.name] = $Matches.value
-        }
-    }
-    return $values
-}
-
-function Get-ConfiguredValue {
-    param(
-        [Parameter(Mandatory)]
-        [hashtable] $Values,
-
-        [Parameter(Mandatory)]
-        [string] $Name,
-
-        [string] $Fallback = ''
-    )
-
-    $value = $Values[$Name]
-    if ($value -and $value -notmatch '^replace-with-') {
-        return $value
-    }
-    return $Fallback
-}
-
-function Set-EnvironmentValue {
-    param(
-        [Parameter(Mandatory)]
-        [string] $Content,
-
-        [Parameter(Mandatory)]
-        [string] $Name,
-
-        [Parameter(Mandatory)]
-        [string] $Value
-    )
-
-    $escapedName = [regex]::Escape($Name)
-    if ($Content -match "(?m)^$escapedName=") {
-        return [regex]::Replace($Content, "(?m)^$escapedName=.*$", "$Name=$Value")
-    }
-    return "$($Content.TrimEnd())`r`n$Name=$Value`r`n"
-}
+. $utilitiesPath
 
 function Invoke-MySql {
     param(

@@ -68,6 +68,9 @@ function App() {
     useState<HealthAnalysisViewData>()
   const [healthResultData, setHealthResultData] =
     useState<HealthResultViewData>()
+  const [healthResultNotice, setHealthResultNotice] = useState<string | null>(
+    null,
+  )
   const [authSession, setAuthSession] = useState<SessionState>({
     authenticated: false,
   })
@@ -174,6 +177,7 @@ function App() {
     setHealthAnalysisPending(true)
     setHealthAnalysisError(null)
     setHealthResultData(undefined)
+    setHealthResultNotice(null)
 
     try {
       void navigate('/analysis/health')
@@ -189,7 +193,16 @@ function App() {
         return
       }
       if (replacementRecordId) {
-        await replaceHealthRecord(replacementRecordId, result.analysisId)
+        try {
+          await replaceHealthRecord(replacementRecordId, result.analysisId)
+        } catch {
+          setHealthResultData(result)
+          setHealthResultNotice(
+            '새 분석 결과를 기존 저장 기록에 반영하지 못했습니다. 새 결과를 별도로 저장할 수 있습니다.',
+          )
+          void navigate('/results/health')
+          return
+        }
       }
       setHealthResultData(result)
       void navigate('/results/health')
@@ -308,6 +321,7 @@ function App() {
             onShare={createHealthShare}
             onRevokeShare={revokeHealthShare}
             authenticated={authSession.authenticated}
+            notice={healthResultNotice}
             onReport={async (analysisId, reportType, description) => {
               await createReport({
                 analysisType: 'HEALTH',

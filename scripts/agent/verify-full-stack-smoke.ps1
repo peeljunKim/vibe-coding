@@ -3,12 +3,22 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $frontendRoot = Join-Path $repoRoot 'frontend'
 $environmentPath = Join-Path $repoRoot '.env'
 $validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
-$javaPath = 'C:\Program Files\Java\jdk-17\bin\java.exe'
+$utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
+$requiredUtilityPaths = @($validationPath, $utilitiesPath)
+foreach ($requiredPath in $requiredUtilityPaths) {
+    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+        throw "Required Full-stack Smoke file missing: $requiredPath"
+    }
+}
+. $validationPath
+. $utilitiesPath
+$javaPath = Resolve-Java17Path
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
 $wrapperJar = Join-Path $backendRoot '.mvn\wrapper\maven-wrapper.jar'
 $backendJar = Join-Path $backendRoot 'target\news-verification-backend-0.1.0-SNAPSHOT.jar'
@@ -34,7 +44,6 @@ $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) "news-verification-fu
 
 foreach ($requiredPath in @(
         $environmentPath,
-        $validationPath,
         $javaPath,
         $mysqlPath,
         $wrapperJar,
@@ -43,34 +52,6 @@ foreach ($requiredPath in @(
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Full-stack Smoke file missing: $requiredPath"
     }
-}
-
-. $validationPath
-
-function Read-EnvironmentValues {
-    param([Parameter(Mandatory)][string] $Path)
-
-    $values = @{}
-    foreach ($line in Get-Content -LiteralPath $Path) {
-        if ($line -match '^(?<name>[A-Z0-9_]+)=(?<value>.*)$') {
-            $values[$Matches.name] = $Matches.value
-        }
-    }
-    return $values
-}
-
-function Get-ConfiguredValue {
-    param(
-        [Parameter(Mandatory)][hashtable] $Values,
-        [Parameter(Mandatory)][string] $Name,
-        [string] $Fallback = ''
-    )
-
-    $value = $Values[$Name]
-    if ($value -and $value -notmatch '^replace-with-') {
-        return $value
-    }
-    return $Fallback
 }
 
 function Invoke-MySql {
@@ -206,6 +187,7 @@ Assert-NativeMySqlTestConnection `
 
 $environmentNames = @(
     'SPRING_PROFILES_ACTIVE', 'DB_URL', 'DB_USERNAME', 'DB_PASSWORD',
+    'SPRING_DATASOURCE_URL', 'SPRING_DATASOURCE_USERNAME', 'SPRING_DATASOURCE_PASSWORD',
     'REDIS_HOST', 'REDIS_PORT', 'REDIS_USERNAME', 'REDIS_PASSWORD', 'REDIS_SSL_ENABLED',
     'REDIS_KEY_PREFIX', 'REDIS_SESSION_NAMESPACE', 'HEALTH_ANALYSIS_PROVIDER',
     'LOOKUP_HMAC_KEY', 'INVITE_CODE_1', 'E2E_SIGNUP_CODE', 'SERVER_PORT',
@@ -251,6 +233,9 @@ try {
     $env:DB_URL = $testDatabaseUrl
     $env:DB_USERNAME = $testDatabaseUsername
     $env:DB_PASSWORD = $testPassword
+    $env:SPRING_DATASOURCE_URL = $testDatabaseUrl
+    $env:SPRING_DATASOURCE_USERNAME = $testDatabaseUsername
+    $env:SPRING_DATASOURCE_PASSWORD = $testPassword
     $env:REDIS_HOST = '127.0.0.1'
     $env:REDIS_PORT = $redisPort
     $env:REDIS_USERNAME = ''

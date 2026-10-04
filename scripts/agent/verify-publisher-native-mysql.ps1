@@ -7,49 +7,18 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $backendRoot = Join-Path $repoRoot 'backend'
 $environmentPath = Join-Path $repoRoot '.env'
 $validationPath = Join-Path $PSScriptRoot 'native-mysql-validation.ps1'
+$utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
 $javaPath = 'C:\Program Files\Java\jdk-17\bin\java.exe'
 $wrapperJar = Join-Path $backendRoot '.mvn\wrapper\maven-wrapper.jar'
 
-foreach ($requiredPath in @($environmentPath, $validationPath, $javaPath, $wrapperJar)) {
+foreach ($requiredPath in @($environmentPath, $validationPath, $utilitiesPath, $javaPath, $wrapperJar)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required integration test file missing: $requiredPath"
     }
 }
 
 . $validationPath
-
-function Read-EnvironmentValues {
-    param(
-        [Parameter(Mandatory)]
-        [string] $Path
-    )
-
-    $values = @{}
-    foreach ($line in Get-Content -LiteralPath $Path) {
-        if ($line -match '^(?<name>[A-Z0-9_]+)=(?<value>.*)$') {
-            $values[$Matches.name] = $Matches.value
-        }
-    }
-    return $values
-}
-
-function Get-ConfiguredValue {
-    param(
-        [Parameter(Mandatory)]
-        [hashtable] $Values,
-
-        [Parameter(Mandatory)]
-        [string] $Name,
-
-        [string] $Fallback = ''
-    )
-
-    $value = $Values[$Name]
-    if ($value -and $value -notmatch '^replace-with-') {
-        return $value
-    }
-    return $Fallback
-}
+. $utilitiesPath
 
 $localValues = Read-EnvironmentValues -Path $environmentPath
 $developmentDatabase = Get-ConfiguredValue -Values $localValues -Name 'MYSQL_DATABASE'

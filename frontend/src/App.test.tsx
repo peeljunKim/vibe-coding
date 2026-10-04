@@ -1269,6 +1269,86 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
   })
 
+  it('저장 기록 교체가 실패해도 새 분석 결과를 표시하고 별도 저장을 허용한다', async () => {
+    const articleUrl = 'https://news.example/article-replacement-failed'
+    vi.mocked(getSession).mockResolvedValue({
+      authenticated: true,
+      userId: '42',
+      role: 'USER',
+      expiresInSeconds: 7200,
+    })
+    vi.mocked(listHealthRecords).mockResolvedValue({
+      items: [{
+        id: '31',
+        articleUrl,
+        title: '교체 전 건강 기사',
+        overallStatus: 'CAUTION',
+        analyzedAt: '2026-09-24T01:00:00Z',
+        expiresAt: '2026-10-24T01:00:00Z',
+      }],
+      page: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+      hasNext: false,
+    })
+    vi.mocked(replaceHealthRecord).mockRejectedValue(
+      new Error('교체 요청 실패'),
+    )
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            analysisId: 'replacement-failed-analysis',
+            deadlineAt: '2099-09-20T00:01:30Z',
+            pollAfterSeconds: 0,
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            analysisId: 'replacement-failed-analysis',
+            status: 'COMPLETED',
+            stage: 'COMPLETED',
+            result: {
+              article: {
+                url: articleUrl,
+                title: '새로 분석한 건강 기사',
+                publisher: '테스트 언론사',
+              },
+              analyzedAt: '2026-09-25T01:00:00Z',
+              claims: [{
+                order: 1,
+                claim: '새로 분석한 건강 주장',
+                status: 'INSUFFICIENT',
+                reason: '근거가 부족합니다.',
+                evidences: [],
+              }],
+            },
+          }),
+        }),
+    )
+
+    renderApp('/saved')
+    fireEvent.click(
+      await screen.findByRole('button', { name: '다시 분석' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: '새로 분석한 건강 주장' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '새 분석 결과를 기존 저장 기록에 반영하지 못했습니다. 새 결과를 별도로 저장할 수 있습니다.',
+    )
+    expect(screen.getByRole('button', { name: '결과 저장' })).toBeEnabled()
+  })
+
   it('관리자 신고를 선택하면 실제 입력 데이터로 상세 내용을 갱신한다', () => {
     const reports: ReportSummaryViewData[] = [
       {

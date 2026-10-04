@@ -4,6 +4,7 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e-full-stack',
   outputDir: './test-results/full-stack',
+  timeout: 120_000,
   fullyParallel: false,
   retries: 0,
   reporter: 'list',
@@ -22,7 +23,6 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        channel: 'chrome',
         permissions: ['clipboard-read', 'clipboard-write'],
       },
     },

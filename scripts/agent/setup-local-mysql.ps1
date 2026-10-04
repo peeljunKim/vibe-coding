@@ -7,12 +7,15 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $mysqlPath = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
 $environmentTemplatePath = Join-Path $repoRoot '.env.example'
 $environmentPath = Join-Path $repoRoot '.env'
+$utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
 
-foreach ($requiredPath in @($mysqlPath, $environmentTemplatePath)) {
+foreach ($requiredPath in @($mysqlPath, $environmentTemplatePath, $utilitiesPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Local setup file missing: $requiredPath"
     }
 }
+
+. $utilitiesPath
 
 function Invoke-MySql {
     param(
@@ -56,25 +59,6 @@ function Invoke-MySql {
     }
 
     return $standardOutput.Trim()
-}
-
-function Set-EnvironmentValue {
-    param(
-        [Parameter(Mandatory)]
-        [string] $Content,
-
-        [Parameter(Mandatory)]
-        [string] $Name,
-
-        [Parameter(Mandatory)]
-        [string] $Value
-    )
-
-    $escapedName = [regex]::Escape($Name)
-    if ($Content -match "(?m)^$escapedName=") {
-        return [regex]::Replace($Content, "(?m)^$escapedName=.*$", "$Name=$Value")
-    }
-    return "$($Content.TrimEnd())`r`n$Name=$Value`r`n"
 }
 
 $databaseName = Read-Host 'Application Database Name'
