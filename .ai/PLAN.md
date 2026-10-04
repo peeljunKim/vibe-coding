@@ -588,3 +588,9 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 전체 검증: PASS (293개, 실패·오류·Skip 0)
 - Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·96개 Test)
 - 실제 Browser E2E: NOT RUN (시각 UI 변경 없음)
+
+## PR 41 Frontend CI 안정화
+
+- 건강 분석 취소 회귀 테스트가 Polling 호출뿐 아니라 분석 화면 전환 완료도 대기하도록 보완: PASS
+- Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·96개 Test)
+- GitHub Actions 재실행: NOT RUN (수정 Commit Push 후 확인 필요)

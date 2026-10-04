@@ -750,7 +750,7 @@ describe('App', () => {
     )
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
 
-    fireEvent.click(screen.getByRole('button', { name: '분석 취소' }))
+    fireEvent.click(await screen.findByRole('button', { name: '분석 취소' }))
     resolvePoll?.({
       ok: true,
       json: () =>
