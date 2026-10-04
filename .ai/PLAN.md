@@ -123,12 +123,11 @@
 
 ## Next Loop
 
-1. PubMed Adapter의 제한된 실제 외부 Smoke Test
-2. Google·Naver·Kakao OAuth 2.0 Redirect 흐름 구현과 Provider 연동 검증
-3. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
-4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-5. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-6. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. Google·Naver·Kakao OAuth 2.0 Redirect 흐름 구현과 Provider 연동 검증
+2. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
+3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+4. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+5. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -575,10 +574,11 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - `PUBMED_CONTACT_EMAIL` 필수·`PUBMED_API_KEY` 선택 설정: PASS
 - `pubmed-http` Profile과 향후 `gemini` Provider가 함께 지정될 때만 Bean 활성화: PASS
 - 외부 사이트 없는 ESearch JSON·EFetch XML Fixture 검증: PASS
-- Backend Maven 전체 검증: PASS (292개, 실패·오류·Skip 0)
+- Backend Maven 전체 검증: PASS (293개, 실패·오류·Skip 0)
 - 새 Dependency·Public API·DB·Frontend 변경: NOT APPLICABLE
-- 실제 NCBI E-utilities 제한 호출: NOT RUN
-- 실제 NCBI 연락처 이메일 설정: REQUIRED
+- 실제 NCBI E-utilities 제한 호출: PASS (ESearch 2회·EFetch 1회, 근거 10개, PMID 중복 없음, 연구 유형 2종)
+- NCBI EFetch 표준 `DOCTYPE` 허용과 외부 DTD·Entity 접근 차단: PASS
+- 실제 NCBI 연락처 이메일 설정: PASS (Git 제외 Local `.env`, 값 미기록)
 
 ## PR 40 이용량 조회 리뷰 보완
 

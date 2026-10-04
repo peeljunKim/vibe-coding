@@ -19,7 +19,7 @@
 | Domain Structure | 건강 뉴스·제목 확인, 기능별 당일 이용량 공개 조회, 일반 회원가입·이메일 인증·로그인·계정 복구·회원 탈퇴 수명주기, 건강 분석 저장·목록·만료 정리, 문제 신고·관리자 처리와 건강·제목 결과 공유 구현; 소셜 가입은 아직 미구현 |
 | Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 지원 언론사·일반 회원·건강 분석 저장 기록 Entity와 Repository 존재 |
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session 구현; 건강·제목 기능별 3일 공용 Cache, 기사 변경 Fingerprint, 사용자별 최초 열람 차감과 사용자 동의 재분석, 건강 근거 링크 Mock·운영 HTTP 재검증과 무차감 자동 재분석, 기능별 1분 5회 분석 접수 제한과 차감 없는 당일 이용량 조회 구현 |
-| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock, Profile 분리된 건강 근거 링크 HTTP Adapter, 건강 분석 전용 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter 존재; 실제 PubMed 외부 Smoke, Gemini와 Google/Kakao/Naver OAuth Provider 연동은 미검증 |
+| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock, Profile 분리된 건강 근거 링크 HTTP Adapter, 건강 분석 전용 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter 존재; 제한된 실제 PubMed 외부 Smoke는 PASS, Gemini와 Google/Kakao/Naver OAuth Provider 연동은 미검증 |
 | Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구·탈퇴 복구 확인과 Redis Session 구현; 소셜 인증 흐름은 미구현 |
 | Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
