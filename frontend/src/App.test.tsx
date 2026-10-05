@@ -884,23 +884,31 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('Provider별 OAuth 로그인 링크를 표시한다', () => {
+  it('Google OAuth 로그인 링크와 준비 중 Provider 상태를 표시한다', () => {
     renderApp('/login')
 
-    expect(screen.getByRole('link', { name: '카카오 로그인' })).toHaveAttribute(
-      'href',
-      expect.stringContaining('/oauth2/authorization/kakao'),
-    )
     expect(
       screen.getByRole('link', { name: 'Google 계정으로 로그인' }),
     ).toHaveAttribute(
       'href',
       expect.stringContaining('/oauth2/authorization/google'),
     )
-    expect(screen.getByRole('link', { name: '네이버 로그인' })).toHaveAttribute(
-      'href',
-      expect.stringContaining('/oauth2/authorization/naver'),
+    expect(screen.getByLabelText('카카오 로그인 준비 중')).toHaveAttribute(
+      'aria-disabled',
+      'true',
     )
+    expect(screen.getByLabelText('네이버 로그인 준비 중')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+  })
+
+  it('OAuth 사용자 취소를 일반 로그인 화면에서 안내한다', () => {
+    renderApp('/login?oauth=cancelled')
+
+    expect(
+      screen.getByText('로그인이 취소되었습니다. 다시 시도할 수 있습니다.'),
+    ).toBeInTheDocument()
   })
 
   it('일반 로그인 성공 후 홈에서 로그아웃한다', async () => {

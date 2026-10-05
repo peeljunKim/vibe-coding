@@ -1,4 +1,4 @@
-/* 일반 회원 계정 영속 모델 */
+/* 회원 계정 영속 모델 */
 package com.newsverification.signup.domain;
 
 import jakarta.persistence.Column;
@@ -15,7 +15,7 @@ import java.time.Instant;
 import java.time.Duration;
 import java.util.Objects;
 
-/** 일반 회원의 이메일 인증 상태 */
+/** 일반·소셜 회원의 인증 상태 */
 @Entity
 @Table(name = "users")
 public class UserAccount {
@@ -39,13 +39,13 @@ public class UserAccount {
     @Column(nullable = false, length = 320)
     private String email;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String username;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
-    @Column(name = "phone_number", nullable = false, length = 11)
+    @Column(name = "phone_number", length = 11)
     private String phoneNumber;
 
     @Column(name = "email_verified_at")
@@ -94,6 +94,18 @@ public class UserAccount {
         this.email = email;
         this.phoneNumber = phoneNumber;
         this.inviteCodeVerifiedAt = inviteCodeVerifiedAt;
+    }
+
+    /** 소셜 전용 활성 계정 생성 */
+    public static UserAccount social(String email, Instant verifiedAt) {
+        UserAccount account = new UserAccount();
+        account.accountType = "SOCIAL";
+        account.role = "USER";
+        account.status = UserStatus.ACTIVE;
+        account.email = Objects.requireNonNull(email);
+        account.emailVerifiedAt = Objects.requireNonNull(verifiedAt);
+        account.inviteCodeVerifiedAt = verifiedAt;
+        return account;
     }
 
     public Long id() {

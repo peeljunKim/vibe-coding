@@ -4,7 +4,6 @@ import { Route, Routes, useNavigate } from 'react-router-dom'
 import {
   getSession,
   logout,
-  type LoginResponse,
   type SessionState,
 } from './api/auth'
 import { ArticleChangedError } from './api/analysisErrors'
@@ -36,6 +35,7 @@ import LoginPage from './pages/LoginPage'
 import MyReportsPage from './pages/MyReportsPage'
 import SavedRecordsPage from './pages/SavedRecordsPage'
 import SignupFlowPage from './pages/SignupFlowPage'
+import SocialSignupPage from './pages/SocialSignupPage'
 import SharedResultPage from './pages/SharedResultPage'
 import TitleResultPage from './pages/TitleResultPage'
 import type {
@@ -136,7 +136,7 @@ function App() {
     }
   }, [])
 
-  const completeLogin = (session: LoginResponse) => {
+  const completeLogin = (session: SessionState) => {
     authRevision.current += 1
     setAuthError(null)
     setAuthSession(session)
@@ -457,6 +457,15 @@ function App() {
       <Route
         path="/signup"
         element={<SignupFlowPage onLogin={() => goTo('/login')} />}
+      />
+      <Route
+        path="/signup/social/invite"
+        element={
+          <SocialSignupPage
+            onLogin={() => goTo('/login')}
+            onAuthenticated={completeLogin}
+          />
+        }
       />
       <Route
         path="/account-recovery"

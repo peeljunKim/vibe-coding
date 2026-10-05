@@ -18,6 +18,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     boolean existsByUsernameOrEmailOrPhoneNumber(String username, String email, String phoneNumber);
 
+    boolean existsByEmail(String email);
+
     int deleteByStatusAndCreatedAtBefore(UserStatus status, Instant cutoff);
 
     /** 로그인 실패 횟수의 동시 갱신 보호 조회 */

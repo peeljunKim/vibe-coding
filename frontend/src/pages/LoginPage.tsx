@@ -1,6 +1,6 @@
 // 사용자 로그인 화면
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { login, type LoginResponse } from '../api/auth'
 import AppHeader from '../components/AppHeader'
 import googleLoginImage from '../assets/oauth/google-login.png'
@@ -16,18 +16,30 @@ const oauthProviders = [
     name: 'Google',
     path: '/oauth2/authorization/google',
     image: googleLoginImage,
+    enabled: true,
   },
   {
     name: 'Naver',
     path: '/oauth2/authorization/naver',
     image: naverLoginImage,
+    enabled: false,
   },
   {
     name: 'Kakao',
     path: '/oauth2/authorization/kakao',
     image: kakaoLoginImage,
+    enabled: false,
   },
 ]
+
+const OAUTH_MESSAGES: Record<string, string> = {
+  cancelled: '로그인이 취소되었습니다. 다시 시도할 수 있습니다.',
+  failed: '로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+  'email-required':
+    'Google 계정에서 이메일 제공에 동의한 뒤 다시 시도해 주세요.',
+  'existing-account':
+    '이미 가입된 이메일입니다. 기존 로그인 방식으로 로그인해 주세요.',
+}
 
 interface LoginPageProps {
   onHome: () => void
@@ -42,12 +54,14 @@ function LoginPage({
   onStartRecovery,
   onAuthenticated,
 }: LoginPageProps) {
+  const [searchParams] = useSearchParams()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
   const [recoveryDeadline, setRecoveryDeadline] = useState<string | null>(null)
+  const oauthMessage = OAUTH_MESSAGES[searchParams.get('oauth') ?? '']
 
   const submitLogin = async (cancelWithdrawal = false) => {
     setSubmitting(true)
@@ -99,6 +113,12 @@ function LoginPage({
           <p className="login-card__description">
             기사체크 계정으로 저장한 기사와 신고 내역을 확인하세요.
           </p>
+
+          {oauthMessage ? (
+            <p className="login-form__error" role="status">
+              {oauthMessage}
+            </p>
+          ) : null}
 
           <form
             className="login-form"
@@ -178,20 +198,31 @@ function LoginPage({
           </div>
 
           <div className="oauth-links" aria-label="소셜 로그인">
-            {oauthProviders.map((provider) => (
-              <a
-                key={provider.name}
-                className={`oauth-link oauth-link--${provider.name.toLowerCase()}`}
-                href={`${backendBaseUrl}${provider.path}`}
-                aria-label={
-                  provider.name === 'Google'
-                    ? 'Google 계정으로 로그인'
-                    : `${provider.name === 'Kakao' ? '카카오' : '네이버'} 로그인`
-                }
-              >
-                <img src={provider.image} alt="" />
-              </a>
-            ))}
+            {oauthProviders.map((provider) => {
+              const label =
+                provider.name === 'Google'
+                  ? 'Google 계정으로 로그인'
+                  : `${provider.name === 'Kakao' ? '카카오' : '네이버'} 로그인`
+              return provider.enabled ? (
+                <a
+                  key={provider.name}
+                  className={`oauth-link oauth-link--${provider.name.toLowerCase()}`}
+                  href={`${backendBaseUrl}${provider.path}`}
+                  aria-label={label}
+                >
+                  <img src={provider.image} alt="" />
+                </a>
+              ) : (
+                <span
+                  key={provider.name}
+                  className={`oauth-link oauth-link--disabled oauth-link--${provider.name.toLowerCase()}`}
+                  aria-label={`${label} 준비 중`}
+                  aria-disabled="true"
+                >
+                  <img src={provider.image} alt="" />
+                </span>
+              )
+            })}
           </div>
         </section>
 
