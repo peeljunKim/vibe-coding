@@ -1,7 +1,7 @@
 package com.newsverification.config;
 
-import com.newsverification.auth.api.GoogleOAuthFailureHandler;
-import com.newsverification.auth.api.GoogleOAuthSuccessHandler;
+import com.newsverification.auth.api.SocialOAuthFailureHandler;
+import com.newsverification.auth.api.SocialOAuthSuccessHandler;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,8 +23,8 @@ public class SecurityConfig {
             HttpSecurity http,
             ObjectProvider<ClientRegistrationRepository> clientRegistrations,
             ObjectProvider<OAuth2AuthorizedClientRepository> authorizedClients,
-            ObjectProvider<GoogleOAuthSuccessHandler> successHandlers,
-            ObjectProvider<GoogleOAuthFailureHandler> failureHandlers
+            ObjectProvider<SocialOAuthSuccessHandler> successHandlers,
+            ObjectProvider<SocialOAuthFailureHandler> failureHandlers
     ) throws Exception {
         var csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfTokenRepository.setCookiePath("/");
@@ -53,7 +53,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/recovery/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/session").permitAll()
                         .requestMatchers(HttpMethod.GET, "/oauth2/authorization/google").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/oauth2/authorization/naver").permitAll()
                         .requestMatchers(HttpMethod.GET, "/oauth/google").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/oauth/naver").permitAll()
                         .requestMatchers("/api/admin/reports/**").hasRole("ADMIN")
                         .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated())

@@ -1,4 +1,4 @@
-/* Google OAuth Redirect 보안 구성 검증 */
+/* Naver OAuth Redirect 보안 구성 검증 */
 package com.newsverification.config;
 
 import com.newsverification.auth.application.SocialLoginService;
@@ -22,39 +22,40 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Google 시작 URL과 등록 Callback 일치 검증 */
+/** Naver 시작 URL과 등록 Callback 일치 검증 */
 @WebAppConfiguration
 @SpringJUnitConfig(classes = {
         SecurityConfig.class,
         SocialOAuthConfig.class,
-        GoogleOAuthSecurityTest.SecurityTestConfiguration.class
+        NaverOAuthSecurityTest.SecurityTestConfiguration.class
 })
 @TestPropertySource(properties = {
-        "app.oauth.google.enabled=true",
-        "GOOGLE_CLIENT_ID=placeholder",
-        "GOOGLE_CLIENT_SECRET=placeholder",
-        "GOOGLE_LOGIN_CALLBACK_URL=http://localhost:8080/oauth/google",
+        "app.oauth.google.enabled=false",
+        "app.oauth.naver.enabled=true",
+        "NAVER_CLIENT_ID=placeholder",
+        "NAVER_CLIENT_SECRET=placeholder",
+        "NAVER_LOGIN_CALLBACK_URL=http://localhost:8080/oauth/naver",
         "app.base-url=http://localhost:5173"
 })
-class GoogleOAuthSecurityTest {
+class NaverOAuthSecurityTest {
 
     @Autowired
     @Qualifier("springSecurityFilterChain")
     private Filter springSecurityFilterChain;
 
-    /** Backend 시작 URL이 Google Authorization Redirect 생성 */
+    /** Backend 시작 URL이 Naver Authorization Redirect 생성 */
     @Test
-    void startsGoogleAuthorizationWithConfiguredCallback() throws Exception {
+    void startsNaverAuthorizationWithConfiguredCallback() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new Object())
                 .apply(springSecurity(springSecurityFilterChain))
                 .build();
 
-        mockMvc.perform(get("/oauth2/authorization/google"))
+        mockMvc.perform(get("/oauth2/authorization/naver"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(header().string("Location", containsString("accounts.google.com")))
+                .andExpect(header().string("Location", containsString("nid.naver.com")))
                 .andExpect(header().string(
                         "Location",
-                        containsString("redirect_uri=http://localhost:8080/oauth/google")
+                        containsString("redirect_uri=http://localhost:8080/oauth/naver")
                 ));
     }
 

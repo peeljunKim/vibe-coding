@@ -68,6 +68,30 @@ class DefaultSocialLoginServiceTest {
         assertThat(resolution.pendingIdentity().email()).isEqualTo("user@example.com");
     }
 
+    /** 신규 Naver 사용자의 Provider 고유 식별자 보관 */
+    @Test
+    void preparesVerifiedNaverIdentityForInviteSignup() {
+        SocialAccountStore store = mock(SocialAccountStore.class);
+        when(store.findByProviderAndSubject("NAVER", "new-naver-subject"))
+                .thenReturn(Optional.empty());
+        when(store.existsByEmail("user@example.com")).thenReturn(false);
+        var service = service(store);
+
+        SocialLoginService.LoginResolution resolution = service.resolve(
+                new SocialLoginService.ProviderIdentity(
+                        "naver",
+                        "new-naver-subject",
+                        "User@Example.com ",
+                        true
+                )
+        );
+
+        assertThat(resolution.existingAccount()).isFalse();
+        assertThat(resolution.pendingIdentity().provider()).isEqualTo("NAVER");
+        assertThat(resolution.pendingIdentity().subject()).isEqualTo("new-naver-subject");
+        assertThat(resolution.pendingIdentity().email()).isEqualTo("user@example.com");
+    }
+
     /** Provider 확인 이메일 누락 차단 */
     @Test
     void rejectsIdentityWithoutVerifiedEmail() {
@@ -119,6 +143,28 @@ class DefaultSocialLoginServiceTest {
                 new SocialLoginService.ProviderIdentity(
                         "GOOGLE",
                         "new-google-subject",
+                        "user@example.com",
+                        true
+                )
+        ))
+                .isInstanceOf(SocialLoginException.class)
+                .extracting(exception -> ((SocialLoginException) exception).code())
+                .isEqualTo("SOCIAL_EMAIL_ALREADY_REGISTERED");
+    }
+
+    /** 기존 이메일과 일치하는 신규 Naver 계정의 자동 병합 차단 */
+    @Test
+    void rejectsNewNaverIdentityWhenEmailAlreadyBelongsToAnAccount() {
+        SocialAccountStore store = mock(SocialAccountStore.class);
+        when(store.findByProviderAndSubject("NAVER", "new-naver-subject"))
+                .thenReturn(Optional.empty());
+        when(store.existsByEmail("user@example.com")).thenReturn(true);
+        var service = service(store);
+
+        assertThatThrownBy(() -> service.resolve(
+                new SocialLoginService.ProviderIdentity(
+                        "NAVER",
+                        "new-naver-subject",
                         "user@example.com",
                         true
                 )

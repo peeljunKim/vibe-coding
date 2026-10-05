@@ -1,4 +1,4 @@
-/* Google OAuth 성공 처리 */
+/* 소셜 OAuth 성공 처리 */
 package com.newsverification.auth.api;
 
 import com.newsverification.auth.application.SocialLoginException;
@@ -22,11 +22,12 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /** Provider Session 제거 후 내부 회원 Session 전환 */
-public class GoogleOAuthSuccessHandler implements AuthenticationSuccessHandler {
+public class SocialOAuthSuccessHandler implements AuthenticationSuccessHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(GoogleOAuthSuccessHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(SocialOAuthSuccessHandler.class);
     private static final int APPLICATION_SESSION_SECONDS = 2 * 60 * 60;
     private static final int PENDING_SIGNUP_SESSION_SECONDS = 10 * 60;
 
@@ -34,7 +35,7 @@ public class GoogleOAuthSuccessHandler implements AuthenticationSuccessHandler {
     private final OAuth2AuthorizedClientRepository authorizedClientRepository;
     private final String frontendBaseUrl;
 
-    public GoogleOAuthSuccessHandler(
+    public SocialOAuthSuccessHandler(
             SocialLoginService socialLoginService,
             OAuth2AuthorizedClientRepository authorizedClientRepository,
             String frontendBaseUrl
@@ -77,7 +78,8 @@ public class GoogleOAuthSuccessHandler implements AuthenticationSuccessHandler {
             invalidateCurrentSession(request);
             expireCsrfCookie(response);
             log.error(
-                    "OAuth success processing failed: provider=google, category=internal_error, cause={}",
+                    "OAuth success processing failed: provider={}, category=internal_error, cause={}",
+                    oauth.getAuthorizedClientRegistrationId(),
                     exception.getClass().getSimpleName()
             );
             response.sendRedirect(frontendBaseUrl + "/login?oauth=failed");
@@ -86,6 +88,9 @@ public class GoogleOAuthSuccessHandler implements AuthenticationSuccessHandler {
 
     private SocialLoginService.ProviderIdentity identity(OAuth2AuthenticationToken authentication) {
         OAuth2User principal = authentication.getPrincipal();
+        if ("naver".equalsIgnoreCase(authentication.getAuthorizedClientRegistrationId())) {
+            return naverIdentity(authentication, principal);
+        }
         Object verified = principal.getAttribute("email_verified");
         return new SocialLoginService.ProviderIdentity(
                 authentication.getAuthorizedClientRegistrationId(),
@@ -93,6 +98,33 @@ public class GoogleOAuthSuccessHandler implements AuthenticationSuccessHandler {
                 principal.getAttribute("email"),
                 Boolean.TRUE.equals(verified) || "true".equalsIgnoreCase(String.valueOf(verified))
         );
+    }
+
+    private SocialLoginService.ProviderIdentity naverIdentity(
+            OAuth2AuthenticationToken authentication,
+            OAuth2User principal
+    ) {
+        Object response = principal.getAttribute("response");
+        if (!(response instanceof Map<?, ?> attributes)) {
+            return new SocialLoginService.ProviderIdentity(
+                    authentication.getAuthorizedClientRegistrationId(),
+                    null,
+                    null,
+                    false
+            );
+        }
+        String subject = stringValue(attributes.get("id"));
+        String email = stringValue(attributes.get("email"));
+        return new SocialLoginService.ProviderIdentity(
+                authentication.getAuthorizedClientRegistrationId(),
+                subject,
+                email,
+                email != null && !email.isBlank()
+        );
+    }
+
+    private String stringValue(Object value) {
+        return value instanceof String text ? text : null;
     }
 
     private void createAuthenticatedSession(
