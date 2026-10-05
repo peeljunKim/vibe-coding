@@ -288,7 +288,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Chrome 건강 분석 저장·목록 Browser E2E: PASS (6개, Console·Runtime 오류 0건)
 - Backend 전체 Test·Package: PASS (163개, 실패·오류·Skip 0)
 - Native MySQL Schema·Harness 정적 검증: PASS
-- Native MySQL 동시 저장 통합 테스트 실제 실행: PASS (V0003 UNIQUE 적용, 동시 요청 2개가 동일 저장 기록 반환)
+- Native MySQL 동시 저장 통합 테스트 실제 실행: PASS (현재 V0001에 통합된 UNIQUE 적용, 동시 요청 2개가 동일 저장 기록 반환; 원래 V0003은 Git 이력에 보존)
 - CodeRabbit Docstring Coverage 경고: NOT APPLICABLE (필요한 주석만 작성하는 Repository 규칙 우선)
 
 ## 만료 건강 분석 저장 기록 자동 삭제

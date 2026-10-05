@@ -204,8 +204,8 @@ public record InviteProperties(String code) {}
 | `analyzed_at` | TIMESTAMP(6) | N | N | N | 복합 | - | 현재 결과 분석 시각, 사용자·URL과 저장 멱등성 UNIQUE |
 | `expires_at` | TIMESTAMP(6) | N | N | N | N | - | 30일 삭제 예정 시각 |
 | `overall_status` | VARCHAR(30) | N | N | N | N | - | `RELIABLE`, `CAUTION`, `DOUBTFUL` |
-| `total_claim_count` | TINYINT UNSIGNED | N | N | N | N | - | 1~3 주장 수 |
-| `supported_claim_count` | TINYINT UNSIGNED | N | N | N | N | - | `SUPPORTED` 수 |
+| `total_claim_count` | INT UNSIGNED | N | N | N | N | - | 1~3 주장 수 |
+| `supported_claim_count` | INT UNSIGNED | N | N | N | N | - | `SUPPORTED` 수 |
 | `verification_rate` | DECIMAL(5,2) | N | N | N | N | - | 0~100 확인률 |
 | `expert_review_status` | VARCHAR(20) | N | N | N | N | `NOT_REVIEWED` | `NOT_REVIEWED`, `REVIEWED` |
 | `expert_reviewed_at` | TIMESTAMP(6) | N | N | Y | N | - | 검토 완료 시각 |
@@ -224,7 +224,7 @@ public record InviteProperties(String code) {}
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `id` | BIGINT UNSIGNED | Y | N | N | Y | AUTO_INCREMENT | 주장 식별자 |
 | `health_analysis_record_id` | BIGINT UNSIGNED | N | Y | N | 복합 | - | `health_analysis_records.id`, 삭제 CASCADE |
-| `claim_order` | TINYINT UNSIGNED | N | N | N | 복합 | - | 중요도 1~3, 부모 내 UNIQUE |
+| `claim_order` | INT UNSIGNED | N | N | N | 복합 | - | 중요도 1~3, 부모 내 UNIQUE |
 | `claim_text` | TEXT | N | N | N | N | - | 핵심 주장 |
 | `status` | VARCHAR(30) | N | N | N | N | - | `SUPPORTED`, `NEEDS_REVIEW`, `CONTRADICTED`, `INSUFFICIENT` |
 | `easy_reason` | TEXT | N | N | N | N | - | 쉬운 판정 이유 |
@@ -257,7 +257,7 @@ public record InviteProperties(String code) {}
 | `health_claim_id` | BIGINT UNSIGNED | Y | Y | N | 복합 | - | `health_claims.id`, 삭제 CASCADE |
 | `health_evidence_id` | BIGINT UNSIGNED | Y | Y | N | 복합 | - | `health_evidences.id`, 삭제 CASCADE |
 | `relation_type` | VARCHAR(20) | N | N | N | N | - | `SUPPORTS`, `CONTRADICTS`, `CONTEXT` |
-| `evidence_order` | SMALLINT UNSIGNED | N | N | N | 복합 | - | 주장 내 표시 순서 |
+| `evidence_order` | INT UNSIGNED | N | N | N | 복합 | - | 주장 내 표시 순서 |
 | `summary` | TEXT | N | N | N | N | - | 쉬운 한국어 요약 |
 | `conflict_note` | TEXT | N | N | Y | N | - | 충돌 및 우선 판단 이유 |
 
@@ -306,7 +306,7 @@ public record InviteProperties(String code) {}
 | 컬럼명 | 타입 | PK | FK | NULL | UNIQUE | DEFAULT | 설명 / 참조 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `headline_share_record_id` | BIGINT UNSIGNED | Y | Y | N | 복합 | - | `headline_share_records.id`, 삭제 CASCADE |
-| `issue_order` | TINYINT UNSIGNED | Y | N | N | 복합 | - | 표시 순서 1~4 |
+| `issue_order` | INT UNSIGNED | Y | N | N | 복합 | - | 표시 순서 1~4 |
 | `issue_type` | VARCHAR(30) | N | N | N | 복합 | - | `NO_ISSUE`, `EXAGGERATED`, `OMITS_CONTEXT`, `MISMATCH` |
 | `reason` | TEXT | N | N | N | N | - | 유형별 판정 이유 |
 
@@ -405,7 +405,7 @@ infra/mysql/schema/V0001__create_initial_domain_schema.sql
 
 DDL은 13개 `CREATE TABLE`, PK, FK 삭제 정책, UNIQUE, NOT NULL, DEFAULT, CHECK, 조회·만료 인덱스, 컬럼·테이블 COMMENT를 포함한다. DB 내부 스키마 이력 테이블은 만들지 않는다. 초기 SQL은 Git에서 제외하며, 이 문서는 Git에서 관리하는 설계 검토 기준이다.
 
-초기 생성 이후의 변경은 Git에서 관리하는 Version SQL을 순서대로 적용한다. 현재 후속 변경은 `V0003__prevent_duplicate_health_records.sql`이며 동일 완료 결과의 동시 중복 저장을 DB UNIQUE 제약으로 차단한다.
+초기 생성 이후의 변경은 Git에서 관리하는 Version SQL을 순서대로 적용한다. 동일 완료 결과의 동시 중복 저장을 막는 UNIQUE 제약은 실제 배포 전 기준선 정리로 V0001에 통합했으며 원래 V0003 변경은 Git 이력에서 확인한다. V0002와 V0003 번호는 재사용하지 않고 다음 후속 변경은 V0004부터 시작한다.
 
 ## 9. 설계 가정 및 확인 필요사항
 

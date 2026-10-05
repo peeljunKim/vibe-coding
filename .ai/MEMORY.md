@@ -44,7 +44,7 @@
 
 - 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, Google OAuth2 Redirect 로그인·초대 가입, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; Naver·Kakao OAuth는 아직 없음
 - 실제 Gemini 연동은 아직 없으며 PubMed 검색은 원문 주장·정규화 영문 Query·주장별 최대 5개·Deadline을 받는 Port, 외부 호출 없는 Mock과 NCBI ESearch·EFetch HTTP Adapter가 구현됨; 제한된 실제 NCBI Smoke Test는 ESearch 2회·EFetch 1회로 PASS했고 EFetch 표준 `DOCTYPE`과 명명 Entity는 외부 DTD 접근 없이 안전하게 변환하며 응답 본문 수신에도 Timeout·크기 제한을 적용함
-- 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
+- 지원 언론사 분류와 건강 저장 중복 방지 후속 Schema는 사용자 승인으로 초기 SQL V0001에 통합됨; V0002·V0003 번호는 폐기하고 기존 DB는 재적용 없이 Metadata 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
 - 회원 탈퇴 Native MySQL 수명주기 검증 완료: 세션 만료 선행 변경 후에도 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 경계 PASS

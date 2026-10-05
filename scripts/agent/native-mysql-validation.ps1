@@ -35,11 +35,11 @@ function Get-NativeMySqlSchemaFiles {
         if (-not $versions.Add($version)) {
             throw 'Native MySQL schema versions must be unique'
         }
-        if ($version -eq 2) {
-            throw 'Native MySQL schema V0002 is retired and must not be reused'
+        if ($version -in @(2, 3)) {
+            throw "Native MySQL schema V$($version.ToString('0000')) is retired and must not be reused"
         }
-        if ($schemaFile.FullName -cne $resolvedInitialSchemaPath -and $version -lt 3) {
-            throw 'Native MySQL follow-up schema versions must start at V0003'
+        if ($schemaFile.FullName -cne $resolvedInitialSchemaPath -and $version -lt 4) {
+            throw 'Native MySQL follow-up schema versions must start at V0004'
         }
     }
 
@@ -105,6 +105,76 @@ function Assert-PublisherCategoryMetadata {
     )
     if ($normalizedCheckClause -cnotmatch $checkClausePattern) {
         throw 'Existing news_publishers.category CHECK values are invalid'
+    }
+}
+
+function Assert-StandardIntegerSchemaDefinition {
+    param(
+        [Parameter(Mandatory)]
+        [string] $SchemaSql
+    )
+
+    $requiredColumns = @(
+        @('users', 'failed_login_count'),
+        @('health_analysis_records', 'total_claim_count'),
+        @('health_analysis_records', 'supported_claim_count'),
+        @('health_claims', 'claim_order'),
+        @('health_claim_evidences', 'evidence_order'),
+        @('headline_share_issues', 'issue_order')
+    )
+    foreach ($requiredColumn in $requiredColumns) {
+        $tableName = $requiredColumn[0]
+        $columnName = $requiredColumn[1]
+        $tableMatch = [regex]::Match(
+            $SchemaSql,
+            "(?is)CREATE\s+TABLE\s+`?$tableName`?\s*\((?<Definition>.*?)\)\s*ENGINE\s*=",
+            [Text.RegularExpressions.RegexOptions]::CultureInvariant
+        )
+        if (-not $tableMatch.Success) {
+            throw "$tableName CREATE TABLE definition is missing"
+        }
+
+        $columnPattern = "(?im)^\s*`?$columnName`?\s+INT\s+UNSIGNED\s+NOT\s+NULL(?:\s+DEFAULT\s+\S+)?(?:\s+COMMENT\s+'[^']*')?\s*,"
+        if ($tableMatch.Groups['Definition'].Value -notmatch $columnPattern) {
+            throw "$tableName.$columnName must be INT UNSIGNED NOT NULL"
+        }
+    }
+}
+
+function Assert-StandardIntegerColumnMetadata {
+    param(
+        [Parameter(Mandatory)]
+        [string] $ColumnMetadata
+    )
+
+    $expectedMetadata = @(
+        "headline_share_issues`tissue_order`tint unsigned`tNO"
+        "health_analysis_records`tsupported_claim_count`tint unsigned`tNO"
+        "health_analysis_records`ttotal_claim_count`tint unsigned`tNO"
+        "health_claim_evidences`tevidence_order`tint unsigned`tNO"
+        "health_claims`tclaim_order`tint unsigned`tNO"
+        "users`tfailed_login_count`tint unsigned`tNO"
+    ) -join "`n"
+    $normalizedMetadata = ($ColumnMetadata -replace "`r`n", "`n").Trim()
+    if ($normalizedMetadata -cne $expectedMetadata) {
+        throw 'Existing count and order column metadata is invalid'
+    }
+}
+
+function Assert-HealthRecordUniqueIndexSchemaDefinition {
+    param(
+        [Parameter(Mandatory)]
+        [string] $SchemaSql
+    )
+
+    $tableMatch = [regex]::Match(
+        $SchemaSql,
+        '(?is)CREATE\s+TABLE\s+`?health_analysis_records`?\s*\((?<Definition>.*?)\)\s*ENGINE\s*=',
+        [Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+    if (-not $tableMatch.Success -or
+        $tableMatch.Groups['Definition'].Value -notmatch '(?im)^\s*UNIQUE\s+KEY\s+`?uk_health_records_user_url_analyzed`?\s*\(\s*`?user_id`?\s*,\s*`?normalized_url_digest`?\s*,\s*`?analyzed_at`?\s*\)\s*,') {
+        throw 'health_analysis_records duplicate prevention index definition is missing or invalid'
     }
 }
 

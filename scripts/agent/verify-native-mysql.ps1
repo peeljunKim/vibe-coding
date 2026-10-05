@@ -139,6 +139,8 @@ $schemaFiles = @(Get-NativeMySqlSchemaFiles -SchemaDirectory $schemaDirectory -I
 $schemaSql = @($schemaFiles | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })
 $schemaDefinitionSql = $schemaSql -join "`n"
 Assert-PublisherCategorySchemaDefinition -SchemaSql $schemaDefinitionSql
+    Assert-StandardIntegerSchemaDefinition -SchemaSql $schemaDefinitionSql
+    Assert-HealthRecordUniqueIndexSchemaDefinition -SchemaSql $schemaDefinitionSql
 $expectedTables = @(
     [regex]::Matches($schemaDefinitionSql, '(?im)^\s*CREATE\s+TABLE\s+`?([a-z0-9_]+)`?\s*\(') |
         ForEach-Object { $_.Groups[1].Value } |
@@ -231,6 +233,34 @@ WHERE tc.CONSTRAINT_SCHEMA = DATABASE()
         -ColumnMetadata $publisherCategoryColumn `
         -ConstraintMetadata $publisherCategoryConstraint
     Write-Host '[PASS] Publisher category schema metadata'
+
+    $standardIntegerColumns = (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql @"
+SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND (
+       (TABLE_NAME = 'users' AND COLUMN_NAME = 'failed_login_count')
+    OR (TABLE_NAME = 'health_analysis_records' AND COLUMN_NAME IN ('total_claim_count', 'supported_claim_count'))
+    OR (TABLE_NAME = 'health_claims' AND COLUMN_NAME = 'claim_order')
+    OR (TABLE_NAME = 'health_claim_evidences' AND COLUMN_NAME = 'evidence_order')
+    OR (TABLE_NAME = 'headline_share_issues' AND COLUMN_NAME = 'issue_order')
+  )
+ORDER BY TABLE_NAME, COLUMN_NAME;
+"@).Output
+    Assert-StandardIntegerColumnMetadata -ColumnMetadata $standardIntegerColumns
+    Write-Host '[PASS] Count and order column metadata'
+
+    $healthRecordUniqueIndex = (Invoke-MySql -Password $rootPassword -User 'root' -Database $databaseName -Sql @"
+SELECT NON_UNIQUE,
+       GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',')
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'health_analysis_records'
+  AND INDEX_NAME = 'uk_health_records_user_url_analyzed'
+GROUP BY INDEX_NAME, NON_UNIQUE;
+"@).Output
+    Assert-HealthRecordUniqueIndexMetadata -IndexMetadata $healthRecordUniqueIndex
+    Write-Host '[PASS] Health record duplicate prevention index metadata'
 
     $accountSql = @"
 CREATE USER IF NOT EXISTS '$appUser'@'localhost' IDENTIFIED BY '$sqlAppPassword';
