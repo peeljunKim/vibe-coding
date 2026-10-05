@@ -94,7 +94,7 @@ public class HealthAnalysisConfig {
 
     /** Local 근거 링크 상태 Mock */
     @Bean
-    @Profile("!evidence-http")
+    @Profile("!evidence-http & !pubmed-http")
     @ConditionalOnProperty(
             prefix = "app.analysis",
             name = "provider",

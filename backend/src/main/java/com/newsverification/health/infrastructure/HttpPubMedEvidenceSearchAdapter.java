@@ -48,6 +48,9 @@ public final class HttpPubMedEvidenceSearchAdapter implements PubMedEvidenceSear
     private static final int FETCH_RESPONSE_LIMIT = 1024 * 1024;
     private static final int SUMMARY_LIMIT = 4_000;
     private static final Pattern YEAR_PATTERN = Pattern.compile("(?:^|\\D)(\\d{4})(?:\\D|$)");
+    private static final Pattern UNSUPPORTED_NAMED_ENTITY_PATTERN = Pattern.compile(
+            "&(?!amp;|lt;|gt;|quot;|apos;)([A-Za-z][A-Za-z0-9._:-]*);"
+    );
 
     private final PubMedHttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -225,7 +228,8 @@ public final class HttpPubMedEvidenceSearchAdapter implements PubMedEvidenceSear
         factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
         factory.setXIncludeAware(false);
         factory.setExpandEntityReferences(false);
-        var document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(body)));
+        String safeBody = UNSUPPORTED_NAMED_ENTITY_PATTERN.matcher(body).replaceAll("$1");
+        var document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(safeBody)));
         NodeList articles = document.getElementsByTagName("PubmedArticle");
         var evidence = new ArrayList<Evidence>();
         for (int index = 0; index < articles.getLength(); index++) {

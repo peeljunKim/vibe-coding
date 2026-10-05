@@ -118,6 +118,35 @@ class HealthAnalysisConfigTest {
                 });
     }
 
+    /** PubMed Profile의 필수 근거 링크 확인기 자동 구성 */
+    @Test
+    void wiresHttpEvidenceCheckerForPubMedProfile() throws Exception {
+        InetAddress publicAddress = InetAddress.getByAddress(new byte[]{1, 1, 1, 1});
+        contextRunner
+                .withUserConfiguration(HealthEvidenceLinkConfig.class)
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("pubmed-http"))
+                .withBean(
+                        ArticleUrlValidator.class,
+                        () -> new ArticleUrlValidator(hostname -> List.of(publicAddress))
+                )
+                .withBean(
+                        ArticleHttpClient.class,
+                        () -> (target, timeout, maxResponseBytes) ->
+                                new ArticleHttpResponse(200, "text/html", "", 0, null)
+                )
+                .withBean(
+                        PubMedEvidenceSearchPort.class,
+                        () -> request -> PubMedEvidenceSearchPort.SearchResponse.noResults()
+                )
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(HealthEvidenceLinkChecker.class);
+                    assertThat(context.getBean(HealthEvidenceLinkChecker.class))
+                            .isInstanceOf(HttpHealthEvidenceLinkChecker.class);
+                    assertThat(context).hasSingleBean(PubMedEvidenceSearchService.class);
+                });
+    }
+
     /** 운영 Profile의 빈 허용 Host 설정 차단 */
     @Test
     void failsHttpEvidenceProfileWithoutAllowedHosts() {

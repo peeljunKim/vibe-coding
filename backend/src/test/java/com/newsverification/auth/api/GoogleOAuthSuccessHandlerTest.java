@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
@@ -105,6 +106,24 @@ class GoogleOAuthSuccessHandlerTest {
         assertThat(request.getSession(false).getAttribute(PendingSocialSignup.SESSION_ATTRIBUTE))
                 .isInstanceOf(PendingSocialSignup.class);
         assertThat(request.getSession(false).getMaxInactiveInterval()).isEqualTo(600);
+    }
+
+    /** 예기치 않은 계정 처리 오류의 Provider Session 폐기 */
+    @Test
+    void clearsProviderSessionWhenAccountResolutionFailsUnexpectedly() throws Exception {
+        when(socialLoginService.resolve(any())).thenThrow(new IllegalStateException("database unavailable"));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute("provider-state", "authenticated");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        SecurityContextHolder.getContext().setAuthentication(googleAuthentication());
+
+        handler.onAuthenticationSuccess(request, response, googleAuthentication());
+
+        assertThat(response.getRedirectedUrl())
+                .isEqualTo("http://localhost:5173/login?oauth=failed");
+        assertThat(request.getSession(false)).isNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(response.getHeader("Set-Cookie")).contains("XSRF-TOKEN=");
     }
 
     private OAuth2AuthenticationToken googleAuthentication() {

@@ -236,6 +236,8 @@ describe('App', () => {
     })
     renderApp('/login')
 
+    await waitFor(() => expect(getDailyUsage).toHaveBeenCalledTimes(1))
+
     fireEvent.change(screen.getByLabelText('아이디'), {
       target: { value: 'health26' },
     })

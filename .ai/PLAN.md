@@ -614,4 +614,14 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 
 - 건강 분석 취소 회귀 테스트가 Polling 호출뿐 아니라 분석 화면 전환 완료도 대기하도록 보완: PASS
 - Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·96개 Test)
+
+## PR 41·42 Code Review 보완
+
+- `pubmed-http` Profile 단독 활성화 시 고정 PubMed Host 근거 링크 확인기 구성: PASS
+- EFetch 명명 Entity의 외부 DTD 없는 안전 변환과 본문 수신 Timeout·크기 제한: PASS
+- OAuth 내부 처리 오류의 Provider Session·SecurityContext·CSRF 폐기: PASS
+- 로그인 전 이용량 지연 회귀 테스트의 실제 요청 시작 순서 보장: PASS
+- Backend Maven 전체 검증: PASS (318개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·101개 Test)
+- Harness·Secret·Diff 공백 검사: PASS
 - GitHub Actions 재실행: NOT RUN (수정 Commit Push 후 확인 필요)

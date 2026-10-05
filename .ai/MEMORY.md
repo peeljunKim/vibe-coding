@@ -43,7 +43,7 @@
 ## 현재 구현 경계
 
 - 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, Google OAuth2 Redirect 로그인·초대 가입, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; Naver·Kakao OAuth는 아직 없음
-- 실제 Gemini 연동은 아직 없으며 PubMed 검색은 원문 주장·정규화 영문 Query·주장별 최대 5개·Deadline을 받는 Port, 외부 호출 없는 Mock과 NCBI ESearch·EFetch HTTP Adapter가 구현됨; 제한된 실제 NCBI Smoke Test는 ESearch 2회·EFetch 1회로 PASS했고 EFetch 표준 `DOCTYPE`은 외부 DTD·Entity 접근 없이 변환함
+- 실제 Gemini 연동은 아직 없으며 PubMed 검색은 원문 주장·정규화 영문 Query·주장별 최대 5개·Deadline을 받는 Port, 외부 호출 없는 Mock과 NCBI ESearch·EFetch HTTP Adapter가 구현됨; 제한된 실제 NCBI Smoke Test는 ESearch 2회·EFetch 1회로 PASS했고 EFetch 표준 `DOCTYPE`과 명명 Entity는 외부 DTD 접근 없이 안전하게 변환하며 응답 본문 수신에도 Timeout·크기 제한을 적용함
 - 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
@@ -66,7 +66,7 @@
 - 원 분석 회원의 재조회는 Cache 수명 동안, 비회원은 날짜별 식별 경계 안에서 미차감하고 다른 사용자의 변경 없는 결과 최초 열람만 원자적으로 차감함
 - 기사 변경 시 건강·제목 화면에서 명시적 재분석 확인·취소를 제공하고, 동의 요청만 Queue 표시를 거쳐 기존 분석·이용량 흐름과 Cache 교체를 실행함; Backend 전체 233개 Test, Docker Redis 통합 44개 Test, Frontend 17개 Test File·80개 Test와 Chrome 전체 E2E 20개 PASS
 - Cache 건강 근거 링크는 교체 가능한 Port로 중복 제거 후 확인하고 일시 오류를 1회 재확인함; 사라진 링크가 있으면 Cache를 제거하고 전역 단일 Worker Lease 안에서 이용량 미차감 자동 재분석을 실행하며 실패 시 깨진 근거 의존 주장을 제거한 제한 결과와 재계산한 확인률을 Cache에 저장함
-- 건강 근거 링크 운영 HTTP Adapter는 `evidence-http` Profile과 `app.analysis.evidence-allowed-hosts`의 쉼표 구분 Host 목록에서만 활성화되며 HTTPS·공개 IP·Redirect 재검증, 10초 Timeout·Redirect 최대 3회·1 KiB 응답 제한을 적용함; 2xx는 정상, 404·410은 누락, DNS·전송·그 밖의 HTTP 오류는 일시 오류로 분류하고 기본 Profile은 외부 호출 없는 Mock을 유지함
+- 건강 근거 링크 운영 HTTP Adapter는 `evidence-http` Profile의 명시적 허용 Host 또는 `pubmed-http` Profile의 고정 PubMed Host에서 활성화되며 HTTPS·공개 IP·Redirect 재검증, 10초 Timeout·Redirect 최대 3회·1 KiB 응답 제한을 적용함; 2xx는 정상, 404·410은 누락, DNS·전송·그 밖의 HTTP 오류는 일시 오류로 분류하고 두 Profile이 모두 없으면 외부 호출 없는 Mock을 유지함
 - 건강·제목 분석 접수는 기사 수집·Queue 적재 전에 기능별·사용자별 Redis 고정 시간 제한을 적용함; 각 기능 1분 5회, HMAC 식별값 추가 Digest, 비회원 다중 식별 신호 카운터 동기화, 초과 `429`, Redis 장애 `503`, Polling·자동 근거 재분석 제외
 - Frontend는 건강·제목 분석의 `429 ANALYSIS_REQUEST_RATE_LIMIT_EXCEEDED`를 공통 사용자 안내로 표시하고 Polling을 시작하지 않으며 Desktop 1024·1280·1440px에서 오류 화면을 검증함
 - `GET /api/usage`는 회원·비회원의 건강·제목 당일 한도·사용·남은 횟수와 다음 한국시간 자정을 공개 조회하며, 조회만으로 횟수나 Redis TTL을 변경하지 않음; 식별 준비·Redis 가용성 오류는 `503 USAGE_SERVICE_UNAVAILABLE`, Frontend는 초기·로그인·로그아웃·분석 완료 뒤 갱신하고 겹친 요청의 오래된 응답을 폐기하며 실패해도 분석 버튼을 유지함
@@ -85,6 +85,6 @@
 
 [Local 개발 완료 후 사용할 DuckDNS 서브도메인 이름이 필요합니다.]
 
-[운영 `evidence-http` Profile 활성화 전에 공식 기관·PubMed의 정확한 허용 Host 목록이 필요합니다.]
+[운영 `evidence-http` Profile에 추가할 공식 기관의 정확한 허용 Host 목록이 필요합니다. PubMed Host는 `pubmed-http` Profile에서 고정 허용합니다.]
 
 [Local 개발 완료 후 AWS 계정의 Free Plan 대상 여부 확인이 필요합니다.]

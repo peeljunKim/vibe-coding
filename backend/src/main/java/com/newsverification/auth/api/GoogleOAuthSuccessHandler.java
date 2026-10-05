@@ -7,6 +7,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,6 +26,7 @@ import java.util.List;
 /** Provider Session 제거 후 내부 회원 Session 전환 */
 public class GoogleOAuthSuccessHandler implements AuthenticationSuccessHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GoogleOAuthSuccessHandler.class);
     private static final int APPLICATION_SESSION_SECONDS = 2 * 60 * 60;
     private static final int PENDING_SIGNUP_SESSION_SECONDS = 10 * 60;
 
@@ -48,14 +51,14 @@ public class GoogleOAuthSuccessHandler implements AuthenticationSuccessHandler {
             Authentication authentication
     ) throws IOException, ServletException {
         OAuth2AuthenticationToken oauth = (OAuth2AuthenticationToken) authentication;
-        authorizedClientRepository.removeAuthorizedClient(
-                oauth.getAuthorizedClientRegistrationId(),
-                oauth,
-                request,
-                response
-        );
 
         try {
+            authorizedClientRepository.removeAuthorizedClient(
+                    oauth.getAuthorizedClientRegistrationId(),
+                    oauth,
+                    request,
+                    response
+            );
             SocialLoginService.LoginResolution resolution = socialLoginService.resolve(identity(oauth));
             invalidateCurrentSession(request);
             expireCsrfCookie(response);
@@ -70,6 +73,14 @@ public class GoogleOAuthSuccessHandler implements AuthenticationSuccessHandler {
             invalidateCurrentSession(request);
             expireCsrfCookie(response);
             response.sendRedirect(frontendBaseUrl + loginErrorPath(exception.code()));
+        } catch (RuntimeException exception) {
+            invalidateCurrentSession(request);
+            expireCsrfCookie(response);
+            log.error(
+                    "OAuth success processing failed: provider=google, category=internal_error, cause={}",
+                    exception.getClass().getSimpleName()
+            );
+            response.sendRedirect(frontendBaseUrl + "/login?oauth=failed");
         }
     }
 
