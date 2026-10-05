@@ -1,6 +1,9 @@
 /* 일반 회원가입 실행 구성 */
 package com.newsverification.config;
 
+import com.newsverification.auth.application.DefaultSocialLoginService;
+import com.newsverification.auth.application.SocialAccountStore;
+import com.newsverification.auth.application.SocialLoginService;
 import com.newsverification.signup.application.DefaultSignupService;
 import com.newsverification.signup.application.EmailVerificationStore;
 import com.newsverification.signup.application.PendingSignupCleanupService;
@@ -89,6 +92,23 @@ public class SignupConfig {
                 codeSender,
                 codeGenerator,
                 passwordEncoder,
+                clock
+        );
+    }
+
+    @Bean
+    SocialLoginService socialLoginService(
+            @Value("${INVITE_CODE_1:}") String inviteCode1,
+            @Value("${INVITE_CODE_2:}") String inviteCode2,
+            @Value("${INVITE_CODE_3:}") String inviteCode3,
+            @Value("${INVITE_CODE_4:}") String inviteCode4,
+            @Value("${INVITE_CODE_5:}") String inviteCode5,
+            SocialAccountStore accountStore,
+            Clock clock
+    ) {
+        return new DefaultSocialLoginService(
+                List.of(inviteCode1, inviteCode2, inviteCode3, inviteCode4, inviteCode5),
+                accountStore,
                 clock
         );
     }

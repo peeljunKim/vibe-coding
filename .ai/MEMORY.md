@@ -27,7 +27,7 @@
 - Local MVP 전체 회귀: `verify-local-mvp.ps1`이 Repository 전체 검증 → Native MySQL IT → Docker Redis IT → Playwright E2E를 기존 Mock Adapter로 순차 실행하며 PR 39 재분석 취소 경쟁 보완 후 전체 PASS 재확인
 - Agent Script 구성: 직접 실행하는 Setup·검증 진입점은 권한·필수 서비스별로 유지하고, 반복되는 `.env` 값 처리와 Java 17 탐색은 `script-utilities.ps1`, Harness·Local MVP 실행 순서 회귀는 `verify.Tests.ps1`로 통합; 통합 후 Local MVP와 Full-stack Smoke 실제 환경 검증 PASS
 - Local Full-stack Smoke: `verify-full-stack-smoke.ps1`이 실제 Browser·Backend HTTP·Native MySQL 테스트 Database·실행별 Docker Redis를 연결하고 외부 Gemini·PubMed·OAuth·Gmail SMTP 없이 핵심 사용자 흐름을 검증함
-- Local API 계약: `docs/api/openapi.json`은 Controller 기준 구현 Endpoint 32개를 기록하며, 상세 문서는 Git 제외 Local 전용으로 유지
+- Local API 계약: `docs/api/openapi.json`은 Controller 기준 구현 Operation 36개를 기록하며, 상세 문서는 Git 제외 Local 전용으로 유지
 - Local OAuth: 서비스 기준 URL `http://localhost:8080`
 - Local OAuth Callback: Naver `/oauth/naver`, Naver 연결 끊기 `/oauth/naver/disconnect`, Kakao `/oauth/kakao`, Google `/oauth/google`
 - Secret 입력 책임: Gemini API Key, Gmail App Password, OAuth Client Key·Secret은 사용자가 Local `.env`에 직접 입력
@@ -42,7 +42,7 @@
 
 ## 현재 구현 경계
 
-- 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; 소셜 가입은 아직 없음
+- 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, Google OAuth2 Redirect 로그인·초대 가입, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; Naver·Kakao OAuth는 아직 없음
 - 실제 Gemini 연동은 아직 없으며 PubMed 검색은 원문 주장·정규화 영문 Query·주장별 최대 5개·Deadline을 받는 Port, 외부 호출 없는 Mock과 NCBI ESearch·EFetch HTTP Adapter가 구현됨; 제한된 실제 NCBI Smoke Test는 ESearch 2회·EFetch 1회로 PASS했고 EFetch 표준 `DOCTYPE`은 외부 DTD·Entity 접근 없이 변환함
 - 지원 언론사 분류 후속 Schema는 Local 적용됨; 사용자 승인으로 초기 SQL에 통합, 기존 DB 재적용 없이 검증
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
@@ -73,7 +73,9 @@
 
 ## Deferred
 
-[실제 Gemini, OAuth, Gmail SMTP Secret은 Local 연동 시 사용자가 `.env`에 직접 입력해야 합니다.]
+[실제 Gemini, Naver·Kakao OAuth, Gmail SMTP Secret은 Local 연동 시 사용자가 `.env`에 직접 입력해야 합니다.]
+
+[Google 실제 Provider Smoke Test 전 `APP_OAUTH_GOOGLE_ENABLED=true` 설정과 외부 호출 승인이 필요합니다.]
 
 [현재 활성화 보류 11곳의 언론사별 추출 보완과 재시험이 필요합니다.]
 

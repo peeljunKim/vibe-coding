@@ -4,6 +4,7 @@ package com.newsverification.signup.infrastructure;
 import com.newsverification.NewsVerificationApplication;
 import com.newsverification.account.application.AccountWithdrawalService;
 import com.newsverification.auth.application.AccountSessionInvalidator;
+import com.newsverification.auth.application.SocialAccountStore;
 import com.newsverification.publisher.infrastructure.NativeMySqlTestConnectionGuard;
 import com.newsverification.signup.application.SignupAccountStore;
 import com.newsverification.signup.application.SignupException;
@@ -33,6 +34,9 @@ class SignupAccountStoreIT {
 
     @Autowired
     private SignupAccountStore accountStore;
+
+    @Autowired
+    private SocialAccountStore socialAccountStore;
 
     @Autowired
     private UserAccountRepository repository;
@@ -81,6 +85,40 @@ class SignupAccountStoreIT {
                 String.class,
                 pending.id()
         )).isEqualTo("ACTIVE");
+    }
+
+    /** 소셜 전용 계정과 Provider 식별자의 원자 저장 */
+    @Test
+    void createsActiveSocialAccountWithProviderIdentity() {
+        Instant verifiedAt = Instant.parse("2026-10-05T00:00:00Z");
+
+        SocialAccountStore.Account created = socialAccountStore.create(
+                new SocialAccountStore.NewAccount(
+                        "GOOGLE",
+                        "google-native-it-subject",
+                        "google-native-it@example.com",
+                        verifiedAt
+                )
+        );
+        repository.flush();
+
+        assertThat(created.active()).isTrue();
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT account_type, status, username, password_hash, phone_number FROM users WHERE id = ?",
+                created.userId()
+        )).containsEntry("account_type", "SOCIAL")
+                .containsEntry("status", "ACTIVE")
+                .containsEntry("username", null)
+                .containsEntry("password_hash", null)
+                .containsEntry("phone_number", null);
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT provider, provider_subject, provider_email, is_signup_identity "
+                        + "FROM user_social_accounts WHERE user_id = ?",
+                created.userId()
+        )).containsEntry("provider", "GOOGLE")
+                .containsEntry("provider_subject", "google-native-it-subject")
+                .containsEntry("provider_email", "google-native-it@example.com")
+                .containsEntry("is_signup_identity", true);
     }
 
     /** 사용자 아이디 중복 생성 차단 검증 */

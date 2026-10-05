@@ -32,7 +32,8 @@
 - 회원가입 1·2·3단계 전환과 1440×1024 시각 비교: PASS
 - Figma Design Context 재조회: NOT RUN (Figma Starter MCP 호출 한도)
 - Provider 공식 OAuth 버튼 Asset과 Backend 로그인 시작 URL: PASS
-- OAuth Callback과 실제 Provider 연동: NOT RUN
+- Google OAuth Callback과 Mock Redirect·소셜 초대 가입: PASS
+- Google 실제 Provider와 Naver·Kakao OAuth 연동: NOT RUN
 - 일반 로그인·로그아웃·Redis Session 연결: PASS (5회 실패 30분 잠금, 기본 2시간·로그인 유지 7일, Native MySQL·Docker Redis HTTP 통합 검증)
 - 아이디 찾기·비밀번호 재설정 Backend 연결: PASS (이메일 인증, 아이디 마스킹·전체 아이디 메일, 비밀번호 변경·기존 Redis Session 만료)
 - Browser Runtime과 Console 오류 확인: PASS
@@ -123,11 +124,12 @@
 
 ## Next Loop
 
-1. Google·Naver·Kakao OAuth 2.0 Redirect 흐름 구현과 Provider 연동 검증
-2. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
-3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-4. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-5. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. Google OAuth 실제 Provider 제한 Smoke Test
+2. Naver·Kakao OAuth 2.0 Redirect 흐름 구현과 Provider 연동 검증
+3. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
+4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+5. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+6. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -142,9 +144,28 @@
 
 ## Required Before Live OAuth
 
-[실제 Provider 연동 검증 전에 OAuth Client ID와 Client Secret의 Backend 전용 Local 환경 설정 입력이 필요합니다.]
+[Google 실제 Provider 연동 검증 전에 Backend 전용 Local 환경 설정과 `APP_OAUTH_GOOGLE_ENABLED=true`, 외부 호출 승인이 필요합니다.]
+
+[Naver·Kakao 구현과 실제 Provider 검증 전에 각 OAuth Client ID와 Client Secret의 Backend 전용 Local 환경 설정 입력이 필요합니다.]
 
 Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Client Secret 등 비밀값을 넣지 않는다.
+
+## Google OAuth2 Redirect Vertical Slice
+
+- Google 로그인 시작 `/oauth2/authorization/google`과 Callback `/oauth/google`: PASS (Mock Security 검증)
+- 기존 소셜 회원의 Provider·Subject 조회와 내부 사용자 ID Redis Session 전환: PASS
+- 신규 사용자의 검증 이메일 기반 10분 소셜 가입 대기 Session: PASS
+- 동일 이메일 일반 계정의 자동 병합 차단과 기존 로그인 안내: PASS
+- `POST /api/signup/social` 초대 코드·약관 동의 가입: PASS
+- 소셜 가입의 사용자 아이디·비밀번호·휴대전화 입력 제외: PASS
+- OAuth 취소·실패·이메일 미제공의 안전한 Frontend 안내: PASS
+- Naver·Kakao 버튼 비활성 `준비 중` 처리: PASS
+- Backend Maven 전체 검증: PASS (313개, 실패·오류·Skip 0)
+- Frontend Test·Lint·TypeScript·Build: PASS (22개 Test File·101개 Test)
+- Google Redirect Mock Browser E2E: PASS (2개)
+- Native MySQL 소셜 계정 Repository 통합 검증: NOT RUN (비대화형 실행에서 테스트 계정 비밀번호 입력 대기, 실행 중단)
+- 실제 Google Provider 호출: NOT RUN
+- Naver·Kakao OAuth 구현: NOT APPLICABLE (이번 Vertical Slice 범위 제외)
 
 ## Native MySQL Application
 
