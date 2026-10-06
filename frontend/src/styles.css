@@ -1940,7 +1940,7 @@ input:focus-visible {
 }
 
 .signup-form-grid input::placeholder {
-  color: #16242b;
+  color: #5e7079;
   opacity: 1;
 }
 

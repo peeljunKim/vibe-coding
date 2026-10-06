@@ -72,6 +72,12 @@ test('계정 입력부터 이메일 인증 완료까지 이동한다', async ({ 
   await page
     .getByRole('button', { name: '초대 코드로 회원가입 시작하기' })
     .click()
+  const placeholderColor = await page
+    .locator('[name="invite-code"]')
+    .evaluate((element) =>
+      window.getComputedStyle(element, '::placeholder').color,
+    )
+  expect(placeholderColor).toBe('rgb(94, 112, 121)')
   await page.locator('[name="invite-code"]').fill('INVITE-2026')
   await page.locator('[name="signup-username"]').fill('healthcheck26')
   await page.locator('[name="signup-password"]').fill('Password!23')
