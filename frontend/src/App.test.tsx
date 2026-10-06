@@ -205,6 +205,16 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
+  it('홈의 마이 페이지 버튼으로 저장한 건강 뉴스 화면을 연다', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '마이 페이지' }))
+
+    expect(
+      await screen.findByRole('heading', { name: '저장한 건강 뉴스' }),
+    ).toBeInTheDocument()
+  })
+
   it('이용량 조회 실패에도 홈의 분석 기능을 차단하지 않는다', async () => {
     vi.mocked(getDailyUsage).mockRejectedValueOnce(new Error('redis unavailable'))
 

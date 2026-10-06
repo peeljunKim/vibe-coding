@@ -339,7 +339,7 @@ function App() {
           <HomePage
             onStartHealthAnalysis={() => void startHealthAnalysis()}
             onStartHeadlineAnalysis={() => void startHeadlineAnalysis()}
-            onOpenSavedRecords={() => goTo('/saved')}
+            onOpenMyPage={() => goTo('/saved')}
             onOpenReports={() => goTo('/reports')}
             authenticated={authSession.authenticated}
             onLogout={() => void endSession()}
