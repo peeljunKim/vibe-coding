@@ -24,7 +24,7 @@ const publisherCategoryGroups = [
 interface HomePageProps {
   onStartHealthAnalysis: () => void
   onStartHeadlineAnalysis: () => void
-  onOpenSavedRecords: () => void
+  onOpenMyPage: () => void
   onOpenReports?: () => void
   authenticated?: boolean
   onLogout?: () => void
@@ -43,7 +43,7 @@ interface HomePageProps {
 function HomePage({
   onStartHealthAnalysis,
   onStartHeadlineAnalysis,
-  onOpenSavedRecords,
+  onOpenMyPage,
   onOpenReports,
   authenticated = false,
   onLogout,
@@ -116,8 +116,8 @@ function HomePage({
   return (
     <div className="app-page home-page">
       <AppHeader section="홈">
-        <button type="button" onClick={onOpenSavedRecords}>
-          저장 기록
+        <button type="button" onClick={onOpenMyPage}>
+          마이 페이지
         </button>
         <button type="button" onClick={onOpenReports} disabled={!onOpenReports}>
           내 신고

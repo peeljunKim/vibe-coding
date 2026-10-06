@@ -91,6 +91,9 @@ public class SocialOAuthSuccessHandler implements AuthenticationSuccessHandler {
         if ("naver".equalsIgnoreCase(authentication.getAuthorizedClientRegistrationId())) {
             return naverIdentity(authentication, principal);
         }
+        if ("kakao".equalsIgnoreCase(authentication.getAuthorizedClientRegistrationId())) {
+            return kakaoIdentity(authentication, principal);
+        }
         Object verified = principal.getAttribute("email_verified");
         return new SocialLoginService.ProviderIdentity(
                 authentication.getAuthorizedClientRegistrationId(),
@@ -123,8 +126,40 @@ public class SocialOAuthSuccessHandler implements AuthenticationSuccessHandler {
         );
     }
 
+    private SocialLoginService.ProviderIdentity kakaoIdentity(
+            OAuth2AuthenticationToken authentication,
+            OAuth2User principal
+    ) {
+        String subject = stringValue(principal.getAttribute("id"));
+        Object account = principal.getAttribute("kakao_account");
+        if (!(account instanceof Map<?, ?> attributes)) {
+            return new SocialLoginService.ProviderIdentity(
+                    authentication.getAuthorizedClientRegistrationId(),
+                    subject,
+                    null,
+                    false
+            );
+        }
+        String email = stringValue(attributes.get("email"));
+        boolean verified = booleanValue(attributes.get("is_email_valid"))
+                && booleanValue(attributes.get("is_email_verified"));
+        return new SocialLoginService.ProviderIdentity(
+                authentication.getAuthorizedClientRegistrationId(),
+                subject,
+                email,
+                verified
+        );
+    }
+
     private String stringValue(Object value) {
-        return value instanceof String text ? text : null;
+        if (value instanceof String text) {
+            return text;
+        }
+        return value instanceof Number number ? number.toString() : null;
+    }
+
+    private boolean booleanValue(Object value) {
+        return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
     }
 
     private void createAuthenticatedSession(

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -35,9 +36,20 @@ public class AuthController {
     static final int REMEMBERED_SESSION_SECONDS = 7 * 24 * 60 * 60;
 
     private final LoginService loginService;
+    private final boolean googleOAuthEnabled;
+    private final boolean naverOAuthEnabled;
+    private final boolean kakaoOAuthEnabled;
 
-    public AuthController(LoginService loginService) {
+    public AuthController(
+            LoginService loginService,
+            @Value("${app.oauth.google.enabled:false}") boolean googleOAuthEnabled,
+            @Value("${app.oauth.naver.enabled:false}") boolean naverOAuthEnabled,
+            @Value("${app.oauth.kakao.enabled:false}") boolean kakaoOAuthEnabled
+    ) {
         this.loginService = loginService;
+        this.googleOAuthEnabled = googleOAuthEnabled;
+        this.naverOAuthEnabled = naverOAuthEnabled;
+        this.kakaoOAuthEnabled = kakaoOAuthEnabled;
     }
 
     /** 기존 Session 폐기 후 인증 Session 생성 */
@@ -116,6 +128,18 @@ public class AuthController {
                 ));
     }
 
+    /** OAuth Provider 활성화 상태 */
+    @GetMapping("/providers")
+    public ResponseEntity<OAuthProviderResponse> providers() {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(new OAuthProviderResponse(
+                        googleOAuthEnabled,
+                        naverOAuthEnabled,
+                        kakaoOAuthEnabled
+                ));
+    }
+
     /** 현재 Session과 인증 Context 만료 */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest servletRequest) {
@@ -182,5 +206,13 @@ public class AuthController {
         private static SessionResponse anonymous() {
             return new SessionResponse(false, null, null, null);
         }
+    }
+
+    /** OAuth Provider 공개 상태 */
+    public record OAuthProviderResponse(
+            boolean google,
+            boolean naver,
+            boolean kakao
+    ) {
     }
 }

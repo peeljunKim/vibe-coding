@@ -19,6 +19,13 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ authenticated: false }),
     }),
   )
+  await page.route('**/api/auth/providers', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ google: true, naver: true, kakao: true }),
+    }),
+  )
   await page.route('**/api/csrf', (route) =>
     route.fulfill({
       status: 200,
@@ -91,4 +98,13 @@ test('OAuth 취소와 실패를 같은 로그인 화면에서 안전하게 안�
   await expect(
     page.getByText('로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
   ).toBeVisible()
+})
+
+test('Backend에서 활성화된 Kakao 로그인 시작 링크를 표시한다', async ({ page }) => {
+  await page.goto('/login')
+
+  await expect(page.getByRole('link', { name: '카카오 로그인' })).toHaveAttribute(
+    'href',
+    'http://localhost:8080/oauth2/authorization/kakao',
+  )
 })

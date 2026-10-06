@@ -10,6 +10,12 @@ export interface LoginResponse extends SessionState {
   username: string
 }
 
+export interface OAuthProviderAvailability {
+  google: boolean
+  naver: boolean
+  kakao: boolean
+}
+
 export interface LoginRequest {
   username: string
   password: string
@@ -107,6 +113,14 @@ export const getSession = async (): Promise<SessionState> => {
     throw new Error('로그인 상태를 확인하지 못했습니다.')
   }
   return (await response.json()) as SessionState
+}
+
+export const getOAuthProviders = async (): Promise<OAuthProviderAvailability> => {
+  const response = await fetch('/api/auth/providers', { cache: 'no-store' })
+  if (!response.ok) {
+    throw new Error('소셜 로그인 상태를 확인하지 못했습니다.')
+  }
+  return (await response.json()) as OAuthProviderAvailability
 }
 
 export const logout = async () => {

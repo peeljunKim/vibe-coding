@@ -47,7 +47,7 @@ Figma에 없는 상태나 동작이 실제 기능에 필요하면 사용자에�
 
 ## OAuth Redirect
 
-아래 Google·Naver 로그인 시작·Callback·완료 경로는 구현된 현재 동작이다. Google OAuth2 Redirect는 Mock 검증과 실제 Provider의 기존 소셜 회원 로그인 Smoke를 통과했고 Naver는 Mock 검증을 통과했다. 신규 Google 소셜 가입과 Naver 실제 Provider 완료, Kakao 구현·연동 검증은 `NOT RUN`이다.
+아래 Google·Naver·Kakao 로그인 시작·Callback·완료 경로는 구현된 현재 동작이다. 세 Provider의 Mock Redirect와 실제 Provider 로그인·Callback·내부 Session 전환 Smoke를 모두 통과했다.
 
 Google Identity Services JavaScript Callback 방식과 혼합하지 않고 Spring Security OAuth2 Redirect 방식을 사용한다.
 
@@ -58,6 +58,8 @@ Google Identity Services JavaScript Callback 방식과 혼합하지 않고 Sprin
 - Kakao: `http://localhost:8080/oauth2/authorization/kakao`
 
 Frontend는 Provider URL을 직접 조합하지 않고 Backend 시작 URL로 전체 페이지 이동한다. Local Backend 기준 주소는 Git에서 제외된 Frontend 환경 설정의 `VITE_BACKEND_BASE_URL`을 사용한다.
+
+로그인 화면은 `GET /api/auth/providers`의 Backend 등록 상태로 Provider 링크를 활성화한다. 상태 조회 실패나 비활성 Provider는 기존 준비 중 표현을 사용하고 로그인 시작 링크를 노출하지 않는다.
 
 ### Provider Callback
 

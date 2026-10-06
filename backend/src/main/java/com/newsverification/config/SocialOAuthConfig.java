@@ -22,7 +22,11 @@ import java.util.List;
 
 /** Local 명시 활성화된 OAuth Provider 등록 */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnExpression("${app.oauth.google.enabled:false} or ${app.oauth.naver.enabled:false}")
+@ConditionalOnExpression(
+        "${app.oauth.google.enabled:false} or "
+                + "${app.oauth.naver.enabled:false} or "
+                + "${app.oauth.kakao.enabled:false}"
+)
 public class SocialOAuthConfig {
 
     @Bean
@@ -34,9 +38,13 @@ public class SocialOAuthConfig {
             @Value("${app.oauth.naver.enabled:false}") boolean naverEnabled,
             @Value("${NAVER_CLIENT_ID:}") String naverClientId,
             @Value("${NAVER_CLIENT_SECRET:}") String naverClientSecret,
-            @Value("${NAVER_LOGIN_CALLBACK_URL:http://localhost:8080/oauth/naver}") String naverCallbackUrl
+            @Value("${NAVER_LOGIN_CALLBACK_URL:http://localhost:8080/oauth/naver}") String naverCallbackUrl,
+            @Value("${app.oauth.kakao.enabled:false}") boolean kakaoEnabled,
+            @Value("${KAKAO_CLIENT_ID:}") String kakaoClientId,
+            @Value("${KAKAO_CLIENT_SECRET:}") String kakaoClientSecret,
+            @Value("${KAKAO_LOGIN_CALLBACK_URL:http://localhost:8080/oauth/kakao}") String kakaoCallbackUrl
     ) {
-        List<ClientRegistration> registrations = new ArrayList<>(2);
+        List<ClientRegistration> registrations = new ArrayList<>(3);
         if (googleEnabled) {
             registrations.add(CommonOAuth2Provider.GOOGLE.getBuilder("google")
                     .clientId(googleClientId)
@@ -50,6 +58,13 @@ public class SocialOAuthConfig {
                     naverClientId,
                     naverClientSecret,
                     naverCallbackUrl
+            ));
+        }
+        if (kakaoEnabled) {
+            registrations.add(kakaoRegistration(
+                    kakaoClientId,
+                    kakaoClientSecret,
+                    kakaoCallbackUrl
             ));
         }
         return new InMemoryClientRegistrationRepository(registrations);
@@ -72,6 +87,26 @@ public class SocialOAuthConfig {
                 .userInfoUri("https://openapi.naver.com/v1/nid/me")
                 .userNameAttributeName("response")
                 .clientName("Naver")
+                .build();
+    }
+
+    private ClientRegistration kakaoRegistration(
+            String clientId,
+            String clientSecret,
+            String callbackUrl
+    ) {
+        return ClientRegistration.withRegistrationId("kakao")
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri(callbackUrl)
+                .scope("account_email")
+                .authorizationUri("https://kauth.kakao.com/oauth/authorize")
+                .tokenUri("https://kauth.kakao.com/oauth/token")
+                .userInfoUri("https://kapi.kakao.com/v2/user/me")
+                .userNameAttributeName("id")
+                .clientName("Kakao")
                 .build();
     }
 

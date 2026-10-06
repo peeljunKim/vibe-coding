@@ -46,7 +46,11 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         loginService = mock(LoginService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new AuthController(loginService))
+        mockMvc = mockMvcFor(new AuthController(loginService, false, false, false));
+    }
+
+    private MockMvc mockMvcFor(AuthController controller) {
+        return MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new AuthErrorHandler())
                 .apply(springSecurity(springSecurityFilterChain))
                 .build();
@@ -169,6 +173,29 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(false))
                 .andExpect(jsonPath("$.userId").doesNotExist());
+    }
+
+    /** 비활성 OAuth Provider 공개 상태 */
+    @Test
+    void returnsDisabledOAuthProviderState() throws Exception {
+        mockMvc.perform(get("/api/auth/providers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.google").value(false))
+                .andExpect(jsonPath("$.naver").value(false))
+                .andExpect(jsonPath("$.kakao").value(false));
+    }
+
+    /** 활성 OAuth Provider 공개 상태 */
+    @Test
+    void returnsEnabledOAuthProviderState() throws Exception {
+        MockMvc enabledMockMvc = mockMvcFor(new AuthController(loginService, true, true, true));
+
+        enabledMockMvc.perform(get("/api/auth/providers"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.google").value(true))
+                .andExpect(jsonPath("$.naver").value(true))
+                .andExpect(jsonPath("$.kakao").value(true));
     }
 
     private LoginService.AuthenticatedAccount account() {
