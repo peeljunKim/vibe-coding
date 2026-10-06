@@ -930,6 +930,19 @@ describe('App', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('Backend에서 활성화된 Kakao 로그인 링크를 표시한다', async () => {
+    vi.mocked(getOAuthProviders).mockResolvedValue({
+      google: true,
+      naver: true,
+      kakao: true,
+    })
+    renderApp('/login')
+
+    expect(
+      await screen.findByRole('link', { name: '카카오 로그인' }),
+    ).toHaveAttribute('href', expect.stringContaining('/oauth2/authorization/kakao'))
+  })
+
   it('OAuth 사용자 취소를 일반 로그인 화면에서 안내한다', () => {
     renderApp('/login?oauth=cancelled')
 

@@ -38,15 +38,18 @@ public class AuthController {
     private final LoginService loginService;
     private final boolean googleOAuthEnabled;
     private final boolean naverOAuthEnabled;
+    private final boolean kakaoOAuthEnabled;
 
     public AuthController(
             LoginService loginService,
             @Value("${app.oauth.google.enabled:false}") boolean googleOAuthEnabled,
-            @Value("${app.oauth.naver.enabled:false}") boolean naverOAuthEnabled
+            @Value("${app.oauth.naver.enabled:false}") boolean naverOAuthEnabled,
+            @Value("${app.oauth.kakao.enabled:false}") boolean kakaoOAuthEnabled
     ) {
         this.loginService = loginService;
         this.googleOAuthEnabled = googleOAuthEnabled;
         this.naverOAuthEnabled = naverOAuthEnabled;
+        this.kakaoOAuthEnabled = kakaoOAuthEnabled;
     }
 
     /** 기존 Session 폐기 후 인증 Session 생성 */
@@ -133,7 +136,7 @@ public class AuthController {
                 .body(new OAuthProviderResponse(
                         googleOAuthEnabled,
                         naverOAuthEnabled,
-                        false
+                        kakaoOAuthEnabled
                 ));
     }
 

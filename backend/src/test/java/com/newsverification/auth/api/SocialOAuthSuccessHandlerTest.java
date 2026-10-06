@@ -155,6 +155,48 @@ class SocialOAuthSuccessHandlerTest {
         assertThat(request.getSession(false)).isNull();
     }
 
+    /** Kakao 중첩 응답의 고유 식별자와 검증 이메일 변환 */
+    @Test
+    void mapsKakaoProfileToProviderIdentity() throws Exception {
+        doAnswer(invocation -> {
+            SocialLoginService.ProviderIdentity identity = invocation.getArgument(0);
+            assertThat(identity.provider()).isEqualTo("kakao");
+            assertThat(identity.subject()).isEqualTo("123456789");
+            assertThat(identity.email()).isEqualTo("user@example.com");
+            assertThat(identity.emailVerified()).isTrue();
+            return new SocialLoginService.LoginResolution(true, 42L, "USER", null);
+        }).when(socialLoginService).resolve(any());
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        handler.onAuthenticationSuccess(request, response, kakaoAuthentication(true));
+
+        assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:5173/");
+    }
+
+    /** Kakao 미검증 이메일의 동의 안내 */
+    @Test
+    void redirectsKakaoProfileWithoutVerifiedEmailToConsentGuidance() throws Exception {
+        doAnswer(invocation -> {
+            SocialLoginService.ProviderIdentity identity = invocation.getArgument(0);
+            assertThat(identity.provider()).isEqualTo("kakao");
+            assertThat(identity.subject()).isEqualTo("123456789");
+            assertThat(identity.email()).isEqualTo("user@example.com");
+            assertThat(identity.emailVerified()).isFalse();
+            throw new com.newsverification.auth.application.SocialLoginException(
+                    "SOCIAL_EMAIL_REQUIRED"
+            );
+        }).when(socialLoginService).resolve(any());
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        handler.onAuthenticationSuccess(request, response, kakaoAuthentication(false));
+
+        assertThat(response.getRedirectedUrl())
+                .isEqualTo("http://localhost:5173/login?oauth=email-required");
+        assertThat(request.getSession(false)).isNull();
+    }
+
     /** 예기치 않은 계정 처리 오류의 Provider Session 폐기 */
     @Test
     void clearsProviderSessionWhenAccountResolutionFailsUnexpectedly() throws Exception {
@@ -205,5 +247,21 @@ class SocialOAuthSuccessHandlerTest {
                 "response"
         );
         return new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "naver");
+    }
+
+    private OAuth2AuthenticationToken kakaoAuthentication(boolean verified) {
+        var principal = new DefaultOAuth2User(
+                List.of(new SimpleGrantedAuthority("OAUTH2_USER")),
+                Map.of(
+                        "id", 123456789L,
+                        "kakao_account", Map.of(
+                                "email", "user@example.com",
+                                "is_email_valid", true,
+                                "is_email_verified", verified
+                        )
+                ),
+                "id"
+        );
+        return new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "kakao");
     }
 }

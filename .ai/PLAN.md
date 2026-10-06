@@ -36,7 +36,8 @@
 - Google 실제 Provider 로그인·Callback·내부 Session 전환: PASS (기존 소셜 회원, 실제 Google 계정 선택 → `/oauth/google` → Frontend 홈, 로그인 전용 UI와 Console 오류 0건 확인)
 - Naver OAuth Redirect·Callback·소셜 초대 가입 Mock 연동: PASS
 - Naver 실제 Provider 로그인·Callback·내부 Session 전환: PASS (연락처 이메일 권한 동의 후 Frontend 로그인 상태 화면 진입, Console 오류 0건 확인)
-- Kakao OAuth 연동: NOT RUN
+- Kakao OAuth Redirect·Callback·사용자 정보 변환·소셜 초대 가입 Mock 연동: PASS
+- Kakao 실제 Provider 로그인·Callback·내부 Session 전환: PASS (실제 Kakao 계정 인증 → `/oauth/kakao` → Frontend 홈, 로그인 전용 UI와 Console 오류 0건 확인)
 - 일반 로그인·로그아웃·Redis Session 연결: PASS (5회 실패 30분 잠금, 기본 2시간·로그인 유지 7일, Native MySQL·Docker Redis HTTP 통합 검증)
 - 아이디 찾기·비밀번호 재설정 Backend 연결: PASS (이메일 인증, 아이디 마스킹·전체 아이디 메일, 비밀번호 변경·기존 Redis Session 만료)
 - Browser Runtime과 Console 오류 확인: PASS
@@ -127,11 +128,10 @@
 
 ## Next Loop
 
-1. Kakao OAuth 2.0 Redirect 흐름 구현과 Provider 연동 검증
-2. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
-3. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-4. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-5. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
+2. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+3. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+4. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 
 ## Backend 표준화 상태
 
@@ -146,7 +146,7 @@
 
 ## Required Before Live OAuth
 
-[Kakao 구현과 실제 Provider 검증 전에 Kakao OAuth Client ID와 Client Secret의 Backend 전용 Local 환경 설정 확인이 필요합니다.]
+Kakao OAuth Client ID·Client Secret·Callback·활성화 Local 설정은 값 노출 없이 준비 상태를 확인했고 실제 Provider 로그인·Callback·내부 Session 전환까지 검증했다.
 
 Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Client Secret 등 비밀값을 넣지 않는다.
 
@@ -165,7 +165,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Google Redirect Mock Browser E2E: PASS (2개)
 - Native MySQL 소셜 계정 Repository 통합 검증: NOT RUN (비대화형 실행에서 테스트 계정 비밀번호 입력 대기, 실행 중단)
 - 실제 Google Provider 호출: PASS (기존 소셜 회원 로그인, Callback·내부 Redis Session·Frontend 홈 복귀와 로그인 전용 UI 확인)
-- Naver·Kakao OAuth 구현: NOT APPLICABLE (Google Vertical Slice 당시 범위 제외, 현재 Naver 상태는 아래 절 참조)
+- Naver·Kakao OAuth 구현: NOT APPLICABLE (Google Vertical Slice 당시 범위 제외, 현재 상태는 아래 절 참조)
 
 ## Naver OAuth2 Redirect Vertical Slice
 
@@ -180,6 +180,21 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Harness·Secret·Diff 공백 검사: PASS
 - 실제 Naver Provider 호출: PASS (연락처 이메일 권한 동의, `/oauth/naver` Callback과 내부 Session 전환, Frontend 로그인 상태 화면 진입, Console 오류 0건)
 - Naver 연결 해제 Callback 구현: NOT APPLICABLE (로그인 Callback과 별도 후속 책임)
+
+## Kakao OAuth2 Redirect Vertical Slice
+
+- Kakao 로그인 시작 `/oauth2/authorization/kakao`과 Callback `/oauth/kakao`: PASS (Mock Security 검증)
+- REST API Key·Client Secret의 Backend 전용 환경 설정과 공식 Authorization·Token·UserInfo 경로: PASS
+- Kakao 회원번호 Provider Subject와 검증된 `kakao_account.email` 변환: PASS
+- 이메일 미제공·미검증 안내와 동일 이메일 일반 계정 자동 병합 차단 재사용: PASS
+- 기존 소셜 회원 내부 Session 전환과 신규 사용자의 초대 코드 가입 대기 재사용: PASS
+- Google·Naver OAuth 회귀 테스트: PASS
+- Frontend Kakao 공식 Asset 로그인 링크와 Backend Provider 활성화 상태 연동: PASS
+- Backend Maven 전체 검증: PASS (328개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·105개 Test)
+- OAuth Mock Browser E2E: PASS (3개)
+- Harness·Secret·Diff 공백 검사: PASS
+- 실제 Kakao Provider 호출: PASS (실제 계정 인증, `/oauth/kakao` Callback, Frontend 홈 이동과 로그인 Session UI, Console 오류 0건)
 
 ## Native MySQL Application
 

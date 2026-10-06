@@ -26,7 +26,7 @@ Boot 관리 Dependency의 세부 버전은 실제 effective POM/dependency tree�
 - 영향 범위
 - 롤백 방법
 
-현재 코드는 건강·제목 분석 Queue와 Worker, 건강 분석 저장·목록·만료 정리, 문제 신고·관리자 처리, 건강·제목 분석 결과 공유, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구, Redis Session과 Cookie CSRF, Google·Naver OAuth2 로그인·소셜 초대 가입, 지원 언론사 조회·JPA, DB 언론사·도메인 상태 기반 기사 수집과 URL 검증·본문 추출 범위다. Kakao OAuth는 미구현이다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
+현재 코드는 건강·제목 분석 Queue와 Worker, 건강 분석 저장·목록·만료 정리, 문제 신고·관리자 처리, 건강·제목 분석 결과 공유, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구, Redis Session과 Cookie CSRF, Google·Naver·Kakao OAuth2 로그인·소셜 초대 가입, 지원 언론사 조회·JPA, DB 언론사·도메인 상태 기반 기사 수집과 URL 검증·본문 추출 범위다. Google·Naver·Kakao 실제 Provider 로그인·Callback·내부 Session 전환 Smoke를 통과했다. `@EnableAsync`만으로 Executor·작업 복구·분산 실행이 구현됐다고 판단하지 않는다.
 
 ## 읽기와 계약 관리
 

@@ -46,7 +46,7 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         loginService = mock(LoginService.class);
-        mockMvc = mockMvcFor(new AuthController(loginService, false, false));
+        mockMvc = mockMvcFor(new AuthController(loginService, false, false, false));
     }
 
     private MockMvc mockMvcFor(AuthController controller) {
@@ -188,14 +188,14 @@ class AuthControllerTest {
     /** 활성 OAuth Provider 공개 상태 */
     @Test
     void returnsEnabledOAuthProviderState() throws Exception {
-        MockMvc enabledMockMvc = mockMvcFor(new AuthController(loginService, true, true));
+        MockMvc enabledMockMvc = mockMvcFor(new AuthController(loginService, true, true, true));
 
         enabledMockMvc.perform(get("/api/auth/providers"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.google").value(true))
                 .andExpect(jsonPath("$.naver").value(true))
-                .andExpect(jsonPath("$.kakao").value(false));
+                .andExpect(jsonPath("$.kakao").value(true));
     }
 
     private LoginService.AuthenticatedAccount account() {

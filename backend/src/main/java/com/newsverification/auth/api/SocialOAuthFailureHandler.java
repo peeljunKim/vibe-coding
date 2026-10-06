@@ -62,6 +62,9 @@ public class SocialOAuthFailureHandler implements AuthenticationFailureHandler {
         if (requestUri.endsWith("/google")) {
             return "google";
         }
+        if (requestUri.endsWith("/kakao")) {
+            return "kakao";
+        }
         return "unknown";
     }
 }
