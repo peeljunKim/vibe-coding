@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/recovery/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/session").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/providers").permitAll()
                         .requestMatchers(HttpMethod.GET, "/oauth2/authorization/google").permitAll()
                         .requestMatchers(HttpMethod.GET, "/oauth2/authorization/naver").permitAll()
                         .requestMatchers(HttpMethod.GET, "/oauth/google").permitAll()

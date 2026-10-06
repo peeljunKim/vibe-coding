@@ -1,7 +1,12 @@
 // 사용자 로그인 화면
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { login, type LoginResponse } from '../api/auth'
+import {
+  getOAuthProviders,
+  login,
+  type LoginResponse,
+  type OAuthProviderAvailability,
+} from '../api/auth'
 import AppHeader from '../components/AppHeader'
 import googleLoginImage from '../assets/oauth/google-login.png'
 import kakaoLoginImage from '../assets/oauth/kakao-login.png'
@@ -13,24 +18,30 @@ const backendBaseUrl = (
 
 const oauthProviders = [
   {
+    key: 'google',
     name: 'Google',
     path: '/oauth2/authorization/google',
     image: googleLoginImage,
-    enabled: true,
   },
   {
+    key: 'naver',
     name: 'Naver',
     path: '/oauth2/authorization/naver',
     image: naverLoginImage,
-    enabled: true,
   },
   {
+    key: 'kakao',
     name: 'Kakao',
     path: '/oauth2/authorization/kakao',
     image: kakaoLoginImage,
-    enabled: false,
   },
-]
+] as const
+
+const disabledOAuthProviders: OAuthProviderAvailability = {
+  google: false,
+  naver: false,
+  kakao: false,
+}
 
 const OAUTH_MESSAGES: Record<string, string> = {
   cancelled: '로그인이 취소되었습니다. 다시 시도할 수 있습니다.',
@@ -61,7 +72,24 @@ function LoginPage({
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
   const [recoveryDeadline, setRecoveryDeadline] = useState<string | null>(null)
+  const [enabledOAuthProviders, setEnabledOAuthProviders] = useState(
+    disabledOAuthProviders,
+  )
   const oauthMessage = OAUTH_MESSAGES[searchParams.get('oauth') ?? '']
+
+  useEffect(() => {
+    let active = true
+    void getOAuthProviders()
+      .then((providers) => {
+        if (active) setEnabledOAuthProviders(providers)
+      })
+      .catch(() => {
+        if (active) setEnabledOAuthProviders(disabledOAuthProviders)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const submitLogin = async (cancelWithdrawal = false) => {
     setSubmitting(true)
@@ -199,11 +227,12 @@ function LoginPage({
 
           <div className="oauth-links" aria-label="소셜 로그인">
             {oauthProviders.map((provider) => {
+              const enabled = enabledOAuthProviders[provider.key]
               const label =
                 provider.name === 'Google'
                   ? 'Google 계정으로 로그인'
                   : `${provider.name === 'Kakao' ? '카카오' : '네이버'} 로그인`
-              return provider.enabled ? (
+              return enabled ? (
                 <a
                   key={provider.name}
                   className={`oauth-link oauth-link--${provider.name.toLowerCase()}`}

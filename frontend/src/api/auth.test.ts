@@ -1,6 +1,6 @@
 // 일반 로그인과 Session API 검증
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getSession, login, logout } from './auth'
+import { getOAuthProviders, getSession, login, logout } from './auth'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -8,6 +8,23 @@ afterEach(() => {
 })
 
 describe('auth API', () => {
+  it('Backend OAuth Provider 활성화 상태를 조회한다', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ google: true, naver: false, kakao: false }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(getOAuthProviders()).resolves.toEqual({
+      google: true,
+      naver: false,
+      kakao: false,
+    })
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/providers', {
+      cache: 'no-store',
+    })
+  })
+
   it('CSRF Token으로 로그인하고 인증 후 Token을 갱신한다', async () => {
     document.cookie = 'XSRF-TOKEN=test-login-csrf; path=/'
     const fetchMock = vi

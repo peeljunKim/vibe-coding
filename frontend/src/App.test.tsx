@@ -9,7 +9,7 @@ import {
 } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getSession, login, logout } from './api/auth'
+import { getOAuthProviders, getSession, login, logout } from './api/auth'
 import {
   deleteAllHealthRecords,
   deleteHealthRecord,
@@ -47,6 +47,7 @@ import type {
 } from './types/pageData'
 
 vi.mock('./api/auth', () => ({
+  getOAuthProviders: vi.fn(),
   getSession: vi.fn(),
   login: vi.fn(),
   logout: vi.fn(),
@@ -94,6 +95,7 @@ vi.mock('./api/shares', () => ({
 }))
 
 beforeEach(() => {
+  vi.mocked(getOAuthProviders).mockReset()
   vi.mocked(getSession).mockReset()
   vi.mocked(login).mockReset()
   vi.mocked(logout).mockReset()
@@ -118,6 +120,11 @@ beforeEach(() => {
   vi.mocked(revokeHealthShare).mockReset()
   vi.mocked(revokeHeadlineShare).mockReset()
   vi.mocked(getSession).mockResolvedValue({ authenticated: false })
+  vi.mocked(getOAuthProviders).mockResolvedValue({
+    google: true,
+    naver: true,
+    kakao: false,
+  })
   vi.mocked(logout).mockResolvedValue(undefined)
   vi.mocked(getDailyUsage).mockResolvedValue({
     timezone: 'Asia/Seoul',
@@ -886,11 +893,11 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('Google·Naver OAuth 로그인 링크와 준비 중 Provider 상태를 표시한다', () => {
+  it('Google·Naver OAuth 로그인 링크와 준비 중 Provider 상태를 표시한다', async () => {
     renderApp('/login')
 
     expect(
-      screen.getByRole('link', { name: 'Google 계정으로 로그인' }),
+      await screen.findByRole('link', { name: 'Google 계정으로 로그인' }),
     ).toHaveAttribute(
       'href',
       expect.stringContaining('/oauth2/authorization/google'),
@@ -905,6 +912,22 @@ describe('App', () => {
       'href',
       expect.stringContaining('/oauth2/authorization/naver'),
     )
+  })
+
+  it('Backend에서 비활성화된 Naver 로그인 링크를 비활성 상태로 표시한다', async () => {
+    vi.mocked(getOAuthProviders).mockResolvedValue({
+      google: true,
+      naver: false,
+      kakao: false,
+    })
+    renderApp('/login')
+
+    expect(
+      await screen.findByLabelText('네이버 로그인 준비 중'),
+    ).toHaveAttribute('aria-disabled', 'true')
+    expect(
+      screen.queryByRole('link', { name: '네이버 로그인' }),
+    ).not.toBeInTheDocument()
   })
 
   it('OAuth 사용자 취소를 일반 로그인 화면에서 안내한다', () => {

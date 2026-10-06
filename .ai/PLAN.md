@@ -174,9 +174,9 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 기존 소셜 회원 내부 Session 전환과 신규 사용자의 초대 코드 가입 대기: PASS
 - 이메일 미제공 안내와 동일 이메일 일반 계정 자동 병합 차단: PASS
 - Google OAuth 회귀 테스트: PASS
-- Frontend Naver 공식 Asset 로그인 링크 활성화: PASS
-- Backend Maven 전체 검증: PASS (323개, 실패·오류·Skip 0)
-- Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·102개 Test)
+- Frontend Naver 공식 Asset 로그인 링크와 Backend Provider 활성화 상태 연동: PASS
+- Backend Maven 전체 검증: PASS (325개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·104개 Test)
 - Harness·Secret·Diff 공백 검사: PASS
 - 실제 Naver Provider 호출: PASS (연락처 이메일 권한 동의, `/oauth/naver` Callback과 내부 Session 전환, Frontend 로그인 상태 화면 진입, Console 오류 0건)
 - Naver 연결 해제 Callback 구현: NOT APPLICABLE (로그인 Callback과 별도 후속 책임)
