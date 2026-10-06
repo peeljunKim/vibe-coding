@@ -22,7 +22,7 @@ const oauthProviders = [
     name: 'Naver',
     path: '/oauth2/authorization/naver',
     image: naverLoginImage,
-    enabled: false,
+    enabled: true,
   },
   {
     name: 'Kakao',
@@ -36,7 +36,7 @@ const OAUTH_MESSAGES: Record<string, string> = {
   cancelled: '로그인이 취소되었습니다. 다시 시도할 수 있습니다.',
   failed: '로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
   'email-required':
-    'Google 계정에서 이메일 제공에 동의한 뒤 다시 시도해 주세요.',
+    '소셜 계정에서 이메일 제공에 동의한 뒤 다시 시도해 주세요.',
   'existing-account':
     '이미 가입된 이메일입니다. 기존 로그인 방식으로 로그인해 주세요.',
 }

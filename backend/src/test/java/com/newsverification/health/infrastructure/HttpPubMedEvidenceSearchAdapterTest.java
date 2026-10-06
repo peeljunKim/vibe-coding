@@ -77,6 +77,29 @@ class HttpPubMedEvidenceSearchAdapterTest {
                 );
     }
 
+    /** 외부 DTD의 명명 Entity를 안전한 문자로 변환 */
+    @Test
+    void readsNamedEntitiesWithoutLoadingExternalDtd() {
+        var responses = new ArrayDeque<PubMedHttpClient.Response>();
+        responses.add(response(200, searchJson("34567890")));
+        responses.add(response(200, fetchXml().replace(
+                "Influenza randomized trial",
+                "Influenza &alpha; randomized trial"
+        )));
+        HttpPubMedEvidenceSearchAdapter adapter = adapter(
+                (uri, timeout, maxResponseBytes) -> responses.removeFirst(),
+                ""
+        );
+
+        PubMedEvidenceSearchPort.SearchResponse result = adapter.search(
+                request(NOW.plusSeconds(30))
+        );
+
+        assertThat(result.status()).isEqualTo(PubMedEvidenceSearchPort.SearchStatus.COMPLETED);
+        assertThat(result.evidences()).extracting(PubMedEvidenceSearchPort.Evidence::title)
+                .contains("Influenza alpha randomized trial");
+    }
+
     /** 검색 결과 없음의 정상 상태 분리 */
     @Test
     void reportsNoResultsWithoutFetchingDetails() {

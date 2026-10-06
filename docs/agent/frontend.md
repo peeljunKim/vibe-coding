@@ -47,7 +47,7 @@ Figma에 없는 상태나 동작이 실제 기능에 필요하면 사용자에�
 
 ## OAuth Redirect
 
-아래 로그인 시작·Callback·완료 경로는 확정된 구현 목표이며 현재 동작을 의미하지 않는다. 현재 Backend는 HTTP Basic 기본 구성으로, OAuth Redirect 구현과 Provider 연동 검증은 `NOT RUN`이다.
+아래 Google·Naver 로그인 시작·Callback·완료 경로는 구현된 현재 동작이다. Google OAuth2 Redirect는 Mock 검증과 실제 Provider의 기존 소셜 회원 로그인 Smoke를 통과했고 Naver는 Mock 검증을 통과했다. 신규 Google 소셜 가입과 Naver 실제 Provider 완료, Kakao 구현·연동 검증은 `NOT RUN`이다.
 
 Google Identity Services JavaScript Callback 방식과 혼합하지 않고 Spring Security OAuth2 Redirect 방식을 사용한다.
 

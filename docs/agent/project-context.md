@@ -16,11 +16,11 @@
 | Dependency Management | `frontend/package-lock.json`, `backend/pom.xml` |
 | Configuration | Root·Frontend `.env.example`, Spring `application.yml`/`application-prod.yml`, Docker Compose |
 | Architecture | React Page·API Adapter와 Spring Boot Domain별 API·Application·Infrastructure 계층 |
-| Domain Structure | 건강 뉴스·제목 확인, 기능별 당일 이용량 공개 조회, 일반 회원가입·이메일 인증·로그인·계정 복구·회원 탈퇴 수명주기, Google 소셜 로그인·초대 가입, 건강 분석 저장·목록·만료 정리, 문제 신고·관리자 처리와 건강·제목 결과 공유 구현 |
-| Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 초기 SQL과 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 지원 언론사·일반 회원·건강 분석 저장 기록 Entity와 Repository 존재 |
+| Domain Structure | 건강 뉴스·제목 확인, 기능별 당일 이용량 공개 조회, 일반 회원가입·이메일 인증·로그인·계정 복구·회원 탈퇴 수명주기, Google·Naver 소셜 로그인·초대 가입, 건강 분석 저장·목록·만료 정리, 문제 신고·관리자 처리와 건강·제목 결과 공유 구현 |
+| Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 V0001 기준선과 향후 V0004부터의 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 개발·테스트 DB의 표준 `INT UNSIGNED` 컬럼과 건강 저장 중복 방지 UNIQUE Metadata 정렬 PASS |
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session 구현; 건강·제목 기능별 3일 공용 Cache, 기사 변경 Fingerprint, 사용자별 최초 열람 차감과 사용자 동의 재분석, 건강 근거 링크 Mock·운영 HTTP 재검증과 무차감 자동 재분석, 기능별 1분 5회 분석 접수 제한과 차감 없는 당일 이용량 조회 구현 |
-| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock, Profile 분리된 건강 근거 링크 HTTP Adapter, 건강 분석 전용 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter 존재; 제한된 실제 PubMed 외부 Smoke는 PASS, Google OAuth2 Redirect Adapter는 구현·Mock 검증 완료, 실제 Google Provider와 Kakao/Naver OAuth는 미검증 |
-| Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구·탈퇴 복구 확인과 Redis Session 구현; Google Provider·Subject 기반 로그인과 초대 코드 소셜 가입 구현 |
+| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock, Profile 분리된 건강 근거 링크 HTTP Adapter, 건강 분석 전용 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter 존재; 제한된 실제 PubMed 외부 Smoke와 Google Provider 기존 소셜 회원 로그인 Smoke는 PASS, Naver OAuth는 Mock 검증 완료·실제 Provider 미검증, Kakao OAuth는 미구현·미검증 |
+| Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구·탈퇴 복구 확인과 Redis Session 구현; Google·Naver Provider Subject 기반 로그인과 초대 코드 소셜 가입 구현 |
 | Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
 | Monitoring | Actuator, Prometheus scrape, Grafana provisioning과 Dashboard |
@@ -35,7 +35,7 @@
 
 - README와 CI는 Maven Wrapper 실행 파일을 사용하지만 현재 `mvnw`와 `mvnw.cmd`는 없고 Wrapper JAR와 속성만 있음
 - Frontend Playwright 설정과 E2E 시나리오는 존재하며 외부 Provider 실제 연동은 별도 Smoke 검증이 필요함
-- Google OAuth2 로그인 시작·Callback·내부 Session 전환과 소셜 초대 가입은 구현됐지만 실제 Google Provider Smoke와 Naver·Kakao 구현은 아직 없음
+- Google·Naver OAuth2 로그인 시작·Callback·내부 Session 전환과 소셜 초대 가입을 구현했고 실제 Google Provider의 기존 소셜 회원 로그인 Smoke는 PASS; Google 신규 소셜 가입과 Naver 실제 Provider 완료, Kakao 구현은 아직 없음
 - Local Schema 작업은 Windows Service 전용 MySQL 8.0.30 Client를 사용하며 Scoop 기본 Client 9.7.1은 사용하지 않음
 
 ## 확정된 Prototype 결정
@@ -86,7 +86,7 @@
 - Naver 서비스 URL과 Google 서비스 URL은 `http://localhost:8080`
 - Naver 로그인·연결 끊기 Callback은 각각 `/oauth/naver`, `/oauth/naver/disconnect`
 - Kakao와 Google 로그인 Callback은 각각 `/oauth/kakao`, `/oauth/google`
-- Google Spring Security OAuth 처리 경로 `/oauth/google`과 Callback 일치는 Mock Security 검증 `PASS`; 실제 Google Provider와 Naver·Kakao Callback 검증은 `NOT RUN`
+- Google Spring Security OAuth 처리 경로 `/oauth/google`과 Callback 일치는 Mock Security 및 실제 Google Provider 기존 회원 로그인 검증 `PASS`; Naver `/oauth/naver`는 Mock Security 검증 `PASS`; 신규 Google 가입·Naver 실제 Provider·Kakao Callback 검증은 `NOT RUN`
 
 ## Inferred
 
@@ -127,11 +127,11 @@
 | 인증·관리자 권한 누락 | Security와 `ADMIN` 서버 검사 요구 | Frontend 숨김과 무관한 서버 인가 테스트 필수 |
 | Redis 장애 시 비용 제한 우회 | Cache·세션·이용량·Lock 책임 집중 | 이용량 또는 Lock 확인 불가 시 새 AI 분석 중단 |
 | 반복 Cache 검증의 기사 수집 비용 | 무료 Cache 재조회도 안전한 기사 수집을 선행 | 기사 수집·Queue 전 기능별 Redis 요청 제한, Polling·시스템 자동 재분석 제외 |
-| Schema drift | `ddl-auto: validate`, Local 초기 SQL과 이후 GitHub Version SQL 방식, DB 이력 Table 미사용 | Entity와 V0002 이후 호환 SQL을 함께 추가하고 Commit·PR에 적용 결과 기록 |
+| Schema drift | `ddl-auto: validate`, Local 초기 SQL과 이후 GitHub Version SQL 방식, DB 이력 Table 미사용 | Entity와 폐기 번호를 제외한 V0004 이후 호환 SQL을 함께 추가하고 Commit·PR에 적용 결과 기록 |
 | 무료 AI 데이터 처리 | Gemini 무료 등급을 Prototype에 사용 | 공개 기사·허용 근거만 전송하고 개인정보·기밀정보 차단 |
 | 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |
 | Blue/Green Schema 충돌 | 두 Application Version이 동일 DB 사용 | Traffic 전환 전 양쪽 Version 호환 Migration 검증 |
-| 선언된 검증과 실행 차이 | Wrapper launcher 부재, 외부 Provider Smoke 미실행 | 실행 가능성 먼저 확인하고 `NOT RUN`과 도구 실패를 구분 |
+| 선언된 검증과 실행 차이 | Wrapper launcher 부재, Google 신규 소셜 가입·Naver Provider Smoke·Kakao 구현 미실행 | 실행 가능성 먼저 확인하고 `NOT RUN`과 도구 실패를 구분 |
 | Harness 비추적 | Local Markdown 제외 요청과 CI의 Harness 문서 의존 | `AGENTS.md`, `.ai`, `docs/agent`, 연결된 Architecture 문서를 명시적으로 Git 추적 |
 
 ## Harness Architecture

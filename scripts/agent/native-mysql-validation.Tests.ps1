@@ -67,17 +67,23 @@ $schemaTestRoot = Join-Path ([IO.Path]::GetTempPath()) "native-mysql-schema-test
 try {
     New-Item -ItemType Directory -Path $schemaTestRoot | Out-Null
     $initialSchemaPath = Join-Path $schemaTestRoot 'V0001__create_initial_domain_schema.sql'
-    $followupSchemaPath = Join-Path $schemaTestRoot 'V0003__next_change.sql'
+    $followupSchemaPath = Join-Path $schemaTestRoot 'V0004__next_change.sql'
     Set-Content -LiteralPath $initialSchemaPath -Value '-- initial'
     Set-Content -LiteralPath $followupSchemaPath -Value '-- followup'
 
     $schemaFiles = @(Get-NativeMySqlSchemaFiles -SchemaDirectory $schemaTestRoot -InitialSchemaPath $initialSchemaPath)
-    if (($schemaFiles.Name -join ',') -ne 'V0001__create_initial_domain_schema.sql,V0003__next_change.sql') {
+    if (($schemaFiles.Name -join ',') -ne 'V0001__create_initial_domain_schema.sql,V0004__next_change.sql') {
         $failures.Add("schema files were not returned in initial-then-version order: $($schemaFiles.Name -join ',')")
     }
 
     Set-Content -LiteralPath (Join-Path $schemaTestRoot 'V0002__retired.sql') -Value '-- retired'
     Assert-Throws -Name 'retired V0002 is rejected' -Action {
+        Get-NativeMySqlSchemaFiles -SchemaDirectory $schemaTestRoot -InitialSchemaPath $initialSchemaPath
+    }
+
+    Remove-Item -LiteralPath (Join-Path $schemaTestRoot 'V0002__retired.sql') -Force
+    Set-Content -LiteralPath (Join-Path $schemaTestRoot 'V0003__retired.sql') -Value '-- retired'
+    Assert-Throws -Name 'retired V0003 is rejected' -Action {
         Get-NativeMySqlSchemaFiles -SchemaDirectory $schemaTestRoot -InitialSchemaPath $initialSchemaPath
     }
 }
@@ -150,6 +156,60 @@ Assert-Throws -Name 'publisher category check with an extra value is rejected' -
     Assert-PublisherCategoryMetadata `
         -ColumnMetadata "varchar`tvarchar(30)`tNO`t30`tNULL`t3" `
         -ConstraintMetadata "ck_news_publishers_category`tYES`t(category in ('NEWS_AGENCY','BROADCAST_NEWS','GENERAL_NEWSPAPER','BUSINESS_NEWSPAPER','HEALTH_MEDICAL','OTHER'))"
+}
+
+$standardIntegerDefinition = @"
+CREATE TABLE users (
+    failed_login_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '연속 로그인 실패 횟수',
+) ENGINE=InnoDB;
+CREATE TABLE health_analysis_records (
+    total_claim_count INT UNSIGNED NOT NULL COMMENT '추출한 핵심 주장 수',
+    supported_claim_count INT UNSIGNED NOT NULL COMMENT '근거 있음 주장 수',
+    UNIQUE KEY uk_health_records_user_url_analyzed (user_id, normalized_url_digest, analyzed_at),
+) ENGINE=InnoDB;
+CREATE TABLE health_claims (
+    claim_order INT UNSIGNED NOT NULL COMMENT '중요도 순서',
+) ENGINE=InnoDB;
+CREATE TABLE health_claim_evidences (
+    evidence_order INT UNSIGNED NOT NULL COMMENT '표시 순서',
+) ENGINE=InnoDB;
+CREATE TABLE headline_share_issues (
+    issue_order INT UNSIGNED NOT NULL COMMENT '표시 순서',
+) ENGINE=InnoDB;
+"@
+Assert-StandardIntegerSchemaDefinition -SchemaSql $standardIntegerDefinition
+Assert-HealthRecordUniqueIndexSchemaDefinition -SchemaSql $standardIntegerDefinition
+Assert-StandardIntegerColumnMetadata -ColumnMetadata (@(
+        "headline_share_issues`tissue_order`tint unsigned`tNO"
+        "health_analysis_records`tsupported_claim_count`tint unsigned`tNO"
+        "health_analysis_records`ttotal_claim_count`tint unsigned`tNO"
+        "health_claim_evidences`tevidence_order`tint unsigned`tNO"
+        "health_claims`tclaim_order`tint unsigned`tNO"
+        "users`tfailed_login_count`tint unsigned`tNO"
+    ) -join "`n")
+Assert-StandardIntegerColumnMetadata -ColumnMetadata (@(
+        "headline_share_issues`tissue_order`tint unsigned`tNO"
+        "health_analysis_records`tsupported_claim_count`tint unsigned`tNO"
+        "health_analysis_records`ttotal_claim_count`tint unsigned`tNO"
+        "health_claim_evidences`tevidence_order`tint unsigned`tNO"
+        "health_claims`tclaim_order`tint unsigned`tNO"
+        "users`tfailed_login_count`tint unsigned`tNO"
+    ) -join "`r`n")
+Assert-Throws -Name 'legacy tinyint schema definition is rejected' -Action {
+    Assert-StandardIntegerSchemaDefinition -SchemaSql ($standardIntegerDefinition -replace 'issue_order INT UNSIGNED', 'issue_order TINYINT UNSIGNED')
+}
+Assert-Throws -Name 'legacy smallint metadata is rejected' -Action {
+    Assert-StandardIntegerColumnMetadata -ColumnMetadata (@(
+            "headline_share_issues`tissue_order`tint unsigned`tNO"
+            "health_analysis_records`tsupported_claim_count`tint unsigned`tNO"
+            "health_analysis_records`ttotal_claim_count`tint unsigned`tNO"
+            "health_claim_evidences`tevidence_order`tsmallint unsigned`tNO"
+            "health_claims`tclaim_order`tint unsigned`tNO"
+            "users`tfailed_login_count`tint unsigned`tNO"
+        ) -join "`n")
+}
+Assert-Throws -Name 'missing duplicate prevention index definition is rejected' -Action {
+    Assert-HealthRecordUniqueIndexSchemaDefinition -SchemaSql ($standardIntegerDefinition -replace '(?m)^\s*UNIQUE KEY uk_health_records_user_url_analyzed.+\r?\n', '')
 }
 
 Assert-HealthRecordUniqueIndexMetadata `

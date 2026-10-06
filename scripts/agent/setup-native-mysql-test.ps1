@@ -149,7 +149,10 @@ ORDER BY TABLE_NAME;
 
     $schemaFiles = @(Get-NativeMySqlSchemaFiles -SchemaDirectory $schemaDirectory -InitialSchemaPath $initialSchemaPath)
     $schemaSql = @($schemaFiles | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })
-    Assert-PublisherCategorySchemaDefinition -SchemaSql ($schemaSql -join "`n")
+    $schemaDefinitionSql = $schemaSql -join "`n"
+    Assert-PublisherCategorySchemaDefinition -SchemaSql $schemaDefinitionSql
+    Assert-StandardIntegerSchemaDefinition -SchemaSql $schemaDefinitionSql
+    Assert-HealthRecordUniqueIndexSchemaDefinition -SchemaSql $schemaDefinitionSql
     $expectedTables = @(
         [regex]::Matches(($schemaSql -join "`n"), '(?im)^\s*CREATE\s+TABLE\s+`?([a-z0-9_]+)`?\s*\(') |
             ForEach-Object { $_.Groups[1].Value } |
@@ -198,12 +201,21 @@ WHERE tc.CONSTRAINT_SCHEMA = DATABASE()
         -ConstraintMetadata $publisherCategoryConstraint
     Write-Host '[PASS] Test publisher category schema metadata'
 
-    $duplicatePreventionSchema = @($schemaFiles | Where-Object {
-            $_.Name -ceq 'V0003__prevent_duplicate_health_records.sql'
-        })
-    if ($duplicatePreventionSchema.Count -ne 1) {
-        throw 'Expected health record duplicate prevention schema file is missing'
-    }
+    $standardIntegerColumns = (Invoke-MySql -Password $rootPassword -User 'root' -Database $testDatabase -Sql @"
+SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND (
+       (TABLE_NAME = 'users' AND COLUMN_NAME = 'failed_login_count')
+    OR (TABLE_NAME = 'health_analysis_records' AND COLUMN_NAME IN ('total_claim_count', 'supported_claim_count'))
+    OR (TABLE_NAME = 'health_claims' AND COLUMN_NAME = 'claim_order')
+    OR (TABLE_NAME = 'health_claim_evidences' AND COLUMN_NAME = 'evidence_order')
+    OR (TABLE_NAME = 'headline_share_issues' AND COLUMN_NAME = 'issue_order')
+  )
+ORDER BY TABLE_NAME, COLUMN_NAME;
+"@).Output
+    Assert-StandardIntegerColumnMetadata -ColumnMetadata $standardIntegerColumns
+    Write-Host '[PASS] Test count and order column metadata'
 
     $healthRecordUniqueIndexSql = @"
 SELECT NON_UNIQUE,
@@ -219,20 +231,6 @@ GROUP BY INDEX_NAME, NON_UNIQUE;
             -User 'root' `
             -Database $testDatabase `
             -Sql $healthRecordUniqueIndexSql).Output
-    if (-not $healthRecordUniqueIndex) {
-        $duplicatePreventionSql = Get-Content -LiteralPath $duplicatePreventionSchema[0].FullName -Raw
-        [void](Invoke-MySql `
-                -Password $rootPassword `
-                -User 'root' `
-                -Database $testDatabase `
-                -Sql $duplicatePreventionSql)
-        Write-Host '[PASS] Test database V0003 schema applied'
-        $healthRecordUniqueIndex = (Invoke-MySql `
-                -Password $rootPassword `
-                -User 'root' `
-                -Database $testDatabase `
-                -Sql $healthRecordUniqueIndexSql).Output
-    }
     Assert-HealthRecordUniqueIndexMetadata -IndexMetadata $healthRecordUniqueIndex
     Write-Host '[PASS] Test health record duplicate prevention index metadata'
 

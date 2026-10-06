@@ -1,4 +1,4 @@
-/* Google OAuth 실패 분기 검증 */
+/* 소셜 OAuth 실패 분기 검증 */
 package com.newsverification.auth.api;
 
 import org.junit.jupiter.api.Test;
@@ -10,10 +10,10 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** 사용자 취소와 일반 인증 실패 분리 */
-class GoogleOAuthFailureHandlerTest {
+class SocialOAuthFailureHandlerTest {
 
-    private final GoogleOAuthFailureHandler handler =
-            new GoogleOAuthFailureHandler("http://localhost:5173");
+    private final SocialOAuthFailureHandler handler =
+            new SocialOAuthFailureHandler("http://localhost:5173");
 
     @Test
     void redirectsUserCancellationSeparately() throws Exception {

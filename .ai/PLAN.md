@@ -33,7 +33,9 @@
 - Figma Design Context 재조회: NOT RUN (Figma Starter MCP 호출 한도)
 - Provider 공식 OAuth 버튼 Asset과 Backend 로그인 시작 URL: PASS
 - Google OAuth Callback과 Mock Redirect·소셜 초대 가입: PASS
-- Google 실제 Provider와 Naver·Kakao OAuth 연동: NOT RUN
+- Google 실제 Provider 로그인·Callback·내부 Session 전환: PASS (기존 소셜 회원, 실제 Google 계정 선택 → `/oauth/google` → Frontend 홈, 로그인 전용 UI와 Console 오류 0건 확인)
+- Naver OAuth Redirect·Callback·소셜 초대 가입 Mock 연동: PASS
+- Naver 실제 Provider와 Kakao OAuth 연동: NOT RUN
 - 일반 로그인·로그아웃·Redis Session 연결: PASS (5회 실패 30분 잠금, 기본 2시간·로그인 유지 7일, Native MySQL·Docker Redis HTTP 통합 검증)
 - 아이디 찾기·비밀번호 재설정 Backend 연결: PASS (이메일 인증, 아이디 마스킹·전체 아이디 메일, 비밀번호 변경·기존 Redis Session 만료)
 - Browser Runtime과 Console 오류 확인: PASS
@@ -124,8 +126,8 @@
 
 ## Next Loop
 
-1. Google OAuth 실제 Provider 제한 Smoke Test
-2. Naver·Kakao OAuth 2.0 Redirect 흐름 구현과 Provider 연동 검증
+1. Naver OAuth 실제 Provider 제한 Smoke Test
+2. Kakao OAuth 2.0 Redirect 흐름 구현과 Provider 연동 검증
 3. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
 4. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 5. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
@@ -144,9 +146,9 @@
 
 ## Required Before Live OAuth
 
-[Google 실제 Provider 연동 검증 전에 Backend 전용 Local 환경 설정과 `APP_OAUTH_GOOGLE_ENABLED=true`, 외부 호출 승인이 필요합니다.]
+[Naver 실제 Provider 검증 전에 Backend 전용 Local 환경의 `APP_OAUTH_NAVER_ENABLED=true` 설정과 외부 호출 승인이 필요합니다.]
 
-[Naver·Kakao 구현과 실제 Provider 검증 전에 각 OAuth Client ID와 Client Secret의 Backend 전용 Local 환경 설정 입력이 필요합니다.]
+[Kakao 구현과 실제 Provider 검증 전에 Kakao OAuth Client ID와 Client Secret의 Backend 전용 Local 환경 설정 확인이 필요합니다.]
 
 Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Client Secret 등 비밀값을 넣지 않는다.
 
@@ -159,13 +161,27 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - `POST /api/signup/social` 초대 코드·약관 동의 가입: PASS
 - 소셜 가입의 사용자 아이디·비밀번호·휴대전화 입력 제외: PASS
 - OAuth 취소·실패·이메일 미제공의 안전한 Frontend 안내: PASS
-- Naver·Kakao 버튼 비활성 `준비 중` 처리: PASS
+- Kakao 버튼 비활성 `준비 중` 처리: PASS (Naver는 후속 Vertical Slice에서 활성화)
 - Backend Maven 전체 검증: PASS (313개, 실패·오류·Skip 0)
 - Frontend Test·Lint·TypeScript·Build: PASS (22개 Test File·101개 Test)
 - Google Redirect Mock Browser E2E: PASS (2개)
 - Native MySQL 소셜 계정 Repository 통합 검증: NOT RUN (비대화형 실행에서 테스트 계정 비밀번호 입력 대기, 실행 중단)
-- 실제 Google Provider 호출: NOT RUN
-- Naver·Kakao OAuth 구현: NOT APPLICABLE (이번 Vertical Slice 범위 제외)
+- 실제 Google Provider 호출: PASS (기존 소셜 회원 로그인, Callback·내부 Redis Session·Frontend 홈 복귀와 로그인 전용 UI 확인)
+- Naver·Kakao OAuth 구현: NOT APPLICABLE (Google Vertical Slice 당시 범위 제외, 현재 Naver 상태는 아래 절 참조)
+
+## Naver OAuth2 Redirect Vertical Slice
+
+- Naver 로그인 시작 `/oauth2/authorization/naver`과 Callback `/oauth/naver`: PASS (Mock Security 검증)
+- Naver 중첩 사용자 정보의 Provider Subject·이메일 변환: PASS
+- 기존 소셜 회원 내부 Session 전환과 신규 사용자의 초대 코드 가입 대기: PASS
+- 이메일 미제공 안내와 동일 이메일 일반 계정 자동 병합 차단: PASS
+- Google OAuth 회귀 테스트: PASS
+- Frontend Naver 공식 Asset 로그인 링크 활성화: PASS
+- Backend Maven 전체 검증: PASS (323개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·102개 Test)
+- Harness·Secret·Diff 공백 검사: PASS
+- 실제 Naver Provider 호출: NOT RUN
+- Naver 연결 해제 Callback 구현: NOT APPLICABLE (로그인 Callback과 별도 후속 책임)
 
 ## Native MySQL Application
 
@@ -288,7 +304,8 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Chrome 건강 분석 저장·목록 Browser E2E: PASS (6개, Console·Runtime 오류 0건)
 - Backend 전체 Test·Package: PASS (163개, 실패·오류·Skip 0)
 - Native MySQL Schema·Harness 정적 검증: PASS
-- Native MySQL 동시 저장 통합 테스트 실제 실행: PASS (V0003 UNIQUE 적용, 동시 요청 2개가 동일 저장 기록 반환)
+- Native MySQL 동시 저장 통합 테스트 실제 실행: PASS (현재 V0001에 통합된 UNIQUE 적용, 동시 요청 2개가 동일 저장 기록 반환; 원래 V0003은 Git 이력에 보존)
+- 기존 개발·테스트 Database의 V0001 기준선 정렬: PASS (`align-native-mysql-baseline.ps1` 사용자 실행; 6개 횟수·순서 컬럼 `INT UNSIGNED`, 건강 저장 중복 방지 UNIQUE Metadata 검증)
 - CodeRabbit Docstring Coverage 경고: NOT APPLICABLE (필요한 주석만 작성하는 Repository 규칙 우선)
 
 ## 만료 건강 분석 저장 기록 자동 삭제
@@ -614,4 +631,14 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 
 - 건강 분석 취소 회귀 테스트가 Polling 호출뿐 아니라 분석 화면 전환 완료도 대기하도록 보완: PASS
 - Frontend Lint·Test·TypeScript·Build: PASS (20개 Test File·96개 Test)
+
+## PR 41·42 Code Review 보완
+
+- `pubmed-http` Profile 단독 활성화 시 고정 PubMed Host 근거 링크 확인기 구성: PASS
+- EFetch 명명 Entity의 외부 DTD 없는 안전 변환과 본문 수신 Timeout·크기 제한: PASS
+- OAuth 내부 처리 오류의 Provider Session·SecurityContext·CSRF 폐기: PASS
+- 로그인 전 이용량 지연 회귀 테스트의 실제 요청 시작 순서 보장: PASS
+- Backend Maven 전체 검증: PASS (318개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·101개 Test)
+- Harness·Secret·Diff 공백 검사: PASS
 - GitHub Actions 재실행: NOT RUN (수정 Commit Push 후 확인 필요)

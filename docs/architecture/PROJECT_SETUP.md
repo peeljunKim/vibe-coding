@@ -76,17 +76,17 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 
 ### 포함하는 설정
 
-- `.env.example`, `frontend/.env.example`: 변수 이름과 비실제 예시만 제공하는 템플릿
-- `application.yml`, `application-prod.yml`: 환경 변수 참조와 비민감 기본 설정
-- `docker-compose.yml`: 로컬 인프라 구조와 필수 환경 변수 참조
-- `infra/mysql/schema/V0002__*.sql` 이후: Secret 없는 후속 Schema 변경 이력
-- Prometheus, Grafana, Redis 설정: Secret을 포함하지 않는 공유 인프라 설정
+- `frontend/.env.example`: Frontend 공개 설정 이름과 비실제 예시만 제공하는 현재 추적 템플릿
+- `docker-compose.yml`: 명시적 Git 예외로 유지하는 Local 인프라 구조와 필수 환경 변수 참조
+- 현재 후속 Schema SQL: 없음, Local 초기 Schema는 `V0001__create_initial_domain_schema.sql` 하나만 사용
+- 향후 Schema 변경: V0002·V0003 번호를 재사용하지 않고 `V0004__*.sql`부터 생성해 Git 변경 이력으로 관리
+- Grafana Dashboard JSON과 Redis 설정: Secret을 포함하지 않는 현재 추적 공유 인프라 설정
 
 ### 포함하지 않는 설정과 데이터
 
-- `.env`, `.env.local`, 환경별 실제 `.env.*` 파일
+- `.env`, Root `.env.example`, `.env.local`, 환경별 실제 `.env.*` 파일
 - `infra/mysql/schema/V0001__create_initial_domain_schema.sql`
-- `application-local.yml`, `application-secret.yml`, `application-secrets.yml`
+- `application.yml`, `application-prod.yml`, `application-local.yml`, `application-secret.yml`, `application-secrets.yml`
 - API Key, OAuth Secret, Token, Password가 기록된 credentials 및 service account 파일
 - Private Key, keystore, 인증서 개인키 파일
 - Native MySQL 데이터 디렉터리와 Redis, Prometheus, Grafana의 Docker Volume 데이터

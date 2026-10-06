@@ -29,7 +29,7 @@ infra/mysql/schema/V{4자리 순번}__{짧은_설명}.sql
 ```
 
 - Local 초기 SQL의 Repository 추가 금지
-- 승인된 기준선 통합으로 V0002는 폐기하며 초기 Schema 적용 후 실제 변경마다 V0003부터 새 Version SQL 추가
+- 승인된 기준선 통합으로 V0002와 V0003은 폐기하며 초기 Schema 적용 후 실제 변경마다 V0004부터 새 Version SQL 추가
 - 폐기한 Version 번호 재사용 금지
 - GitHub에 적용된 후속 SQL 수정 금지
 - 파일 첫 부분에 역할, 이유, 내용, 호환성, Rollback 조건 기록
@@ -80,4 +80,10 @@ Script는 Database, 애플리케이션 계정과 DML 권한을 준비하고 실�
 
 V0002의 지원 언론사 분류 변경은 실제 배포 전 사용자 승인에 따라 Local 초기 SQL V0001에 통합했다. 이 일회성 기준선 예외의 원래 변경은 PR 16과 Git 이력에서 복구할 수 있으며 Git 이력을 재작성하지 않는다. 이미 V0002를 적용한 Database에는 V0001을 재실행하지 않으며 현재 `category` 컬럼의 `NOT NULL`, 길이와 CHECK 제약의 활성화 및 허용값을 검증한다.
 
-현재 첫 후속 변경은 `V0003__prevent_duplicate_health_records.sql`이다. 동일 완료 결과의 동시 중복 저장을 막는 복합 UNIQUE 제약을 추가하며, 기존 중복 행이 있으면 임의 정리 없이 적용을 실패시킨다.
+V0003의 건강 분석 동시 중복 저장 방지 UNIQUE 제약도 실제 배포 전 사용자 승인에 따라 Local 초기 SQL V0001에 통합했다. 원래 변경은 Git 이력에서 복구할 수 있으며 기존 Database에는 V0001을 재실행하지 않고 `uk_health_records_user_url_analyzed`의 활성 여부와 컬럼 순서를 검증한다. V0002와 V0003 번호는 재사용하지 않으며 다음 후속 변경은 V0004부터 시작한다.
+
+기준선 통합 전에 생성된 Local 개발·테스트 Database는 다음 전용 Script로 현재 V0001의 표준 INT 컬럼과 중복 방지 Index에 정렬한다. Script는 Root 비밀번호를 마스킹 입력으로 한 번만 받고 저장하지 않으며, 중복 행이 발견되면 임의 삭제 없이 실패한다.
+
+```powershell
+pwsh -NoProfile -File scripts/agent/align-native-mysql-baseline.ps1
+```

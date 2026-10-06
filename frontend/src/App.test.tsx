@@ -236,6 +236,8 @@ describe('App', () => {
     })
     renderApp('/login')
 
+    await waitFor(() => expect(getDailyUsage).toHaveBeenCalledTimes(1))
+
     fireEvent.change(screen.getByLabelText('아이디'), {
       target: { value: 'health26' },
     })
@@ -884,7 +886,7 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('Google OAuth 로그인 링크와 준비 중 Provider 상태를 표시한다', () => {
+  it('Google·Naver OAuth 로그인 링크와 준비 중 Provider 상태를 표시한다', () => {
     renderApp('/login')
 
     expect(
@@ -897,9 +899,11 @@ describe('App', () => {
       'aria-disabled',
       'true',
     )
-    expect(screen.getByLabelText('네이버 로그인 준비 중')).toHaveAttribute(
-      'aria-disabled',
-      'true',
+    expect(
+      screen.getByRole('link', { name: '네이버 로그인' }),
+    ).toHaveAttribute(
+      'href',
+      expect.stringContaining('/oauth2/authorization/naver'),
     )
   })
 
@@ -908,6 +912,16 @@ describe('App', () => {
 
     expect(
       screen.getByText('로그인이 취소되었습니다. 다시 시도할 수 있습니다.'),
+    ).toBeInTheDocument()
+  })
+
+  it('소셜 Provider 이메일 미제공을 동의 안내로 표시한다', () => {
+    renderApp('/login?oauth=email-required')
+
+    expect(
+      screen.getByText(
+        '소셜 계정에서 이메일 제공에 동의한 뒤 다시 시도해 주세요.',
+      ),
     ).toBeInTheDocument()
   })
 
