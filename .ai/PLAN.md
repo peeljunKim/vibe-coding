@@ -128,10 +128,10 @@
 
 ## Next Loop
 
-1. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
-2. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-3. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-4. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. 현재 활성화 보류 9곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+2. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+3. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+4. 사용자 별도 요청 후 실제 Gemini 제한 Local Smoke Test
 
 ## Backend 표준화 상태
 
@@ -193,6 +193,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 전체 검증: PASS (328개, 실패·오류·Skip 0)
 - Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·105개 Test)
 - OAuth Mock Browser E2E: PASS (3개)
+- Chrome 회원가입 Browser E2E: PASS (1개, placeholder 색상·계정 입력·이메일 인증 완료와 Console 오류 0건)
 - Harness·Secret·Diff 공백 검사: PASS
 - 실제 Kakao Provider 호출: PASS (실제 계정 인증, `/oauth/kakao` Callback, Frontend 홈 이동과 로그인 Session UI, Console 오류 0건)
 
@@ -655,3 +656,40 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·101개 Test)
 - Harness·Secret·Diff 공백 검사: PASS
 - GitHub Actions 재실행: NOT RUN (수정 Commit Push 후 확인 필요)
+
+## 실제 Gemini 건강 분석 Adapter
+
+- 명시적 `gemini` Profile과 `app.analysis.provider=gemini` 이중 활성화 경계: PASS
+- Google 고정 HTTPS Endpoint·API Key Header·Redirect 차단·Deadline·256 KiB 응답 제한: PASS
+- 기사 앞부분 최대 6,000자와 검증된 PubMed 최소 Metadata만 전송하는 2단계 구조화 분석: PASS
+- 주장 최대 3개·ASCII PubMed Query·허용 PMID 참조·서버 고정 판정 규칙 검증: PASS
+- API Key 누락·모델/Cache Version 불일치의 시작 실패: PASS
+- 외부 호출 없는 Fixture·구성·응답 크기 단위 검증: PASS (9개, 실패·오류·Skip 0)
+- Backend Maven 전체 검증: PASS (337개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build 회귀: PASS (22개 Test File·106개 Test)
+- Harness·Secret·Diff 공백 검사: PASS
+- 실제 Gemini API 호출과 제한 Local Smoke Test: NOT RUN (사용자 별도 요청 전 보류)
+
+## PR 44 회원가입 E2E 재검증과 리뷰 모델 정책
+
+- CodeRabbit의 회원가입 Playwright 실행 결과 기록 지적: 타당
+- Chrome 회원가입 Browser E2E 재검증: PASS (1개, 계정 입력부터 이메일 인증 완료까지)
+- 추가 제품 코드 수정: NOT APPLICABLE (현재 구현과 기존 검증 기록에 이미 반영)
+- Self Review·Diff Review·PR Review의 Astra 고정 규칙 제거: PASS
+- Local Astra Custom Agent를 설계·고위험 판단 전용 `astra_advisor`로 조정: PASS (Git 제외 Local 설정)
+
+## 보류 언론사 추출 보강 1단계
+
+- 보류 언론사 11곳의 현재 실패 구조와 본문 품질 재시험: PASS
+- 기사 전문 없는 날짜 Metadata·본문 Container·JSON-LD 구조 진단 보고서: PASS (Git 제외 Local 출력)
+- KBS 비표준 JSON-LD 게시일, 한국 로컬 시각과 `.view-article` 본문 추출: PASS
+- KBS `■ 제보하기` 이후 고정 안내 제거: PASS
+- 한국일보 `#article-view-content` 본문 추출: PASS
+- KBS·한국일보 Local HTML Fixture: PASS
+- KBS 실제 기사 재시험: PASS (본문 772자, 메뉴·광고·관련 기사 혼입 미탐지)
+- 한국일보 실제 기사 재시험: PASS (본문 1,313자, 메뉴·광고·관련 기사 혼입 미탐지)
+- Clean Clone 초기 기준: 지원 11곳·현재 미지원 9곳으로 갱신
+- 기존 Local MySQL 언론사 상태 자동 변경: NOT RUN (기존 데이터 덮어쓰기 금지 정책 유지)
+- Backend Maven 전체 검증: PASS (340개 Test, 실패·오류·Skip 0)
+- Native MySQL 검증 회귀·Schema 구조·Compose 구성: PASS
+- Harness·Secret·Diff 공백 검사: PASS

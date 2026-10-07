@@ -24,6 +24,7 @@ import com.newsverification.health.application.HealthTopicFailureUsagePolicy;
 import com.newsverification.health.application.PubMedEvidenceSearchPort;
 import com.newsverification.health.application.PubMedEvidenceSearchService;
 import com.newsverification.health.infrastructure.HttpHealthEvidenceLinkChecker;
+import com.newsverification.health.infrastructure.HttpGeminiHealthAnalysisAdapter;
 import com.newsverification.health.infrastructure.HttpPubMedEvidenceSearchAdapter;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -91,6 +92,79 @@ class HealthAnalysisConfigTest {
         contextRunner
                 .withPropertyValues("app.analysis.provider=")
                 .run(context -> assertThat(context).hasFailed());
+    }
+
+    /** 명시적 Gemini Profile의 실제 분석 Adapter 구성 */
+    @Test
+    void wiresGeminiAnalysisOnlyWithExplicitProfileAndSecret() {
+        geminiContextRunner()
+                .withPropertyValues(
+                        "app.analysis.provider=gemini",
+                        "AI_MODEL=gemini-3.7-flash",
+                        "AI_API_KEY=test-api-key"
+                )
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(HealthArticleTopicClassifier.class);
+                    assertThat(context).hasSingleBean(HealthAnalysisPort.class);
+                    assertThat(context.getBean(HealthAnalysisPort.class))
+                            .isInstanceOf(HttpGeminiHealthAnalysisAdapter.class);
+                });
+    }
+
+    /** Gemini Profile의 비어 있는 API Key 차단 */
+    @Test
+    void failsGeminiProfileWithoutApiKey() {
+        geminiContextRunner()
+                .withPropertyValues(
+                        "app.analysis.provider=gemini",
+                        "AI_MODEL=gemini-3.7-flash",
+                        "AI_API_KEY="
+                )
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    /** Gemini Profile 없는 실제 Adapter 비활성화 */
+    @Test
+    void doesNotWireGeminiAnalysisWithoutExplicitProfile() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(GeminiHealthAnalysisConfig.class)
+                .withPropertyValues(
+                        "app.analysis.provider=gemini",
+                        "AI_MODEL=gemini-3.7-flash",
+                        "AI_API_KEY=test-api-key"
+                )
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean(HealthAnalysisPort.class);
+                });
+    }
+
+    /** Gemini 구성 전용 외부 호출 없는 최소 Context */
+    private static ApplicationContextRunner geminiContextRunner() {
+        return new ApplicationContextRunner()
+                .withUserConfiguration(GeminiHealthAnalysisConfig.class)
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("gemini"))
+                .withBean(ObjectMapper.class, ObjectMapper::new)
+                .withBean(Clock.class, Clock::systemUTC)
+                .withBean(
+                        PubMedEvidenceSearchService.class,
+                        () -> new PubMedEvidenceSearchService(
+                                request -> PubMedEvidenceSearchPort.SearchResponse.noResults(),
+                                sourceUrl -> HealthEvidenceLinkChecker.Status.AVAILABLE
+                        )
+                )
+                .withBean(
+                        AnalysisCacheVersions.class,
+                        () -> new AnalysisCacheVersions(
+                                "gemini-3.7-flash",
+                                "health-analysis-policy-v1",
+                                "evidence-allowlist-v1",
+                                "mock-headline-analysis-v1",
+                                "headline-analysis-policy-v1",
+                                "publisher-policy-v1"
+                        )
+                );
     }
 
     /** 운영 Profile의 HTTP 근거 링크 Adapter 교체 */

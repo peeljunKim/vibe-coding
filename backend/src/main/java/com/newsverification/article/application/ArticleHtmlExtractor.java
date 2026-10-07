@@ -13,13 +13,29 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /** 구조화 Metadata와 본문 Container 기반 기사 정제 */
 public final class ArticleHtmlExtractor {
 
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
     private static final int MAX_BODY_CODE_POINTS = 20_000;
     private static final Pattern WHITESPACE = Pattern.compile("[\\p{Z}\\s]+");
     private static final Pattern KOREAN = Pattern.compile("[가-힣]");
+    private static final Pattern NEWS_ARTICLE_JSON_TYPE = Pattern.compile(
+            "\"@type\"\\s*:\\s*\"NewsArticle\""
+    );
+    private static final Pattern JSON_LD_PUBLISHED_AT = Pattern.compile(
+            "\"datePublished\"\\s*:\\s*\"([^\"\\r\\n]{1,64})\""
+    );
+    private static final Pattern KOREAN_LOCAL_DATE_TIME = Pattern.compile(
+            "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"
+    );
+    private static final Pattern TRAILING_REPORT_GUIDE = Pattern.compile(
+            "\\s*■\\s*제보하기[\\s\\S]*$"
+    );
     private static final String UNWANTED_ELEMENTS = String.join(", ",
             "script", "style", "noscript", "nav", "aside", "footer", "form", "button",
             "[aria-hidden=true]", ".advertisement", ".ad", ".ads", ".comment", ".comments",
@@ -38,7 +54,8 @@ public final class ArticleHtmlExtractor {
         OffsetDateTime publishedAt = requiredDate(
                 firstAttribute(document, "meta[property=article:published_time]", "content")
                         .or(() -> firstAttribute(document, "meta[name=article:published_time]", "content"))
-                        .or(() -> firstAttribute(document, "time[datetime]", "datetime")),
+                        .or(() -> firstAttribute(document, "time[datetime]", "datetime"))
+                        .or(() -> structuredArticleValue(document, "datePublished")),
                 ArticleProcessingError.MISSING_PUBLISHED_AT
         );
         Optional<OffsetDateTime> modifiedAt = optionalDate(
@@ -46,8 +63,7 @@ public final class ArticleHtmlExtractor {
                         .or(() -> firstAttribute(document, "meta[name=article:modified_time]", "content"))
         );
 
-        Element bodyElement = Optional.ofNullable(document.selectFirst("[itemprop=articleBody]"))
-                .orElseGet(() -> document.selectFirst("article"));
+        Element bodyElement = firstBodyElement(document);
         if (bodyElement == null) {
             throw new ArticleProcessingException(ArticleProcessingError.MISSING_BODY);
         }
@@ -59,6 +75,7 @@ public final class ArticleHtmlExtractor {
                 .filter(text -> !text.isBlank())
                 .reduce((left, right) -> left + "\n" + right)
                 .orElseGet(() -> normalizeText(bodyElement.text()));
+        body = TRAILING_REPORT_GUIDE.matcher(body).replaceFirst("").trim();
         if (body.isBlank()) {
             throw new ArticleProcessingException(ArticleProcessingError.MISSING_BODY);
         }
@@ -90,6 +107,90 @@ public final class ArticleHtmlExtractor {
         }
         String value = normalizeText(element.text());
         return value.isBlank() ? Optional.empty() : Optional.of(value);
+    }
+
+    /** 기사 본문 Container 조회 */
+    private static Element firstBodyElement(Document document) {
+        for (String selector : new String[]{
+                "[itemprop=articleBody]",
+                "#article-view-content",
+                ".view-article",
+                "article"
+        }) {
+            Element element = document.selectFirst(selector);
+            if (element != null) {
+                return element;
+            }
+        }
+        return null;
+    }
+
+    /** NewsArticle 구조화 필드 첫 값 조회 */
+    private static Optional<String> structuredArticleValue(Document document, String field) {
+        for (Element script : document.select("script[type=application/ld+json]")) {
+            String data = script.data();
+            try {
+                Optional<String> value = findNewsArticleValue(JSON_MAPPER.readTree(data), field);
+                if (value.isPresent()) {
+                    return Optional.of(normalizeStructuredValue(field, value.get()));
+                }
+            }
+            catch (JacksonException ignored) {
+                // 다른 구조화 Metadata 확인 계속
+            }
+            Optional<String> fallback = rawNewsArticleValue(data, field);
+            if (fallback.isPresent()) {
+                return Optional.of(normalizeStructuredValue(field, fallback.get()));
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** 비표준 NewsArticle 게시일 제한 추출 */
+    private static Optional<String> rawNewsArticleValue(String data, String field) {
+        if (!"datePublished".equals(field) || !NEWS_ARTICLE_JSON_TYPE.matcher(data).find()) {
+            return Optional.empty();
+        }
+        var matcher = JSON_LD_PUBLISHED_AT.matcher(data);
+        return matcher.find() ? Optional.of(matcher.group(1).trim()) : Optional.empty();
+    }
+
+    /** 국내 기사 Offset 없는 게시일 보정 */
+    private static String normalizeStructuredValue(String field, String value) {
+        if ("datePublished".equals(field) && KOREAN_LOCAL_DATE_TIME.matcher(value).matches()) {
+            return value.replace(' ', 'T') + "+09:00";
+        }
+        return value;
+    }
+
+    /** NewsArticle Node 재귀 조회 */
+    private static Optional<String> findNewsArticleValue(JsonNode node, String field) {
+        if (node == null) {
+            return Optional.empty();
+        }
+        if (node.isObject()) {
+            JsonNode type = node.get("@type");
+            JsonNode value = node.get(field);
+            if (type != null && type.isTextual() && "NewsArticle".equals(type.textValue())
+                    && value != null && value.isTextual() && !value.textValue().isBlank()) {
+                return Optional.of(value.textValue().trim());
+            }
+            for (JsonNode child : node) {
+                Optional<String> nested = findNewsArticleValue(child, field);
+                if (nested.isPresent()) {
+                    return nested;
+                }
+            }
+        }
+        else if (node.isArray()) {
+            for (JsonNode child : node) {
+                Optional<String> nested = findNewsArticleValue(child, field);
+                if (nested.isPresent()) {
+                    return nested;
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     /** 필수 문자열 확인 */

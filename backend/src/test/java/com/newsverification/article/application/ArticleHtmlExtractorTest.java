@@ -37,12 +37,7 @@ class ArticleHtmlExtractorTest {
     /** 제목·날짜·정제 본문 추출 */
     @Test
     void extractsRequiredArticleContentFromMockHtml() throws IOException {
-        String html;
-        try (InputStream input = Objects.requireNonNull(
-                getClass().getResourceAsStream("/articles/generic-news.html")
-        )) {
-            html = new String(input.readAllBytes(), StandardCharsets.UTF_8);
-        }
+        String html = fixture("generic-news.html");
 
         var article = extractor.extract(URI.create("https://news.example/article/123"), html);
 
@@ -54,6 +49,40 @@ class ArticleHtmlExtractorTest {
                         + "연구 결과만으로 예방 효과를 단정할 수는 없습니다."
         );
         assertThat(article.body()).doesNotContain("광고", "댓글", "메뉴");
+    }
+
+    /** JSON-LD 게시일과 KBS 본문 Container 추출 */
+    @Test
+    void extractsKbsArticleFromStructuredDateAndViewContainer() throws IOException {
+        var article = extractor.extract(
+                URI.create("https://news.kbs.co.kr/news/pc/view/view.do?ncd=1"),
+                fixture("kbs-news.html")
+        );
+
+        assertThat(article.title()).isEqualTo("지역 의료 지원 정책을 확대합니다");
+        assertThat(article.publishedAt()).hasToString("2026-08-14T09:30+09:00");
+        assertThat(article.body()).isEqualTo(
+                "지역 의료기관을 지원하는 정책이 발표됐습니다.\n"
+                        + "지원 대상과 적용 시기는 추가 안내될 예정입니다."
+        );
+        assertThat(article.body()).doesNotContain("관련 기사 목록");
+    }
+
+    /** 한국일보 본문 Container 추출 */
+    @Test
+    void extractsHankookilboArticleFromArticleViewContent() throws IOException {
+        var article = extractor.extract(
+                URI.create("https://www.hankookilbo.com/news/article/A1"),
+                fixture("hankookilbo-news.html")
+        );
+
+        assertThat(article.title()).isEqualTo("지역 공공의료 서비스를 강화합니다");
+        assertThat(article.publishedAt()).hasToString("2026-08-15T11:20+09:00");
+        assertThat(article.body()).isEqualTo(
+                "지역 공공병원의 의료 인력을 확충합니다.\n"
+                        + "세부 지원 계획은 단계적으로 시행됩니다."
+        );
+        assertThat(article.body()).doesNotContain("함께 읽는 기사");
     }
 
     /** 본문 최대 글자 수 초과 차단 */
@@ -74,5 +103,14 @@ class ArticleHtmlExtractorTest {
                 .isInstanceOf(ArticleProcessingException.class)
                 .extracting(exception -> ((ArticleProcessingException) exception).error())
                 .isEqualTo(ArticleProcessingError.ARTICLE_TOO_LONG);
+    }
+
+    /** 기사 HTML Fixture 조회 */
+    private String fixture(String name) throws IOException {
+        try (InputStream input = Objects.requireNonNull(
+                getClass().getResourceAsStream("/articles/" + name)
+        )) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 }

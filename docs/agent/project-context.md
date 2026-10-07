@@ -1,7 +1,7 @@
 <!-- Repository 구조와 위험 근거 -->
 # Project Discovery와 Risk Guardrail
 
-기준일: 2026-10-05
+기준일: 2026-10-07
 
 ## Confirmed
 
@@ -19,7 +19,7 @@
 | Domain Structure | 건강 뉴스·제목 확인, 기능별 당일 이용량 공개 조회, 일반 회원가입·이메일 인증·로그인·계정 복구·회원 탈퇴 수명주기, Google·Naver·Kakao 소셜 로그인·초대 가입, 건강 분석 저장·목록·만료 정리, 문제 신고·관리자 처리와 건강·제목 결과 공유 구현 |
 | Database/Persistence | Local MySQL 8.0.30 Native Service, Local 전용 V0001 기준선과 향후 V0004부터의 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`; 개발·테스트 DB의 표준 `INT UNSIGNED` 컬럼과 건강 저장 중복 방지 UNIQUE Metadata 정렬 PASS |
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session 구현; 건강·제목 기능별 3일 공용 Cache, 기사 변경 Fingerprint, 사용자별 최초 열람 차감과 사용자 동의 재분석, 건강 근거 링크 Mock·운영 HTTP 재검증과 무차감 자동 재분석, 기능별 1분 5회 분석 접수 제한과 차감 없는 당일 이용량 조회 구현 |
-| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port와 Mock, Profile 분리된 건강 근거 링크 HTTP Adapter, 건강 분석 전용 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter 존재; 제한된 실제 PubMed 외부 Smoke와 Google·Naver·Kakao Provider 로그인 Smoke는 PASS |
+| External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port·Mock·명시적 Profile의 구조화 HTTP Adapter, Profile 분리된 건강 근거 링크 HTTP Adapter, 건강 분석 전용 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter 존재; 실제 Gemini 호출은 보류하고 제한된 PubMed 외부 Smoke와 Google·Naver·Kakao Provider 로그인 Smoke는 PASS |
 | Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구·탈퇴 복구 확인과 Redis Session 구현; Google·Naver·Kakao Provider Subject 기반 로그인·초대 코드 소셜 가입과 Provider 활성화 공개 조회 구현 |
 | Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
@@ -61,7 +61,7 @@
 | 경제지 | 매일경제 `mk.co.kr`, 한국경제 `hankyung.com` |
 | 건강·의료 | 헬스조선 `health.chosun.com`, 코메디닷컴 `kormedi.com`, 메디칼타임즈 `medicaltimes.com` |
 
-후보는 허용 목록 자체가 아니다. 실제 PC 공개 기사에서 최종 URL, 제목, 게시·수정일, 본문 시작·끝, 글자 수, 광고·댓글 혼입, 처리 시간과 오류 코드를 검증한 뒤 통과한 Domain만 활성화한다. 현재 20곳 중 9곳이 한 건의 실제 기사로 기술 검증을 통과했고, 11곳은 추출 보완과 재시험 전까지 활성화를 보류한다. 관리 대상은 웹에서 지원·일시 중단·현재 미지원 상태로 공개하되, 미지원 목록을 국내 전체 언론사 목록으로 표현하지 않는다.
+후보는 허용 목록 자체가 아니다. 실제 PC 공개 기사에서 최종 URL, 제목, 게시·수정일, 본문 시작·끝, 글자 수, 광고·댓글 혼입, 처리 시간과 오류 코드를 검증한 뒤 통과한 Domain만 활성화한다. 현재 20곳 중 11곳이 한 건의 실제 기사로 기술 검증을 통과했고, 9곳은 추출 보완과 재시험 전까지 활성화를 보류한다. 관리 대상은 웹에서 지원·일시 중단·현재 미지원 상태로 공개하되, 미지원 목록을 국내 전체 언론사 목록으로 표현하지 않는다.
 
 ### Deployment
 

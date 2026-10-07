@@ -2,7 +2,10 @@
 package com.newsverification.article.infrastructure;
 
 import com.newsverification.article.application.ArticleHtmlExtractor;
+import com.newsverification.article.application.ArticleHttpClient;
+import com.newsverification.article.application.ArticleHttpResponse;
 import com.newsverification.article.application.ArticleUrlValidator;
+import com.newsverification.article.application.ResolvedArticleUrl;
 import com.newsverification.article.application.SafeArticleReader;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.article.domain.ExtractedArticle;
@@ -40,10 +43,11 @@ class PublisherArticleExtractionSmokeIT {
         List<SmokeCase> cases = readCases(inputPath);
         assertThat(cases).as("실제 추출 시험 입력").isNotEmpty();
 
+        var httpClient = new CapturingArticleHttpClient(new ApacheArticleHttpClient());
         var reader = new SafeArticleReader(
                 new ArticleUrlValidator(new SystemHostResolver()),
                 new ArticleHtmlExtractor(),
-                new ApacheArticleHttpClient(),
+                httpClient,
                 timeout,
                 maxResponseBytes,
                 maxRedirects
@@ -60,12 +64,15 @@ class PublisherArticleExtractionSmokeIT {
                 "bodyEnd",
                 "bodyCodePoints",
                 "contamination",
+                "dateSources",
+                "bodyCandidates",
+                "structuredFields",
                 "elapsedMs",
                 "errorCode"
         ));
 
         for (SmokeCase smokeCase : cases) {
-            rows.add(runCase(reader, smokeCase));
+            rows.add(runCase(reader, httpClient, smokeCase));
         }
 
         Path parent = reportPath.toAbsolutePath().getParent();
@@ -77,10 +84,16 @@ class PublisherArticleExtractionSmokeIT {
     }
 
     /** 단일 후보 기사 시험 */
-    private String runCase(SafeArticleReader reader, SmokeCase smokeCase) {
+    private String runCase(
+            SafeArticleReader reader,
+            CapturingArticleHttpClient httpClient,
+            SmokeCase smokeCase
+    ) {
         long startedAt = System.nanoTime();
+        httpClient.reset();
         try {
             ExtractedArticle article = reader.read(smokeCase.articleUrl(), smokeCase.allowedHosts());
+            ArticleHtmlStructureDiagnostics diagnostics = diagnostics(httpClient);
             return row(
                     smokeCase.publisher(),
                     smokeCase.articleUrl(),
@@ -94,20 +107,29 @@ class PublisherArticleExtractionSmokeIT {
                     POSSIBLE_CONTAMINATION.matcher(article.body()).find()
                             ? "POSSIBLE_CONTAMINATION"
                             : "NOT_DETECTED",
+                    String.join("|", diagnostics.dateSources()),
+                    String.join("|", diagnostics.bodyCandidates()),
+                    String.join("|", diagnostics.structuredFields()),
                     elapsedMillis(startedAt),
                     ""
             );
         }
         catch (ArticleProcessingException exception) {
-            return failureRow(smokeCase, startedAt, exception.error().name());
+            return failureRow(smokeCase, httpClient, startedAt, exception.error().name());
         }
         catch (RuntimeException exception) {
-            return failureRow(smokeCase, startedAt, "UNEXPECTED_ERROR");
+            return failureRow(smokeCase, httpClient, startedAt, "UNEXPECTED_ERROR");
         }
     }
 
     /** 실패 결과 행 */
-    private String failureRow(SmokeCase smokeCase, long startedAt, String errorCode) {
+    private String failureRow(
+            SmokeCase smokeCase,
+            CapturingArticleHttpClient httpClient,
+            long startedAt,
+            String errorCode
+    ) {
+        ArticleHtmlStructureDiagnostics diagnostics = diagnostics(httpClient);
         return row(
                 smokeCase.publisher(),
                 smokeCase.articleUrl(),
@@ -119,9 +141,17 @@ class PublisherArticleExtractionSmokeIT {
                 "",
                 "0",
                 "NOT_EVALUATED",
+                String.join("|", diagnostics.dateSources()),
+                String.join("|", diagnostics.bodyCandidates()),
+                String.join("|", diagnostics.structuredFields()),
                 elapsedMillis(startedAt),
                 errorCode
         );
+    }
+
+    /** 마지막 HTML 구조 진단 */
+    private ArticleHtmlStructureDiagnostics diagnostics(CapturingArticleHttpClient httpClient) {
+        return ArticleHtmlStructureDiagnostics.inspect(httpClient.lastBody());
     }
 
     /** Local TSV 입력 해석 */
@@ -224,5 +254,37 @@ class PublisherArticleExtractionSmokeIT {
 
     /** 언론사별 시험 입력 */
     private record SmokeCase(String publisher, Set<String> allowedHosts, String articleUrl) {
+    }
+
+    /** 기사 전문 비저장 응답 구조 확인 */
+    private static final class CapturingArticleHttpClient implements ArticleHttpClient {
+
+        private final ArticleHttpClient delegate;
+        private String lastBody = "";
+
+        private CapturingArticleHttpClient(ArticleHttpClient delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public ArticleHttpResponse get(
+                ResolvedArticleUrl target,
+                Duration timeout,
+                int maxResponseBytes
+        ) throws IOException {
+            ArticleHttpResponse response = delegate.get(target, timeout, maxResponseBytes);
+            lastBody = response.body() == null ? "" : response.body();
+            return response;
+        }
+
+        /** 단일 시험 응답 초기화 */
+        private void reset() {
+            lastBody = "";
+        }
+
+        /** 마지막 응답 HTML */
+        private String lastBody() {
+            return lastBody;
+        }
     }
 }
