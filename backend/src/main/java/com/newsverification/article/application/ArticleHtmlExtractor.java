@@ -25,7 +25,7 @@ public final class ArticleHtmlExtractor {
     private static final Pattern WHITESPACE = Pattern.compile("[\\p{Z}\\s]+");
     private static final Pattern KOREAN = Pattern.compile("[가-힣]");
     private static final Pattern NEWS_ARTICLE_JSON_TYPE = Pattern.compile(
-            "\"@type\"\\s*:\\s*\"NewsArticle\""
+            "\"@type\"\\s*:\\s*(?:\"NewsArticle\"|\\[[^\\]]{0,256}\"NewsArticle\"[^\\]]{0,256}\\])"
     );
     private static final Pattern JSON_LD_PUBLISHED_AT = Pattern.compile(
             "\"datePublished\"\\s*:\\s*\"([^\"\\r\\n]{1,64})\""
@@ -171,7 +171,7 @@ public final class ArticleHtmlExtractor {
         if (node.isObject()) {
             JsonNode type = node.get("@type");
             JsonNode value = node.get(field);
-            if (type != null && type.isTextual() && "NewsArticle".equals(type.textValue())
+            if (isNewsArticleType(type)
                     && value != null && value.isTextual() && !value.textValue().isBlank()) {
                 return Optional.of(value.textValue().trim());
             }
@@ -191,6 +191,24 @@ public final class ArticleHtmlExtractor {
             }
         }
         return Optional.empty();
+    }
+
+    /** NewsArticle 타입 포함 여부 */
+    private static boolean isNewsArticleType(JsonNode type) {
+        if (type == null) {
+            return false;
+        }
+        if (type.isTextual()) {
+            return "NewsArticle".equals(type.textValue());
+        }
+        if (type.isArray()) {
+            for (JsonNode item : type) {
+                if (item.isTextual() && "NewsArticle".equals(item.textValue())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** 필수 문자열 확인 */

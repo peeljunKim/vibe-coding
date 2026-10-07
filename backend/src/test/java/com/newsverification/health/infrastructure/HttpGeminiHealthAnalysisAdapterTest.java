@@ -7,6 +7,7 @@ import com.newsverification.health.application.HealthEvidenceLinkChecker;
 import com.newsverification.health.application.PubMedEvidenceSearchPort;
 import com.newsverification.health.application.PubMedEvidenceSearchService;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
@@ -84,6 +85,29 @@ class HttpGeminiHealthAnalysisAdapterTest {
                 .contains("\"type\":[\"string\",\"null\"]")
                 .doesNotContain("\"responseSchema\"")
                 .doesNotContain("건강 기사 앞부분");
+    }
+
+    /** 낮은 사고 수준과 구조화 응답 예산 요청 */
+    @Test
+    void requestsLowThinkingWithStructuredResponseBudget() throws JacksonException {
+        var requests = new ArrayList<GeminiHttpClient.Request>();
+        GeminiHttpClient client = request -> {
+            requests.add(request);
+            return response(200, envelope("""
+                    {"claims":[{"order":1,"claim":"독감 예방접종은 중증 위험을 낮춘다",\
+                    "pubMedQuery":"influenza vaccination AND severe disease"}]}
+                    """));
+        };
+
+        adapter(client, PubMedEvidenceSearchPort.SearchResponse.noResults())
+                .analyze(article("건강 기사 본문"), NOW.plusSeconds(90));
+
+        var generationConfig = new ObjectMapper()
+                .readTree(requests.get(0).body())
+                .get("generationConfig");
+        assertThat(generationConfig.get("maxOutputTokens").intValue()).isEqualTo(8_192);
+        assertThat(generationConfig.get("thinkingConfig").get("thinkingLevel").stringValue())
+                .isEqualTo("low");
     }
 
     /** PubMed 근거 없음의 추가 Gemini 호출 없는 제한 결과 */

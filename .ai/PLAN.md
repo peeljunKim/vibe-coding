@@ -693,3 +693,12 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 전체 검증: PASS (340개 Test, 실패·오류·Skip 0)
 - Native MySQL 검증 회귀·Schema 구조·Compose 구성: PASS
 - Harness·Secret·Diff 공백 검사: PASS
+
+## PR 45 Code Review 보완
+
+- 정상·비표준 JSON-LD의 배열형 `NewsArticle` 게시일 추출: PASS
+- Gemini 3.7 Flash 요청의 `thinkingLevel=low`와 출력 예산 8,192 적용: PASS
+- 기사 추출·Gemini 요청 계약 관련 테스트: PASS (12개, 실패·오류·Skip 0)
+- Backend Maven 전체 검증: PASS (343개, 실패·오류·Skip 0)
+- Harness·Secret·Diff 공백 검사: PASS
+- 실제 Gemini API 호출: NOT RUN (사용자 별도 요청 전 보류)

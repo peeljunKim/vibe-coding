@@ -201,7 +201,8 @@ public final class HttpGeminiHealthAnalysisAdapter implements HealthAnalysisPort
         Duration remaining = remaining(deadlineAt);
         var generationConfig = new LinkedHashMap<String, Object>();
         generationConfig.put("temperature", 0);
-        generationConfig.put("maxOutputTokens", 2_048);
+        generationConfig.put("maxOutputTokens", 8_192);
+        generationConfig.put("thinkingConfig", Map.of("thinkingLevel", "low"));
         generationConfig.put("responseMimeType", "application/json");
         generationConfig.put("responseJsonSchema", schema);
         var requestValue = new LinkedHashMap<String, Object>();
