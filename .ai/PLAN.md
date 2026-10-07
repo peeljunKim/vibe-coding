@@ -128,10 +128,10 @@
 
 ## Next Loop
 
-1. 실제 Gemini Adapter와 구조화 응답 검증·제한된 Local Smoke Test
-2. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-3. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-4. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+1. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+2. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+3. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+4. 사용자 별도 요청 후 실제 Gemini 제한 Local Smoke Test
 
 ## Backend 표준화 상태
 
@@ -193,6 +193,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 전체 검증: PASS (328개, 실패·오류·Skip 0)
 - Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·105개 Test)
 - OAuth Mock Browser E2E: PASS (3개)
+- Chrome 회원가입 Browser E2E: PASS (1개, placeholder 색상·계정 입력·이메일 인증 완료와 Console 오류 0건)
 - Harness·Secret·Diff 공백 검사: PASS
 - 실제 Kakao Provider 호출: PASS (실제 계정 인증, `/oauth/kakao` Callback, Frontend 홈 이동과 로그인 Session UI, Console 오류 0건)
 
@@ -655,3 +656,16 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Frontend Lint·Test·TypeScript·Build: PASS (22개 Test File·101개 Test)
 - Harness·Secret·Diff 공백 검사: PASS
 - GitHub Actions 재실행: NOT RUN (수정 Commit Push 후 확인 필요)
+
+## 실제 Gemini 건강 분석 Adapter
+
+- 명시적 `gemini` Profile과 `app.analysis.provider=gemini` 이중 활성화 경계: PASS
+- Google 고정 HTTPS Endpoint·API Key Header·Redirect 차단·Deadline·256 KiB 응답 제한: PASS
+- 기사 앞부분 최대 6,000자와 검증된 PubMed 최소 Metadata만 전송하는 2단계 구조화 분석: PASS
+- 주장 최대 3개·ASCII PubMed Query·허용 PMID 참조·서버 고정 판정 규칙 검증: PASS
+- API Key 누락·모델/Cache Version 불일치의 시작 실패: PASS
+- 외부 호출 없는 Fixture·구성·응답 크기 단위 검증: PASS (9개, 실패·오류·Skip 0)
+- Backend Maven 전체 검증: PASS (337개, 실패·오류·Skip 0)
+- Frontend Lint·Test·TypeScript·Build 회귀: PASS (22개 Test File·106개 Test)
+- Harness·Secret·Diff 공백 검사: PASS
+- 실제 Gemini API 호출과 제한 Local Smoke Test: NOT RUN (사용자 별도 요청 전 보류)

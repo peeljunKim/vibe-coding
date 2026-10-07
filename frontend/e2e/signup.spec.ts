@@ -19,6 +19,13 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ authenticated: false }),
     }),
   )
+  await page.route('**/api/auth/providers', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ google: false, naver: false, kakao: false }),
+    }),
+  )
   await page.route('**/api/csrf', (route) =>
     route.fulfill({
       status: 200,

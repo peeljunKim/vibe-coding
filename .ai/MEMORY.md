@@ -34,7 +34,7 @@
 - 회원가입 이메일 발송: 기본 Profile은 Mock, `smtp`·`prod` Profile은 Gmail SMTP Adapter 사용
 - 미인증 일반 계정: 가입 후 7일 경과 시 일일 정리, 공개 중복 오류는 계정 정보 단일 코드 사용
 - 외부 연결 전 개발: Secret 준비 전에는 환경 변수 자리와 Mock으로 Local 기능 개발 진행
-- 현재 구현: Frontend Desktop 화면·도움말과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태·기능별 당일 이용량 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·Mock 분석 결과 Polling, 건강·제목 분석 결과 7일 공유, 분리된 3일 공용 Cache, 건강 근거 링크 재검증 Port·Mock·운영 HTTP Adapter와 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter
+- 현재 구현: Frontend Desktop 화면·도움말과 Backend 상태 기반 지원 언론사 펼침 목록, 전체 지원 상태·기능별 당일 이용량 공개 조회, DB 언론사·도메인 상태 기반 기사 수집, 기사 URL 안전 검증, 건강 분석 비동기 HTTP·Redis Streams Queue·단일 Worker·기본 Mock 및 명시적 Profile의 Gemini 구조화 분석 Adapter, 건강·제목 분석 결과 7일 공유, 분리된 3일 공용 Cache, 건강 근거 링크 재검증 Port·Mock·운영 HTTP Adapter와 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter
 - 상세 제품 정책: `MVP_REQUIREMENTS.md`
 - 프로젝트 구조·위험: `docs/agent/project-context.md`
 - Backend 구현 표준: `docs/agent/backend-development.md` (채택 기준, 업무 기능 구현 완료 아님)
@@ -43,7 +43,7 @@
 ## 현재 구현 경계
 
 - 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, Google·Naver·Kakao OAuth2 Redirect 로그인·초대 가입, OAuth Provider 활성화 공개 조회, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; 실제 Google·Naver·Kakao Provider의 로그인·Callback·내부 Session 전환 Smoke는 PASS
-- 실제 Gemini 연동은 아직 없으며 PubMed 검색은 원문 주장·정규화 영문 Query·주장별 최대 5개·Deadline을 받는 Port, 외부 호출 없는 Mock과 NCBI ESearch·EFetch HTTP Adapter가 구현됨; 제한된 실제 NCBI Smoke Test는 ESearch 2회·EFetch 1회로 PASS했고 EFetch 표준 `DOCTYPE`과 명명 Entity는 외부 DTD 접근 없이 안전하게 변환하며 응답 본문 수신에도 Timeout·크기 제한을 적용함
+- Gemini 건강 분석 Adapter는 명시적 `gemini` Profile과 Provider에서만 활성화되며 기사 앞부분 최대 6,000자와 검증된 PubMed 최소 Metadata를 분리 전송하고 구조화 응답·허용 PMID·고정 판정 규칙을 서버에서 재검증함; 실제 Gemini API 호출은 사용자 별도 요청 전까지 보류하며 현재 검증은 Local Fixture만 사용함; PubMed 제한 외부 Smoke는 ESearch 2회·EFetch 1회 PASS
 - 지원 언론사 분류와 건강 저장 중복 방지 후속 Schema는 사용자 승인으로 초기 SQL V0001에 통합됨; V0002·V0003 번호는 폐기하고 기존 개발·테스트 DB는 전용 정렬 Script로 6개 표준 `INT UNSIGNED` 컬럼과 중복 방지 UNIQUE Metadata 검증 PASS
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
@@ -73,7 +73,7 @@
 
 ## Deferred
 
-[실제 Gemini, Kakao OAuth, Gmail SMTP Secret은 Local 연동 시 사용자가 `.env`에 직접 입력해야 합니다.]
+[실제 Gemini와 Gmail SMTP Secret은 Local 연동 시 사용자가 `.env`에 직접 입력해야 합니다.]
 
 [현재 활성화 보류 11곳의 언론사별 추출 보완과 재시험이 필요합니다.]
 
