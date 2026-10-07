@@ -85,6 +85,38 @@ class ArticleHtmlExtractorTest {
         assertThat(article.body()).doesNotContain("함께 읽는 기사");
     }
 
+    /** 배열형 NewsArticle 구조화 게시일 추출 */
+    @Test
+    void extractsPublishedDateWhenNewsArticleTypeIsArray() {
+        String html = """
+                <meta property="og:title" content="지역 건강 정책 기사">
+                <script type="application/ld+json">
+                {"@type":["Thing","NewsArticle"],"datePublished":"2026-08-16T13:40:00+09:00"}
+                </script>
+                <article><p>지역 건강 정책을 안내하는 기사 본문입니다.</p></article>
+                """;
+
+        var article = extractor.extract(URI.create("https://news.example/article/array"), html);
+
+        assertThat(article.publishedAt()).hasToString("2026-08-16T13:40+09:00");
+    }
+
+    /** 비표준 배열형 NewsArticle 구조화 게시일 추출 */
+    @Test
+    void extractsPublishedDateFromMalformedNewsArticleTypeArray() {
+        String html = """
+                <meta property="og:title" content="지역 의료 지원 기사">
+                <script type="application/ld+json">
+                {"@type":["Thing","NewsArticle"],"datePublished":"2026-08-17 08:10:00",}
+                </script>
+                <article><p>지역 의료 지원 내용을 안내하는 기사 본문입니다.</p></article>
+                """;
+
+        var article = extractor.extract(URI.create("https://news.example/article/malformed-array"), html);
+
+        assertThat(article.publishedAt()).hasToString("2026-08-17T08:10+09:00");
+    }
+
     /** 본문 최대 글자 수 초과 차단 */
     @Test
     void rejectsArticleBodyLongerThanTwentyThousandCharacters() {
