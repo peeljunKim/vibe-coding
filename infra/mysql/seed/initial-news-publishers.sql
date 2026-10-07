@@ -5,7 +5,7 @@ INSERT INTO news_publishers (name, category, status, status_reason)
 VALUES
     ('연합뉴스', 'NEWS_AGENCY', 'ACTIVE', NULL),
     ('뉴시스', 'NEWS_AGENCY', 'CANDIDATE', '초기 추출 보완 및 재시험 대기'),
-    ('KBS', 'BROADCAST_NEWS', 'CANDIDATE', '초기 추출 보완 및 재시험 대기'),
+    ('KBS', 'BROADCAST_NEWS', 'ACTIVE', NULL),
     ('MBC', 'BROADCAST_NEWS', 'ACTIVE', NULL),
     ('SBS', 'BROADCAST_NEWS', 'ACTIVE', NULL),
     ('YTN', 'BROADCAST_NEWS', 'CANDIDATE', '초기 추출 보완 및 재시험 대기'),
@@ -15,7 +15,7 @@ VALUES
     ('동아일보', 'GENERAL_NEWSPAPER', 'CANDIDATE', '초기 추출 보완 및 재시험 대기'),
     ('한겨레', 'GENERAL_NEWSPAPER', 'ACTIVE', NULL),
     ('경향신문', 'GENERAL_NEWSPAPER', 'ACTIVE', NULL),
-    ('한국일보', 'GENERAL_NEWSPAPER', 'CANDIDATE', '초기 추출 보완 및 재시험 대기'),
+    ('한국일보', 'GENERAL_NEWSPAPER', 'ACTIVE', NULL),
     ('국민일보', 'GENERAL_NEWSPAPER', 'ACTIVE', NULL),
     ('서울신문', 'GENERAL_NEWSPAPER', 'CANDIDATE', '초기 추출 보완 및 재시험 대기'),
     ('매일경제', 'BUSINESS_NEWSPAPER', 'ACTIVE', NULL),
@@ -31,7 +31,7 @@ FROM (
     UNION ALL SELECT '연합뉴스', 'yna.co.kr', 'ACTIVE'
     UNION ALL SELECT '뉴시스', 'www.newsis.com', 'PAUSED'
     UNION ALL SELECT '뉴시스', 'newsis.com', 'PAUSED'
-    UNION ALL SELECT 'KBS', 'news.kbs.co.kr', 'PAUSED'
+    UNION ALL SELECT 'KBS', 'news.kbs.co.kr', 'ACTIVE'
     UNION ALL SELECT 'MBC', 'imnews.imbc.com', 'ACTIVE'
     UNION ALL SELECT 'SBS', 'news.sbs.co.kr', 'ACTIVE'
     UNION ALL SELECT 'YTN', 'www.ytn.co.kr', 'PAUSED'
@@ -47,8 +47,8 @@ FROM (
     UNION ALL SELECT '한겨레', 'hani.co.kr', 'ACTIVE'
     UNION ALL SELECT '경향신문', 'www.khan.co.kr', 'ACTIVE'
     UNION ALL SELECT '경향신문', 'khan.co.kr', 'ACTIVE'
-    UNION ALL SELECT '한국일보', 'www.hankookilbo.com', 'PAUSED'
-    UNION ALL SELECT '한국일보', 'hankookilbo.com', 'PAUSED'
+    UNION ALL SELECT '한국일보', 'www.hankookilbo.com', 'ACTIVE'
+    UNION ALL SELECT '한국일보', 'hankookilbo.com', 'ACTIVE'
     UNION ALL SELECT '국민일보', 'www.kmib.co.kr', 'ACTIVE'
     UNION ALL SELECT '국민일보', 'kmib.co.kr', 'ACTIVE'
     UNION ALL SELECT '서울신문', 'www.seoul.co.kr', 'PAUSED'

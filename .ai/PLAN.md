@@ -128,7 +128,7 @@
 
 ## Next Loop
 
-1. 현재 활성화 보류 11곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+1. 현재 활성화 보류 9곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 2. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
 3. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 4. 사용자 별도 요청 후 실제 Gemini 제한 Local Smoke Test
@@ -669,3 +669,27 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Frontend Lint·Test·TypeScript·Build 회귀: PASS (22개 Test File·106개 Test)
 - Harness·Secret·Diff 공백 검사: PASS
 - 실제 Gemini API 호출과 제한 Local Smoke Test: NOT RUN (사용자 별도 요청 전 보류)
+
+## PR 44 회원가입 E2E 재검증과 리뷰 모델 정책
+
+- CodeRabbit의 회원가입 Playwright 실행 결과 기록 지적: 타당
+- Chrome 회원가입 Browser E2E 재검증: PASS (1개, 계정 입력부터 이메일 인증 완료까지)
+- 추가 제품 코드 수정: NOT APPLICABLE (현재 구현과 기존 검증 기록에 이미 반영)
+- Self Review·Diff Review·PR Review의 Astra 고정 규칙 제거: PASS
+- Local Astra Custom Agent를 설계·고위험 판단 전용 `astra_advisor`로 조정: PASS (Git 제외 Local 설정)
+
+## 보류 언론사 추출 보강 1단계
+
+- 보류 언론사 11곳의 현재 실패 구조와 본문 품질 재시험: PASS
+- 기사 전문 없는 날짜 Metadata·본문 Container·JSON-LD 구조 진단 보고서: PASS (Git 제외 Local 출력)
+- KBS 비표준 JSON-LD 게시일, 한국 로컬 시각과 `.view-article` 본문 추출: PASS
+- KBS `■ 제보하기` 이후 고정 안내 제거: PASS
+- 한국일보 `#article-view-content` 본문 추출: PASS
+- KBS·한국일보 Local HTML Fixture: PASS
+- KBS 실제 기사 재시험: PASS (본문 772자, 메뉴·광고·관련 기사 혼입 미탐지)
+- 한국일보 실제 기사 재시험: PASS (본문 1,313자, 메뉴·광고·관련 기사 혼입 미탐지)
+- Clean Clone 초기 기준: 지원 11곳·현재 미지원 9곳으로 갱신
+- 기존 Local MySQL 언론사 상태 자동 변경: NOT RUN (기존 데이터 덮어쓰기 금지 정책 유지)
+- Backend Maven 전체 검증: PASS (340개 Test, 실패·오류·Skip 0)
+- Native MySQL 검증 회귀·Schema 구조·Compose 구성: PASS
+- Harness·Secret·Diff 공백 검사: PASS
