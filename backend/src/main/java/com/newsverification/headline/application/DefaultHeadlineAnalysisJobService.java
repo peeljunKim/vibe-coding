@@ -8,6 +8,9 @@ import com.newsverification.analysis.application.AnalysisRequestRateLimitExceede
 import com.newsverification.analysis.application.AnalysisRequestRateLimiter;
 import com.newsverification.analysis.domain.AnalysisJob;
 import com.newsverification.analysis.domain.AnalysisJobStatus;
+import com.newsverification.monitoring.application.OperationalMetrics;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -26,8 +29,10 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
     private final HeadlineAnalysisUsagePolicy usagePolicy;
     private final AnalysisRequestRateLimiter requestRateLimiter;
     private final ObjectMapper objectMapper;
+    private final OperationalMetrics metrics;
 
     /** 작업 수명·종료 결과·Queue·소유권 구성 */
+    @Autowired
     public DefaultHeadlineAnalysisJobService(
             AnalysisJobLifecycleService lifecycleService,
             AnalysisJobOutcomeStore outcomeStore,
@@ -35,7 +40,23 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
             HeadlineAnalysisJobIdentityService identityService,
             HeadlineAnalysisUsagePolicy usagePolicy,
             AnalysisRequestRateLimiter requestRateLimiter,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ObjectProvider<OperationalMetrics> metrics
+    ) {
+        this(lifecycleService, outcomeStore, queue, identityService, usagePolicy,
+                requestRateLimiter, objectMapper, metrics.getIfAvailable(OperationalMetrics::disabled));
+    }
+
+    /** Metric 포함 테스트 구성 */
+    DefaultHeadlineAnalysisJobService(
+            AnalysisJobLifecycleService lifecycleService,
+            AnalysisJobOutcomeStore outcomeStore,
+            HeadlineAnalysisQueue queue,
+            HeadlineAnalysisJobIdentityService identityService,
+            HeadlineAnalysisUsagePolicy usagePolicy,
+            AnalysisRequestRateLimiter requestRateLimiter,
+            ObjectMapper objectMapper,
+            OperationalMetrics metrics
     ) {
         this.lifecycleService = lifecycleService;
         this.outcomeStore = outcomeStore;
@@ -44,6 +65,21 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
         this.usagePolicy = usagePolicy;
         this.requestRateLimiter = requestRateLimiter;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
+    }
+
+    /** Metric 비활성 테스트 구성 */
+    DefaultHeadlineAnalysisJobService(
+            AnalysisJobLifecycleService lifecycleService,
+            AnalysisJobOutcomeStore outcomeStore,
+            HeadlineAnalysisQueue queue,
+            HeadlineAnalysisJobIdentityService identityService,
+            HeadlineAnalysisUsagePolicy usagePolicy,
+            AnalysisRequestRateLimiter requestRateLimiter,
+            ObjectMapper objectMapper
+    ) {
+        this(lifecycleService, outcomeStore, queue, identityService, usagePolicy,
+                requestRateLimiter, objectMapper, OperationalMetrics.disabled());
     }
 
     /** 작업 생성 후 제목 전용 Queue 접수 */
@@ -78,6 +114,10 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
                     reanalysisRequested
             ));
             if (!enqueued) {
+                metrics.recordAnalysisRequest(
+                        OperationalMetrics.Feature.HEADLINE,
+                        OperationalMetrics.RequestOutcome.QUEUE_FULL
+                );
                 throw new HeadlineAnalysisServiceUnavailableException();
             }
         } catch (RuntimeException exception) {
@@ -90,8 +130,17 @@ public class DefaultHeadlineAnalysisJobService implements HeadlineAnalysisJobSer
             if (exception instanceof HeadlineAnalysisServiceUnavailableException unavailable) {
                 throw unavailable;
             }
+            metrics.recordAnalysisRequest(
+                    OperationalMetrics.Feature.HEADLINE,
+                    OperationalMetrics.RequestOutcome.REDIS_UNAVAILABLE
+            );
             throw new HeadlineAnalysisServiceUnavailableException(exception);
         }
+
+        metrics.recordAnalysisRequest(
+                OperationalMetrics.Feature.HEADLINE,
+                OperationalMetrics.RequestOutcome.ACCEPTED
+        );
 
         int limit = currentUsage.dailyLimit();
         int used = currentUsage.usedCount();

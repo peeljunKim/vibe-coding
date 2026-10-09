@@ -16,9 +16,11 @@ import com.newsverification.analysiscache.application.ArticleRevisionFingerprint
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.article.domain.ExtractedArticle;
+import com.newsverification.monitoring.application.OperationalMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
@@ -47,6 +49,7 @@ public class HeadlineAnalysisWorker {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final String leaseOwnerId;
+    private final OperationalMetrics metrics;
 
     /** Queue·상태·제목 분석·이용량 구성 */
     @Autowired
@@ -60,10 +63,12 @@ public class HeadlineAnalysisWorker {
             HeadlineAnalysisResultCache resultCache,
             AnalysisCacheVersions cacheVersions,
             ObjectMapper objectMapper,
-            Clock clock
+            Clock clock,
+            ObjectProvider<OperationalMetrics> metrics
     ) {
         this(queue, lifecycleService, jobStore, outcomeStore, useCase, usagePolicy,
-                resultCache, cacheVersions, objectMapper, clock, UUID.randomUUID().toString());
+                resultCache, cacheVersions, objectMapper, clock, UUID.randomUUID().toString(),
+                metrics.getIfAvailable(OperationalMetrics::disabled));
     }
 
     /** 테스트 제어용 Worker Token 포함 구성 */
@@ -89,7 +94,8 @@ public class HeadlineAnalysisWorker {
                 AnalysisCacheVersions.mockDefaults(),
                 objectMapper,
                 clock,
-                leaseOwnerId
+                leaseOwnerId,
+                OperationalMetrics.disabled()
         );
     }
 
@@ -107,6 +113,26 @@ public class HeadlineAnalysisWorker {
             Clock clock,
             String leaseOwnerId
     ) {
+        this(queue, lifecycleService, jobStore, outcomeStore, useCase, usagePolicy,
+                resultCache, cacheVersions, objectMapper, clock, leaseOwnerId,
+                OperationalMetrics.disabled());
+    }
+
+    /** 업무 Metric을 포함한 Worker 구성 */
+    HeadlineAnalysisWorker(
+            HeadlineAnalysisQueue queue,
+            AnalysisJobLifecycleService lifecycleService,
+            AnalysisJobStore jobStore,
+            AnalysisJobOutcomeStore outcomeStore,
+            HeadlineAnalysisUseCase useCase,
+            HeadlineAnalysisUsagePolicy usagePolicy,
+            HeadlineAnalysisResultCache resultCache,
+            AnalysisCacheVersions cacheVersions,
+            ObjectMapper objectMapper,
+            Clock clock,
+            String leaseOwnerId,
+            OperationalMetrics metrics
+    ) {
         this.queue = queue;
         this.lifecycleService = lifecycleService;
         this.jobStore = jobStore;
@@ -118,6 +144,7 @@ public class HeadlineAnalysisWorker {
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.leaseOwnerId = leaseOwnerId;
+        this.metrics = metrics;
     }
 
     /** 제목 Queue의 단일 작업 Polling */
@@ -140,7 +167,15 @@ public class HeadlineAnalysisWorker {
             if (task.isEmpty()) {
                 return false;
             }
-            process(task.orElseThrow());
+            long startedAt = System.nanoTime();
+            try {
+                process(task.orElseThrow());
+            } finally {
+                metrics.recordWorkerDuration(
+                        OperationalMetrics.Feature.HEADLINE,
+                        Duration.ofNanos(System.nanoTime() - startedAt)
+                );
+            }
             return true;
         } finally {
             queue.releaseWorker(leaseOwnerId);
@@ -168,6 +203,12 @@ public class HeadlineAnalysisWorker {
             if (cacheKey.isPresent()) {
                 Optional<CachedAnalysisResult<HeadlineAnalysisResult>> cached = resultCache
                         .findHeadline(cacheKey.orElseThrow());
+                metrics.recordCacheLookup(
+                        OperationalMetrics.Feature.HEADLINE,
+                        cached.isPresent()
+                                ? OperationalMetrics.CacheOutcome.HIT
+                                : OperationalMetrics.CacheOutcome.MISS
+                );
                 if (cached.isPresent()) {
                     CachedAnalysisResult<HeadlineAnalysisResult> cachedResult = cached.orElseThrow();
                     currentArticle = useCase.read(task.articleUrl());
@@ -272,12 +313,19 @@ public class HeadlineAnalysisWorker {
             fail(analysisId, "ANALYSIS_DEADLINE_EXCEEDED", "분석 제한 시간을 초과했습니다.", usage);
             return false;
         }
-        return outcomeStore.replaceWithOutcome(
+        boolean stored = outcomeStore.replaceWithOutcome(
                 analysisId,
                 current.version(),
                 completed,
                 AnalysisJobOutcome.completed(serialize(result), serialize(usage))
         );
+        if (stored) {
+            metrics.recordWorkerResult(
+                    OperationalMetrics.Feature.HEADLINE,
+                    OperationalMetrics.WorkerOutcome.COMPLETED
+            );
+        }
+        return stored;
     }
 
     /** 외부 처리 없는 Cache 결과 단계 전환과 완료 */
@@ -331,12 +379,18 @@ public class HeadlineAnalysisWorker {
             return;
         }
         AnalysisJob failed = current.fail(clock.instant());
-        outcomeStore.replaceWithOutcome(
+        boolean stored = outcomeStore.replaceWithOutcome(
                 analysisId,
                 current.version(),
                 failed,
                 AnalysisJobOutcome.failed(code, detail, usage == null ? null : serialize(usage))
         );
+        if (stored) {
+            metrics.recordWorkerResult(
+                    OperationalMetrics.Feature.HEADLINE,
+                    OperationalMetrics.WorkerOutcome.FAILED
+            );
+        }
     }
 
     /** 종료 결과 JSON 직렬화 */

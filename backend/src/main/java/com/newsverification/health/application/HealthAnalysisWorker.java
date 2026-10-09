@@ -16,9 +16,11 @@ import com.newsverification.analysiscache.application.ArticleRevisionFingerprint
 import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.article.domain.ExtractedArticle;
+import com.newsverification.monitoring.application.OperationalMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
@@ -48,6 +50,7 @@ public class HealthAnalysisWorker {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final String leaseOwnerId;
+    private final OperationalMetrics metrics;
 
     /** Queue·상태·분석·이용량 경계 구성 */
     @Autowired
@@ -62,7 +65,8 @@ public class HealthAnalysisWorker {
             AnalysisCacheVersions cacheVersions,
             HealthEvidenceLinkValidationService evidenceLinkValidationService,
             ObjectMapper objectMapper,
-            Clock clock
+            Clock clock,
+            ObjectProvider<OperationalMetrics> metrics
     ) {
         this(
                 queue,
@@ -76,7 +80,8 @@ public class HealthAnalysisWorker {
                 evidenceLinkValidationService,
                 objectMapper,
                 clock,
-                UUID.randomUUID().toString()
+                UUID.randomUUID().toString(),
+                metrics.getIfAvailable(OperationalMetrics::disabled)
         );
     }
 
@@ -104,7 +109,8 @@ public class HealthAnalysisWorker {
                 HealthEvidenceLinkValidationService.trustAll(),
                 objectMapper,
                 clock,
-                leaseOwnerId
+                leaseOwnerId,
+                OperationalMetrics.disabled()
         );
     }
 
@@ -134,7 +140,8 @@ public class HealthAnalysisWorker {
                 HealthEvidenceLinkValidationService.trustAll(),
                 objectMapper,
                 clock,
-                leaseOwnerId
+                leaseOwnerId,
+                OperationalMetrics.disabled()
         );
     }
 
@@ -153,6 +160,27 @@ public class HealthAnalysisWorker {
             Clock clock,
             String leaseOwnerId
     ) {
+        this(queue, lifecycleService, jobStore, outcomeStore, useCase, usagePolicy,
+                resultCache, cacheVersions, evidenceLinkValidationService, objectMapper,
+                clock, leaseOwnerId, OperationalMetrics.disabled());
+    }
+
+    /** 업무 Metric을 포함한 Worker 구성 */
+    HealthAnalysisWorker(
+            HealthAnalysisQueue queue,
+            AnalysisJobLifecycleService lifecycleService,
+            AnalysisJobStore jobStore,
+            AnalysisJobOutcomeStore outcomeStore,
+            HealthAnalysisUseCase useCase,
+            HealthTopicFailureUsagePolicy usagePolicy,
+            HealthAnalysisResultCache resultCache,
+            AnalysisCacheVersions cacheVersions,
+            HealthEvidenceLinkValidationService evidenceLinkValidationService,
+            ObjectMapper objectMapper,
+            Clock clock,
+            String leaseOwnerId,
+            OperationalMetrics metrics
+    ) {
         this.queue = queue;
         this.lifecycleService = lifecycleService;
         this.jobStore = jobStore;
@@ -165,6 +193,7 @@ public class HealthAnalysisWorker {
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.leaseOwnerId = leaseOwnerId;
+        this.metrics = metrics;
     }
 
     /** 단일 작업 Polling과 비민감 장애 기록 */
@@ -187,7 +216,15 @@ public class HealthAnalysisWorker {
             if (task.isEmpty()) {
                 return false;
             }
-            process(task.orElseThrow());
+            long startedAt = System.nanoTime();
+            try {
+                process(task.orElseThrow());
+            } finally {
+                metrics.recordWorkerDuration(
+                        OperationalMetrics.Feature.HEALTH,
+                        Duration.ofNanos(System.nanoTime() - startedAt)
+                );
+            }
             return true;
         } finally {
             queue.releaseWorker(leaseOwnerId);
@@ -219,6 +256,12 @@ public class HealthAnalysisWorker {
             if (cacheKey.isPresent()) {
                 Optional<CachedAnalysisResult<HealthAnalysisResult>> cached = resultCache
                         .findHealth(cacheKey.orElseThrow());
+                metrics.recordCacheLookup(
+                        OperationalMetrics.Feature.HEALTH,
+                        cached.isPresent()
+                                ? OperationalMetrics.CacheOutcome.HIT
+                                : OperationalMetrics.CacheOutcome.MISS
+                );
                 if (cached.isPresent()) {
                     CachedAnalysisResult<HealthAnalysisResult> cachedResult = cached.orElseThrow();
                     currentArticle = useCase.read(task.articleUrl());
@@ -402,12 +445,19 @@ public class HealthAnalysisWorker {
             fail(analysisId, "ANALYSIS_DEADLINE_EXCEEDED", "분석 제한 시간을 초과했습니다.", usage);
             return false;
         }
-        return outcomeStore.replaceWithOutcome(
+        boolean stored = outcomeStore.replaceWithOutcome(
                 analysisId,
                 current.version(),
                 completed,
                 AnalysisJobOutcome.completed(serialize(result), serialize(usage))
         );
+        if (stored) {
+            metrics.recordWorkerResult(
+                    OperationalMetrics.Feature.HEALTH,
+                    OperationalMetrics.WorkerOutcome.COMPLETED
+            );
+        }
+        return stored;
     }
 
     /** 외부 처리 없는 Cache 결과 단계 전환과 완료 */
@@ -487,12 +537,18 @@ public class HealthAnalysisWorker {
             return;
         }
         AnalysisJob failed = current.fail(clock.instant());
-        outcomeStore.replaceWithOutcome(
+        boolean stored = outcomeStore.replaceWithOutcome(
                 analysisId,
                 current.version(),
                 failed,
                 AnalysisJobOutcome.failed(code, detail, usage == null ? null : serialize(usage))
         );
+        if (stored) {
+            metrics.recordWorkerResult(
+                    OperationalMetrics.Feature.HEALTH,
+                    OperationalMetrics.WorkerOutcome.FAILED
+            );
+        }
     }
 
     /** 분야 판별 중단의 오류 코드 변환 */

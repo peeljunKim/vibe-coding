@@ -23,7 +23,7 @@
 | Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구·탈퇴 복구 확인과 Redis Session 구현; Google·Naver·Kakao Provider Subject 기반 로그인·초대 코드 소셜 가입과 Provider 활성화 공개 조회 구현 |
 | Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
-| Monitoring | Actuator, Git 추적 Prometheus scrape·Grafana provisioning과 6개 Panel Dashboard; Local Target·Metric Query·자동 등록 E2E PASS |
+| Monitoring | Actuator, 분석 접수·Worker·Cache·기사 추출의 제한된 Label Custom Metric, Git 추적 Prometheus scrape·Grafana provisioning과 11개 시스템·업무 Panel Dashboard; Local Target·Metric Query·자동 등록 E2E PASS |
 | CI/CD | GitHub Actions에서 Frontend lint/test/build, Backend verify, Compose config 검증; 배포 단계 없음 |
 | Deployment | AWS Free Plan 단일 EC2, DuckDNS, Blue/Green 애플리케이션 배포로 결정; Pipeline은 아직 없음 |
 | Container/Infrastructure | MySQL은 Host Service, Compose는 Redis·Prometheus·Grafana; 현재 Compose에는 Application image 없음 |

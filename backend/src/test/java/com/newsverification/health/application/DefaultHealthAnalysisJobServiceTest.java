@@ -8,6 +8,9 @@ import com.newsverification.analysis.application.AnalysisJobLifecycleService;
 import com.newsverification.analysis.application.AnalysisRequestRateLimitExceededException;
 import com.newsverification.analysis.application.AnalysisRequestRateLimiter;
 import com.newsverification.analysis.domain.AnalysisJob;
+import com.newsverification.monitoring.application.OperationalMetrics;
+import com.newsverification.monitoring.infrastructure.MicrometerOperationalMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.security.SecureRandom;
@@ -214,6 +217,41 @@ class DefaultHealthAnalysisJobServiceTest {
         assertThat(queue.enqueueCount).isZero();
     }
 
+    /** 접수·Queue 포화·Redis 장애의 제한된 업무 Metric 기록 */
+    @Test
+    void recordsAcceptanceQueueFullAndRedisFailureMetrics() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        OperationalMetrics metrics = new MicrometerOperationalMetrics(registry);
+        var requester = new HealthAnalysisJobService.Requester(
+                "member-1", null, null, "203.0.113.7"
+        );
+
+        service(new InMemoryJobStore(), new RecordingQueue(true), 0,
+                AnalysisRequestRateLimiter.unlimited(), metrics)
+                .accept("https://news.example/accepted", requester);
+        assertThatThrownBy(() -> service(
+                new InMemoryJobStore(), new RecordingQueue(false), 0,
+                AnalysisRequestRateLimiter.unlimited(), metrics
+        ).accept("https://news.example/full", requester))
+                .isInstanceOf(HealthAnalysisServiceUnavailableException.class);
+        assertThatThrownBy(() -> service(
+                new InMemoryJobStore(), new RecordingQueue(true), 0,
+                (feature, identifiers) -> { throw new IllegalStateException("Redis unavailable"); },
+                metrics
+        ).accept("https://news.example/redis", requester))
+                .isInstanceOf(HealthAnalysisServiceUnavailableException.class);
+
+        assertThat(registry.get("news.verification.analysis.requests")
+                .tags("feature", "health", "outcome", "accepted")
+                .counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("news.verification.analysis.requests")
+                .tags("feature", "health", "outcome", "queue_full")
+                .counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("news.verification.analysis.requests")
+                .tags("feature", "health", "outcome", "redis_unavailable")
+                .counter().count()).isEqualTo(1.0);
+    }
+
     /** 상태 Polling의 분석 접수 제한 제외 */
     @Test
     void doesNotRateLimitPollingRequests() {
@@ -252,6 +290,17 @@ class DefaultHealthAnalysisJobServiceTest {
             int currentUsed,
             AnalysisRequestRateLimiter requestRateLimiter
     ) {
+        return service(store, queue, currentUsed, requestRateLimiter, OperationalMetrics.disabled());
+    }
+
+    /** 업무 Metric 포함 Service 구성 */
+    private HealthAnalysisJobService service(
+            InMemoryJobStore store,
+            HealthAnalysisQueue queue,
+            int currentUsed,
+            AnalysisRequestRateLimiter requestRateLimiter,
+            OperationalMetrics metrics
+    ) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         var identityService = new HealthAnalysisJobIdentityService(
                 clock,
@@ -267,7 +316,8 @@ class DefaultHealthAnalysisJobServiceTest {
                 identityService,
                 new StubUsagePolicy(currentUsed),
                 requestRateLimiter,
-                new ObjectMapper()
+                new ObjectMapper(),
+                metrics
         );
     }
 

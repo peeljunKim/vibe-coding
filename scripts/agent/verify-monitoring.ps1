@@ -34,8 +34,8 @@ $dashboard = Get-Content -Raw -LiteralPath $dashboardPath | ConvertFrom-Json
 if ($dashboard.uid -ne 'news-verification-overview' -or $dashboard.title -ne '기사체크 서비스 개요') {
     throw 'Grafana overview dashboard identity is invalid'
 }
-if ($dashboard.panels.Count -ne 6) {
-    throw "Grafana overview dashboard must contain 6 panels, found $($dashboard.panels.Count)"
+if ($dashboard.panels.Count -ne 11) {
+    throw "Grafana overview dashboard must contain 11 panels, found $($dashboard.panels.Count)"
 }
 foreach ($panel in $dashboard.panels) {
     if (-not $panel.targets -or -not ($panel.targets | Where-Object { -not [string]::IsNullOrWhiteSpace($_.expr) })) {
@@ -232,7 +232,15 @@ try {
     Write-Host '[PASS] Backend Actuator health'
 
     $metricsResponse = Wait-HttpOk -Uri 'http://127.0.0.1:8080/actuator/prometheus' -TimeoutSeconds 30
-    foreach ($metricName in @('jvm_memory_used_bytes', 'http_server_requests_seconds_count')) {
+    foreach ($metricName in @(
+            'jvm_memory_used_bytes',
+            'http_server_requests_seconds_count',
+            'news_verification_analysis_requests_total',
+            'news_verification_analysis_worker_results_total',
+            'news_verification_analysis_worker_duration_seconds',
+            'news_verification_analysis_cache_lookups_total',
+            'news_verification_article_extractions_total'
+        )) {
         if (-not $metricsResponse.Content.Contains($metricName)) {
             throw "Actuator Prometheus metric missing: $metricName"
         }
@@ -254,7 +262,12 @@ try {
 
     foreach ($query in @(
             'jvm_memory_used_bytes{application="news-verification-api"}',
-            'http_server_requests_seconds_count{application="news-verification-api"}'
+            'http_server_requests_seconds_count{application="news-verification-api"}',
+            'news_verification_analysis_requests_total{application="news-verification-api"}',
+            'news_verification_analysis_worker_results_total{application="news-verification-api"}',
+            'news_verification_analysis_worker_duration_seconds_count{application="news-verification-api"}',
+            'news_verification_analysis_cache_lookups_total{application="news-verification-api"}',
+            'news_verification_article_extractions_total{application="news-verification-api"}'
         )) {
         $result = Invoke-PrometheusQuery -Query $query
         if ($result.Count -eq 0) {

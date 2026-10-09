@@ -11,7 +11,7 @@
 - Persistence와 상태: Local MySQL 8.0.30 Native Service, JPA, Redis 8 기반 세션·캐시 구성
 - Local MySQL: Windows Service Binary와 전용 Client 8.0.30, Scoop 기본 Client 9.7.1은 Schema 작업에 사용하지 않음
 - Schema 관리: Flyway·Liquibase와 DB 이력 Table 없이 Local 전용 초기 SQL, 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`
-- Monitoring: Spring Boot Actuator, Git 추적 Prometheus·Grafana Provisioning과 6개 Panel Dashboard 구성; Local Actuator → Prometheus Target·Query → Grafana 자동 등록 E2E PASS
+- Monitoring: Spring Boot Actuator, 분석 접수·Worker·Cache·기사 추출의 제한된 Label Custom Metric, Git 추적 Prometheus·Grafana Provisioning과 11개 시스템·업무 Panel Dashboard 구성; Local Actuator → Prometheus Target·Query → Grafana 자동 등록 E2E PASS
 - AI: 비공개 Prototype에서 Gemini 3.7 Flash 무료 등급 사용
 - Evidence Search: PubMed NCBI E-utilities와 허용된 공식 기관 자료 사용
 - 기사 외부 추출 제한: 압축 해제 후 원본 HTML 2 MiB, 단일 요청 Timeout 10초, Redirect 최대 3회

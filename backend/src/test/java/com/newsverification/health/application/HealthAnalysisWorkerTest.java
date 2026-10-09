@@ -18,6 +18,9 @@ import com.newsverification.analysiscache.application.CachedAnalysisResult;
 import com.newsverification.article.domain.ArticleProcessingError;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.article.domain.ExtractedArticle;
+import com.newsverification.monitoring.application.OperationalMetrics;
+import com.newsverification.monitoring.infrastructure.MicrometerOperationalMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
@@ -78,6 +81,8 @@ class HealthAnalysisWorkerTest {
                         Optional.of(result)
                 ));
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        OperationalMetrics metrics = new MicrometerOperationalMetrics(registry);
         HealthAnalysisWorker worker = new HealthAnalysisWorker(
                 queue,
                 new AnalysisJobLifecycleService(store, clock),
@@ -87,9 +92,11 @@ class HealthAnalysisWorkerTest {
                 usagePolicy,
                 cache,
                 versions,
+                HealthEvidenceLinkValidationService.trustAll(),
                 new ObjectMapper(),
                 clock,
-                "test-worker"
+                "test-worker",
+                metrics
         );
 
         assertThat(worker.runOnce()).isTrue();
@@ -111,6 +118,14 @@ class HealthAnalysisWorkerTest {
                         task.usageIdentifierKeys()
                 )
         );
+        assertThat(registry.get("news.verification.analysis.cache.lookups")
+                .tags("feature", "health", "outcome", "miss")
+                .counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("news.verification.analysis.worker.results")
+                .tags("feature", "health", "outcome", "completed")
+                .counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("news.verification.analysis.worker.duration")
+                .tag("feature", "health").timer().count()).isEqualTo(1L);
     }
 
     /** 완료 상태 저장 거부 시 공용 Cache 게시 차단 */
