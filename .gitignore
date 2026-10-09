@@ -38,6 +38,9 @@ service-account*.json
 # Local YAML 설정
 *.yml
 *.yaml
+!infra/prometheus/prometheus.yml
+!infra/grafana/provisioning/dashboards/dashboards.yml
+!infra/grafana/provisioning/datasources/prometheus.yml
 
 # Frontend 의존성과 생성물
 frontend/node_modules/

@@ -5,6 +5,7 @@ Set-StrictMode -Version Latest
 $verificationScript = Join-Path $PSScriptRoot 'verify.ps1'
 $localMvpVerificationScript = Join-Path $PSScriptRoot 'verify-local-mvp.ps1'
 $utilitiesScript = Join-Path $PSScriptRoot 'script-utilities.ps1'
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $powerShell = (Get-Process -Id $PID).Path
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) "news-verification-tests-$([guid]::NewGuid())"
 $requiredFiles = @(
@@ -163,6 +164,25 @@ function Assert-Contains {
 
 try {
     New-Item -ItemType Directory -Path $testRoot -Force *> $null
+
+    foreach ($relativePath in @(
+            'scripts/agent/verify-monitoring.ps1',
+            'infra/prometheus/prometheus.yml',
+            'infra/grafana/provisioning/dashboards/dashboards.yml',
+            'infra/grafana/provisioning/datasources/prometheus.yml'
+        )) {
+        $path = Join-Path $repoRoot $relativePath
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            $failures.Add("monitoring Clean Clone file missing: $relativePath")
+            continue
+        }
+
+        & git -C $repoRoot check-ignore --quiet -- $relativePath
+        if ($LASTEXITCODE -eq 0) {
+            $failures.Add("monitoring Clean Clone file is ignored: $relativePath")
+        }
+    }
+
     . $utilitiesScript
     $environmentFixture = Join-Path $testRoot 'environment.fixture'
     Set-Content -LiteralPath $environmentFixture -Value @(

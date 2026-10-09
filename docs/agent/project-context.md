@@ -23,7 +23,7 @@
 | Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구·탈퇴 복구 확인과 Redis Session 구현; Google·Naver·Kakao Provider Subject 기반 로그인·초대 코드 소셜 가입과 Provider 활성화 공개 조회 구현 |
 | Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
-| Monitoring | Actuator, Prometheus scrape, Grafana provisioning과 Dashboard |
+| Monitoring | Actuator, 분석 접수·Worker·Cache·기사 추출의 제한된 Label Custom Metric, Git 추적 Prometheus scrape·Grafana provisioning과 11개 시스템·업무 Panel Dashboard; Local Target·Metric Query·자동 등록 E2E PASS |
 | CI/CD | GitHub Actions에서 Frontend lint/test/build, Backend verify, Compose config 검증; 배포 단계 없음 |
 | Deployment | AWS Free Plan 단일 EC2, DuckDNS, Blue/Green 애플리케이션 배포로 결정; Pipeline은 아직 없음 |
 | Container/Infrastructure | MySQL은 Host Service, Compose는 Redis·Prometheus·Grafana; 현재 Compose에는 Application image 없음 |
@@ -147,6 +147,7 @@ docs/agent/verification.md        명령, DoD, 실제 예제
 scripts/agent/verify.ps1          변경 범위별 자동 검증
 scripts/agent/script-utilities.ps1 Setup·검증 공통 환경값·Java 탐색
 scripts/agent/verify.Tests.ps1    Harness·Local MVP 실행 순서 회귀
+scripts/agent/verify-monitoring.ps1 Actuator·Prometheus·Grafana Local 통합 검증
 ```
 
 Setup과 검증 진입점은 개발 DB 생성, 제한된 테스트 DB 생성, Native MySQL IT, Docker Redis IT, Full-stack Smoke처럼 권한과 외부 서비스 경계가 다를 때 분리한다. 공통 값 처리만 유틸리티로 공유하며 이름이 비슷하다는 이유로 파괴성과 실행 조건이 다른 진입점을 합치지 않는다.

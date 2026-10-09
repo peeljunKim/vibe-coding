@@ -52,6 +52,9 @@ pwsh -NoProfile -File scripts/agent/verify-local-mvp.ps1
 # Local Frontend·Backend·Native MySQL·Docker Redis Smoke E2E
 pwsh -NoProfile -File scripts/agent/verify-full-stack-smoke.ps1
 
+# Local Actuator·Prometheus·Grafana 통합 검증
+pwsh -NoProfile -File scripts/agent/verify-monitoring.ps1
+
 # 승인된 초기 언론사 실제 기사 추출 시험
 pwsh -NoProfile -File scripts/agent/verify-publisher-extraction.ps1 `
     -TimeoutSeconds <확정값> `
@@ -66,6 +69,8 @@ Script는 기존 Repository 도구만 사용한다. Frontend는 npm scripts, Bac
 Local MVP 전체 회귀 검증은 전체 Repository 검증, Native MySQL Repository 통합 테스트, Docker Redis 통합 테스트, Playwright Browser E2E를 순서대로 실행하고 첫 실패에서 중단한다. 개별 테스트를 복제하지 않고 기존 검증 진입점을 조합하며 실제 Gemini·PubMed·OAuth·Gmail SMTP를 호출하지 않는다. Native MySQL 테스트 비밀번호는 Process 환경 변수 또는 Git에서 제외된 `.env`에서만 읽고, 없으면 마스킹 입력을 요청한다.
 
 Full-stack Smoke E2E는 Vite Browser에서 실제 Backend HTTP API를 호출하고 별도 Native MySQL 테스트 Database와 실행별 Docker Redis를 연결한다. 회원가입·로그인·CSRF·건강 및 제목 분석·저장 기록·로그아웃 경계를 검증하며, 실제 Gemini·PubMed·OAuth·Gmail SMTP 대신 `e2e` Profile의 고정 기사 입력과 기존 Mock 분석·메일 Adapter를 사용한다. 실행별 시험 언론사·회원·Redis Container와 임시 로그는 종료 시 정리하고 Secret 값은 저장하거나 출력하지 않는다.
+
+모니터링 통합 검증은 Git 추적 Prometheus·Grafana Provisioning, Actuator Health·Prometheus Metric, Prometheus Backend Target·JVM·HTTP Query, Grafana 데이터소스·기본 Dashboard·11개 시스템·업무 Panel Query를 확인한다. 기존 실행 Container는 유지하고 검증이 시작한 Container와 Backend만 원래 상태로 되돌리며 Redis·Grafana 비밀번호를 출력하거나 저장하지 않는다. `-ConfigurationOnly`는 Container를 시작하지 않고 파일·Dashboard 계약과 Compose 해석만 확인한다.
 
 Native MySQL 검증 Script는 Git에서 제외된 `.env` 또는 `.env.example`의 Database·계정 값을 사용하며 이름을 다시 입력받지 않는다. Root 비밀번호는 항상 마스킹 입력한다. `.env`에 애플리케이션 비밀번호가 있으면 프로세스 내부에서 자동 사용하고, 없으면 해당 계정 비밀번호를 마스킹 입력 후 저장하지 않는다. 기존 계정의 비밀번호를 변경하거나 두 계정의 비밀번호를 같게 강제하지 않는다. 애플리케이션 계정이 없을 때만 제공된 비밀번호로 생성한다. 빈 Database에는 Local V0001과 존재하는 V0004 이상 후속 SQL을 Version 순서대로 적용한다. 비어 있지 않은 Database에는 Schema SQL을 재실행하지 않고 Table 집합, 지원 언론사 분류, 표준 INT 컬럼과 건강 분석 중복 방지 Index Metadata를 검증한다. 애플리케이션 계정의 기존 권한을 회수한 뒤 DML 권한만 부여한다.
 
