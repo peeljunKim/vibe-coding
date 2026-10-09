@@ -128,10 +128,12 @@
 
 ## Next Loop
 
-1. 현재 활성화 보류 9곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-2. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
-3. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
-4. 사용자 별도 요청 후 실제 Gemini 제한 Local Smoke Test
+1. 분석 Queue·Worker·Cache·언론사 추출 Custom Metric과 Dashboard 보강
+2. Local Alert Rule·장애 대응 Runbook과 단일 EC2 외부 장애 감지 설계
+3. 현재 활성화 보류 9곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+4. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+5. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
+6. 사용자 별도 요청 후 실제 Gemini 제한 Local Smoke Test
 
 ## Backend 표준화 상태
 
@@ -702,3 +704,15 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 전체 검증: PASS (343개, 실패·오류·Skip 0)
 - Harness·Secret·Diff 공백 검사: PASS
 - 실제 Gemini API 호출: NOT RUN (사용자 별도 요청 전 보류)
+
+## Local 모니터링 기반 1단계
+
+- 비민감 Prometheus·Grafana Provisioning YAML의 제한적 Git 추적 예외: PASS
+- Clean Clone 모니터링 파일·Dashboard 계약과 Compose 해석 회귀: PASS
+- Backend Actuator Health·Prometheus JVM·HTTP Metric 노출: PASS
+- Prometheus Backend Target `UP`과 JVM·HTTP Query: PASS
+- Grafana Prometheus 데이터소스·기본 Dashboard·6개 Panel Query: PASS
+- 기존 Container 유지와 검증 실행분 원상 복구: PASS
+- Secret 출력·저장 방지: PASS
+- 운영 Prometheus·Grafana 외부 공개 차단 경계 문서화: PASS
+- Custom 업무 Metric·Alert Rule·외부 장애 감지: NOT APPLICABLE (후속 단계)

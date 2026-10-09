@@ -31,6 +31,8 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - 로컬 보관 기간 15일
 - Grafana 데이터소스와 기본 대시보드 자동 등록
 - 운영 환경에서는 Prometheus endpoint를 내부 네트워크로 제한
+- 현재 Compose의 `9090`, `3000` Host Port 공개는 Local 전용이며 운영 설정으로 재사용하지 않음
+- `verify-monitoring.ps1`로 Actuator → Prometheus → Grafana 연결과 Panel Query 검증
 
 ## 로컬 실행 순서
 
@@ -80,7 +82,8 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - `docker-compose.yml`: 명시적 Git 예외로 유지하는 Local 인프라 구조와 필수 환경 변수 참조
 - 현재 후속 Schema SQL: 없음, Local 초기 Schema는 `V0001__create_initial_domain_schema.sql` 하나만 사용
 - 향후 Schema 변경: V0002·V0003 번호를 재사용하지 않고 `V0004__*.sql`부터 생성해 Git 변경 이력으로 관리
-- Grafana Dashboard JSON과 Redis 설정: Secret을 포함하지 않는 현재 추적 공유 인프라 설정
+- Prometheus 수집, Grafana Provisioning YAML과 Dashboard JSON: Secret을 포함하지 않는 추적 공유 인프라 설정
+- 일반 YAML 제외 정책의 예외는 위 모니터링 설정과 활성 CI Workflow로 제한
 
 ### 포함하지 않는 설정과 데이터
 
@@ -92,7 +95,7 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - Native MySQL 데이터 디렉터리와 Redis, Prometheus, Grafana의 Docker Volume 데이터
 - 로그, 빌드 결과물, 테스트 결과, 캐시와 임시 파일
 
-MySQL, Redis, Grafana 비밀번호는 기본값 없이 필수 환경 변수로 받는다. MySQL은 Native Service와 Backend 연결 단계에서, Redis와 Grafana는 Compose 시작 단계에서 검증한다.
+MySQL, Redis, Grafana 비밀번호는 기본값 없이 필수 환경 변수로 받는다. MySQL은 Native Service와 Backend 연결 단계에서, Redis와 Grafana는 Compose 시작 단계에서 검증한다. 모니터링 검증은 Process 환경 변수 또는 Git에서 제외된 `.env`의 비밀번호를 사용하며 값은 출력하거나 새 파일에 저장하지 않는다.
 
 ## 아직 설정하지 않는 항목
 
