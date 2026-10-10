@@ -128,7 +128,7 @@
 
 ## Next Loop
 
-1. Local Alert Rule·장애 대응 Runbook과 단일 EC2 외부 장애 감지 설계
+1. 단일 EC2 외부 장애 감지 구성
 2. 현재 활성화 보류 9곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 3. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
 4. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
@@ -704,7 +704,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Harness·Secret·Diff 공백 검사: PASS
 - 실제 Gemini API 호출: NOT RUN (사용자 별도 요청 전 보류)
 
-## Local 모니터링 기반 1단계
+## Local 모니터링 기반과 경보 전달
 
 - 비민감 Prometheus·Grafana Provisioning YAML의 제한적 Git 추적 예외: PASS
 - Clean Clone 모니터링 파일·Dashboard 계약과 Compose 해석 회귀: PASS
@@ -717,4 +717,11 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 기존 Container 유지와 검증 실행분 원상 복구: PASS
 - Secret 출력·저장 방지: PASS
 - 운영 Prometheus·Grafana 외부 공개 차단 경계 문서화: PASS
-- Alert Rule·외부 장애 감지: NOT APPLICABLE (후속 단계)
+- Backend DOWN·Redis 장애·Queue 포화·Worker 실패율·지연·기사 추출 실패율의 6개 Alert Rule: PASS
+- 정상·장애 Prometheus Rule Fixture와 최소 표본 경계: PASS
+- 장애별 대응·복구·Rollback Runbook: PASS
+- Alertmanager Gmail SMTP 기본 수신자 `reportcheck104@gmail.com`과 쉼표 구분 다중 수신 구성: PASS
+- Gmail SMTP 테스트 경보 전달 시도와 Alertmanager 오류 로그 확인: PASS
+- Slack `#monitoring-alerts`·`#incident-response` 역할·주제·설명·사용 안내 구성: PASS
+- Slack Incoming Webhook 자동 경보 연결과 `#monitoring-alerts` 실제 수신 확인: PASS
+- 단일 EC2 외부 장애 감지: NOT RUN (운영 Host·관측 위치 확정 후 수행)

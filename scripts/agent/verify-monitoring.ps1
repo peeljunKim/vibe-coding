@@ -1,7 +1,8 @@
-# Local Actuator·Prometheus·Grafana 통합 검증
+# Local Actuator·Prometheus·Alertmanager·Grafana 통합 검증
 [CmdletBinding()]
 param(
-    [switch] $ConfigurationOnly
+    [switch] $ConfigurationOnly,
+    [switch] $SendTestAlert
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,10 +14,16 @@ $environmentPath = Join-Path $repoRoot '.env'
 $composePath = Join-Path $repoRoot 'docker-compose.yml'
 $utilitiesPath = Join-Path $PSScriptRoot 'script-utilities.ps1'
 $dashboardPath = Join-Path $repoRoot 'infra\grafana\dashboards\news-verification-overview.json'
+$alertRulesPath = Join-Path $repoRoot 'infra\prometheus\rules\news-verification-alerts.yml'
+$alertRulesTestPath = Join-Path $repoRoot 'infra\prometheus\rules\news-verification-alerts.test.yml'
+$alertmanagerPath = Join-Path $repoRoot 'infra\alertmanager\alertmanager.yml'
 $requiredPaths = @(
     $composePath,
     $utilitiesPath,
     $dashboardPath,
+    $alertRulesPath,
+    $alertRulesTestPath,
+    $alertmanagerPath,
     (Join-Path $repoRoot 'infra\prometheus\prometheus.yml'),
     (Join-Path $repoRoot 'infra\grafana\provisioning\dashboards\dashboards.yml'),
     (Join-Path $repoRoot 'infra\grafana\provisioning\datasources\prometheus.yml')
@@ -44,17 +51,65 @@ foreach ($panel in $dashboard.panels) {
 }
 Write-Host '[PASS] Monitoring configuration files and dashboard contract'
 
+$alertRules = Get-Content -Raw -LiteralPath $alertRulesPath
+foreach ($alertName in @(
+        'NewsVerificationBackendUnavailable',
+        'NewsVerificationAnalysisRedisUnavailable',
+        'NewsVerificationAnalysisQueueSaturated',
+        'NewsVerificationWorkerFailureRateHigh',
+        'NewsVerificationWorkerLatencyHigh',
+        'NewsVerificationArticleExtractionFailureRateHigh'
+    )) {
+    if (-not $alertRules.Contains("alert: $alertName")) {
+        throw "Required Prometheus alert rule missing: $alertName"
+    }
+}
+if (-not $alertRules.Contains('>= 5') -or -not $alertRules.Contains('>= 10')) {
+    throw 'Ratio alert rules must include minimum sample boundaries'
+}
+
+$alertmanagerConfiguration = Get-Content -Raw -LiteralPath $alertmanagerPath
+if (-not $alertmanagerConfiguration.Contains('smtp_auth_password_file: /run/secrets/alertmanager-smtp-password')) {
+    throw 'Alertmanager SMTP password must use a Docker Secret file'
+}
+if (-not $alertmanagerConfiguration.Contains('to: reportcheck104@gmail.com')) {
+    throw 'Alertmanager default email recipient is invalid'
+}
+if (-not $alertmanagerConfiguration.Contains('api_url_file: /run/secrets/alertmanager-slack-webhook') `
+        -or -not $alertmanagerConfiguration.Contains('channel: "#monitoring-alerts"')) {
+    throw 'Alertmanager Slack receiver must use the Docker Secret and monitoring channel'
+}
+if ($alertmanagerConfiguration -match '(?m)^\s*smtp_auth_password:\s*\S+') {
+    throw 'Alertmanager SMTP password must not be stored in tracked configuration'
+}
+if ($alertmanagerConfiguration -match '(?m)^\s*api_url:\s*\S+') {
+    throw 'Alertmanager Slack Webhook URL must not be stored in tracked configuration'
+}
+Write-Host '[PASS] Prometheus alert rules and Alertmanager contract'
+
 $previousComposeValues = @{}
-foreach ($name in @('REDIS_PASSWORD', 'GRAFANA_ADMIN_PASSWORD')) {
+foreach ($name in @('REDIS_PASSWORD', 'GRAFANA_ADMIN_PASSWORD', 'MAIL_APP_PASSWORD', 'SLACK_WEBHOOK_URL')) {
     $previousComposeValues[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     if (-not $previousComposeValues[$name]) {
         [Environment]::SetEnvironmentVariable($name, 'monitoring-configuration-check', 'Process')
     }
 }
 try {
-    & docker compose --file $composePath config --quiet
+    & docker compose --file $composePath --profile alerts config --quiet
     if ($LASTEXITCODE -ne 0) {
         throw "Docker Compose monitoring configuration failed with exit code $LASTEXITCODE"
+    }
+
+    & docker compose --file $composePath run --rm --no-deps --entrypoint promtool prometheus `
+        test rules /etc/prometheus/rules/news-verification-alerts.test.yml
+    if ($LASTEXITCODE -ne 0) {
+        throw "Prometheus alert rule fixture verification failed with exit code $LASTEXITCODE"
+    }
+
+    & docker compose --file $composePath --profile alerts run --rm --no-deps `
+        --entrypoint amtool alertmanager check-config /etc/alertmanager/alertmanager.yml
+    if ($LASTEXITCODE -ne 0) {
+        throw "Alertmanager configuration verification failed with exit code $LASTEXITCODE"
     }
 }
 finally {
@@ -62,7 +117,7 @@ finally {
         [Environment]::SetEnvironmentVariable($name, $previousComposeValues[$name], 'Process')
     }
 }
-Write-Host '[PASS] Docker Compose monitoring configuration'
+Write-Host '[PASS] Docker Compose, Prometheus fixture and Alertmanager configuration'
 
 if ($ConfigurationOnly) {
     Write-Host '[PASS] Monitoring configuration-only verification'
@@ -136,17 +191,34 @@ if (-not $grafanaPassword) {
 if (-not $redisPassword -or -not $grafanaPassword) {
     throw 'REDIS_PASSWORD and GRAFANA_ADMIN_PASSWORD must be configured in Process environment or ignored .env'
 }
+$mailAppPassword = [Environment]::GetEnvironmentVariable('MAIL_APP_PASSWORD', 'Process')
+if (-not $mailAppPassword) {
+    $mailAppPassword = Get-ConfiguredValue -Values $localValues -Name 'MAIL_APP_PASSWORD'
+}
+if (-not $mailAppPassword) {
+    throw 'MAIL_APP_PASSWORD must be configured in Process environment or ignored .env'
+}
+$slackWebhookUrl = [Environment]::GetEnvironmentVariable('SLACK_WEBHOOK_URL', 'Process')
+if (-not $slackWebhookUrl) {
+    $slackWebhookUrl = Get-ConfiguredValue -Values $localValues -Name 'SLACK_WEBHOOK_URL'
+}
+if (-not $slackWebhookUrl) {
+    throw 'SLACK_WEBHOOK_URL must be configured in Process environment or ignored .env'
+}
 $runtimeEnvironmentBackup = @{}
-foreach ($name in @('REDIS_PASSWORD', 'GRAFANA_ADMIN_PASSWORD')) {
+foreach ($name in @('REDIS_PASSWORD', 'GRAFANA_ADMIN_PASSWORD', 'MAIL_APP_PASSWORD', 'SLACK_WEBHOOK_URL')) {
     $runtimeEnvironmentBackup[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 [Environment]::SetEnvironmentVariable('REDIS_PASSWORD', $redisPassword, 'Process')
 [Environment]::SetEnvironmentVariable('GRAFANA_ADMIN_PASSWORD', $grafanaPassword, 'Process')
+[Environment]::SetEnvironmentVariable('MAIL_APP_PASSWORD', $mailAppPassword, 'Process')
+[Environment]::SetEnvironmentVariable('SLACK_WEBHOOK_URL', $slackWebhookUrl, 'Process')
 
 $containerNames = [ordered]@{
     redis = 'news-verification-redis'
     prometheus = 'news-verification-prometheus'
     grafana = 'news-verification-grafana'
+    alertmanager = 'news-verification-alertmanager'
 }
 $snapshots = @{}
 $startedServices = [Collections.Generic.List[string]]::new()
@@ -172,7 +244,7 @@ try {
     if ($startedServices.Count -gt 0) {
         Push-Location $repoRoot
         try {
-            & docker compose --file $composePath up --detach @($startedServices)
+            & docker compose --file $composePath --profile alerts up --detach @($startedServices)
             if ($LASTEXITCODE -ne 0) {
                 throw "Monitoring container startup failed with exit code $LASTEXITCODE"
             }
@@ -181,7 +253,7 @@ try {
             Pop-Location
         }
     }
-    Write-Host '[PASS] Redis, Prometheus and Grafana containers ready'
+    Write-Host '[PASS] Redis, Prometheus, Grafana and Alertmanager containers ready'
 
     $backendResponse = $null
     try {
@@ -248,6 +320,64 @@ try {
     Write-Host '[PASS] Backend Actuator Prometheus metrics'
 
     [void](Wait-HttpOk -Uri 'http://127.0.0.1:9090/-/ready' -TimeoutSeconds 60)
+    [void](Wait-HttpOk -Uri 'http://127.0.0.1:9093/-/ready' -TimeoutSeconds 60)
+
+    $rulesResponse = Invoke-RestMethod -Uri 'http://127.0.0.1:9090/api/v1/rules?type=alert' -TimeoutSec 5
+    if ($rulesResponse.status -ne 'success') {
+        throw 'Prometheus alert rules API failed'
+    }
+    $loadedAlerts = @($rulesResponse.data.groups.rules | ForEach-Object { $_.name })
+    foreach ($alertName in @(
+            'NewsVerificationBackendUnavailable',
+            'NewsVerificationAnalysisRedisUnavailable',
+            'NewsVerificationAnalysisQueueSaturated',
+            'NewsVerificationWorkerFailureRateHigh',
+            'NewsVerificationWorkerLatencyHigh',
+            'NewsVerificationArticleExtractionFailureRateHigh'
+        )) {
+        if ($loadedAlerts -notcontains $alertName) {
+            throw "Prometheus alert rule was not loaded: $alertName"
+        }
+    }
+    Write-Host '[PASS] Prometheus alert rules loaded'
+
+    $alertmanagerStatus = Invoke-RestMethod -Uri 'http://127.0.0.1:9093/api/v2/status' -TimeoutSec 5
+    if (-not $alertmanagerStatus.config.original.Contains('reportcheck104@gmail.com') `
+            -or -not $alertmanagerStatus.config.original.Contains('#monitoring-alerts')) {
+        throw 'Alertmanager notification receiver was not loaded'
+    }
+    Write-Host '[PASS] Alertmanager email and Slack receivers loaded'
+
+    if ($SendTestAlert) {
+        $testAlert = ConvertTo-Json -InputObject @(
+            @{
+                labels = @{
+                    alertname = 'NewsVerificationAlertDeliveryTest'
+                    severity = 'info'
+                    service = 'monitoring'
+                }
+                annotations = @{
+                    summary = '기사체크 Local 경보 전달 시험'
+                    description = '사용자가 요청한 Gmail SMTP와 Slack 경보 전달 확인입니다.'
+                }
+                startsAt = [DateTimeOffset]::UtcNow.ToString('o')
+                endsAt = [DateTimeOffset]::UtcNow.AddMinutes(2).ToString('o')
+            }
+        ) -Depth 5
+        Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:9093/api/v2/alerts' `
+            -ContentType 'application/json' -Body $testAlert -TimeoutSec 5 | Out-Null
+        Write-Host '[PASS] Alertmanager test alert accepted'
+
+        Start-Sleep -Seconds 35
+        $alertmanagerLogs = & docker logs --since 1m $containerNames.alertmanager 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Alertmanager delivery log inspection failed'
+        }
+        if (($alertmanagerLogs -join "`n") -match 'level=error|Notify for alerts failed|notify retry canceled') {
+            throw 'Alertmanager reported a notification delivery error'
+        }
+        Write-Host '[PASS] Alertmanager Gmail and Slack notification attempts completed without reported error'
+    }
     $targetDeadline = (Get-Date).AddSeconds(45)
     do {
         $upResult = Invoke-PrometheusQuery -Query 'up{job="news-verification-api"}'
@@ -334,6 +464,8 @@ finally {
     }
     $redisPassword = $null
     $grafanaPassword = $null
+    $mailAppPassword = $null
+    $slackWebhookUrl = $null
     $basicValue = $null
     if ($localValues) {
         $localValues.Clear()

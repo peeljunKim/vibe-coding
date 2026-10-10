@@ -24,26 +24,30 @@
 
 Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 확인하지 못하면 새 AI 분석을 시작하지 않는다.
 
-### Prometheus와 Grafana
+### Prometheus, Grafana와 Alertmanager
 
 - Spring Boot Actuator의 `/actuator/prometheus` 수집
 - 기본 수집 간격 15초
 - 로컬 보관 기간 15일
 - Grafana 데이터소스와 기본 대시보드 자동 등록
+- Prometheus 6개 운영 경보와 정상·장애 Fixture
+- 선택적 `alerts` Profile의 Alertmanager Gmail SMTP 수신
+- 기본 수신자 `reportcheck104@gmail.com`, 쉼표 구분 다중 수신자 지원
 - 운영 환경에서는 Prometheus endpoint를 내부 네트워크로 제한
-- 현재 Compose의 `9090`, `3000` Host Port 공개는 Local 전용이며 운영 설정으로 재사용하지 않음
-- `verify-monitoring.ps1`로 Actuator → Prometheus → Grafana 연결과 Panel Query 검증
+- 현재 Compose의 `9090`, `9093`, `3000` Host Port 공개는 Local 전용이며 운영 설정으로 재사용하지 않음
+- `verify-monitoring.ps1`로 Actuator → Prometheus → Alertmanager·Grafana 연결과 Alert·Panel Query 검증
 
 ## 로컬 실행 순서
 
 1. Oracle JDK 17.0.11을 Local Backend 기본 Java로 사용한다.
 2. `.env.example`을 `.env`로 복사하고 모든 `replace-with-` 값을 로컬 비밀번호로 변경한다.
 3. Windows MySQL Service를 실행하고 `DATABASE_SCHEMA.md`의 초기 SQL을 적용한다.
-4. `docker compose up -d redis prometheus grafana`로 나머지 인프라를 실행한다.
-5. `backend`에서 Maven Wrapper로 Spring Boot를 실행한다.
-6. `frontend`에서 npm으로 Vite 개발 서버를 실행한다.
-7. Prometheus Targets 화면에서 backend가 `UP`인지 확인한다.
-8. Grafana의 `기사체크 서비스 개요` 대시보드를 확인한다.
+4. `docker compose up -d redis prometheus grafana`로 기본 인프라를 실행한다.
+5. Local 이메일·Slack 경보가 필요하면 `docker compose --profile alerts up -d alertmanager`를 추가 실행한다.
+6. `backend`에서 Maven Wrapper로 Spring Boot를 실행한다.
+7. `frontend`에서 npm으로 Vite 개발 서버를 실행한다.
+8. Prometheus Targets 화면에서 backend가 `UP`인지 확인한다.
+9. Grafana의 `기사체크 서비스 개요` 대시보드를 확인한다.
 
 ## 환경 분리
 
@@ -82,7 +86,7 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - `docker-compose.yml`: 명시적 Git 예외로 유지하는 Local 인프라 구조와 필수 환경 변수 참조
 - 현재 후속 Schema SQL: 없음, Local 초기 Schema는 `V0001__create_initial_domain_schema.sql` 하나만 사용
 - 향후 Schema 변경: V0002·V0003 번호를 재사용하지 않고 `V0004__*.sql`부터 생성해 Git 변경 이력으로 관리
-- Prometheus 수집, Grafana Provisioning YAML과 Dashboard JSON: Secret을 포함하지 않는 추적 공유 인프라 설정
+- Prometheus 수집·Alert Rule·Fixture, Grafana Provisioning·Dashboard, Alertmanager Receiver YAML: Secret을 포함하지 않는 추적 공유 인프라 설정
 - 일반 YAML 제외 정책의 예외는 위 모니터링 설정과 활성 CI Workflow로 제한
 
 ### 포함하지 않는 설정과 데이터
@@ -92,10 +96,10 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - `application.yml`, `application-prod.yml`, `application-local.yml`, `application-secret.yml`, `application-secrets.yml`
 - API Key, OAuth Secret, Token, Password가 기록된 credentials 및 service account 파일
 - Private Key, keystore, 인증서 개인키 파일
-- Native MySQL 데이터 디렉터리와 Redis, Prometheus, Grafana의 Docker Volume 데이터
+- Native MySQL 데이터 디렉터리와 Redis, Prometheus, Grafana, Alertmanager의 Docker Volume 데이터
 - 로그, 빌드 결과물, 테스트 결과, 캐시와 임시 파일
 
-MySQL, Redis, Grafana 비밀번호는 기본값 없이 필수 환경 변수로 받는다. MySQL은 Native Service와 Backend 연결 단계에서, Redis와 Grafana는 Compose 시작 단계에서 검증한다. 모니터링 검증은 Process 환경 변수 또는 Git에서 제외된 `.env`의 비밀번호를 사용하며 값은 출력하거나 새 파일에 저장하지 않는다.
+MySQL, Redis, Grafana 비밀번호는 기본값 없이 필수 환경 변수로 받는다. MySQL은 Native Service와 Backend 연결 단계에서, Redis와 Grafana는 Compose 시작 단계에서 검증한다. Alertmanager Gmail App Password와 Slack Incoming Webhook은 Process 환경 변수 또는 Git에서 제외된 `.env`의 `MAIL_APP_PASSWORD`, `SLACK_WEBHOOK_URL`에서 Docker Secret으로 전달한다. 모니터링 검증은 이 값을 출력하거나 Git 추적 파일에 저장하지 않는다.
 
 ## 아직 설정하지 않는 항목
 
@@ -105,6 +109,6 @@ MySQL, Redis, Grafana 비밀번호는 기본값 없이 필수 환경 변수로 �
 - 공식 기관별 근거 검색 Adapter
 - 언론사 후보별 추출 결과와 활성화 상태
 - 실제 사용자·분석 데이터 모델
-- 운영 알림 채널과 OTLP 수집 대상
+- OTLP 수집 대상
 
 위 항목은 요구사항의 열린 질문이 해결되거나 해당 기능을 구현할 때 추가한다.
