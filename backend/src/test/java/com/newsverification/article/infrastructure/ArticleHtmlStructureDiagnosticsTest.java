@@ -18,6 +18,9 @@ class ArticleHtmlStructureDiagnosticsTest {
                 {"@type":"NewsArticle","headline":"기사 제목","datePublished":"2026-10-07","articleBody":"기사 전문"}
                 </script>
                 </head><body>
+                <div id="storyShell" class="story-content">
+                    문단 태그 없이 제공되는 기사 본문 구조를 확인하기 위한 충분히 긴 진단용 텍스트입니다.
+                </div>
                 <div id="articleBody" class="news-content">
                     <p>첫 번째 기사 문단입니다.</p>
                     <p>두 번째 기사 문단입니다.</p>
@@ -30,7 +33,10 @@ class ArticleHtmlStructureDiagnosticsTest {
         assertThat(diagnostics.dateSources())
                 .containsExactly("meta[name=publish-date]");
         assertThat(diagnostics.bodyCandidates())
-                .contains("div#articleBody.news-content[p=2,text=29]");
+                .contains(
+                        "div#articleBody.news-content[p=2,text=29]",
+                        "div#storyShell.story-content[p=0,text=49]"
+                );
         assertThat(diagnostics.structuredFields())
                 .containsExactly(
                         "json=valid",

@@ -66,7 +66,7 @@
 - 초기 언론사 실제 추출 시험 실행기와 Local 보고서 경계: PASS
 - 기사 외부 추출 제한 확정: PASS (압축 해제 후 원본 HTML 2 MiB, 단일 요청 Timeout 10초, Redirect 최대 3회)
 - 초기 언론사 실제 외부 추출 시험: PASS (20곳 처리, 자동 추출 13곳, 본문 품질 수동 검토 통과 9곳)
-- 현재 기술 지원 후보 정리: PASS (연합뉴스, MBC, SBS, 중앙일보, 한겨레, 경향신문, 국민일보, 매일경제, 한국경제)
+- 1차 기술 지원 후보 정리: PASS (연합뉴스, MBC, SBS, 중앙일보, 한겨레, 경향신문, 국민일보, 매일경제, 한국경제)
 - 언론사 지원과 기사 분야 판별의 책임 분리: PASS (건강 분석에만 개별 기사 분야 판별)
 - 언론사 분류와 무관한 공개 조회 회귀 검증: PASS (통신·종합·경제·의료 분류 포함)
 - 의료 전문 보완 후보 조사: PASS (8곳, 실제 추출 시험은 NOT RUN)
@@ -94,7 +94,7 @@
 - 지원 상태 공개 API 확장과 Frontend 동적 연결: PASS (응답 필드 유지, `UNSUPPORTED` 상태 추가, 정적 목록 제거)
 - 지원 언론사 펼침 Browser 검증: PASS (Mock API, 1440·1280px 가로 넘침 없음, Runtime·Console 오류 없음)
 - Local MySQL 실데이터 Backend 기동과 Browser E2E: PASS (Process 환경 변수 인증, 비로그인 `GET /api/publishers` 200, 실제 빈 배열과 Frontend 빈 상태를 1024·1280·1440px Headed Chrome에서 확인)
-- 지원 언론사 초기 기준 데이터: PASS (추출 품질 통과 9곳 `ACTIVE`, 보완·재시험 대기 11곳 `CANDIDATE`, 허용 호스트 35건)
+- 지원 언론사 Clean Clone 초기 기준 데이터: PASS (추출 품질 통과 17곳 `ACTIVE`, 보완·재시험 대기 3곳 `CANDIDATE`, 허용 호스트 35건)
 - 지원 언론사 초기 데이터 적용 Script: PASS (개발·테스트 Database 빈 Table 선행 조건, Process·`.env`·마스킹 입력, 기존 상태 덮어쓰기 차단)
 - Native MySQL 개발·테스트 Database 초기 데이터 적용과 재검증: PASS (각 언론사 20건, 도메인 35건, `ACTIVE` 호스트 16건, `PAUSED` 호스트 19건)
 - Local MySQL 상태별 언론사 실데이터 표시: PASS (`GET /api/publishers` 20건, 지원 중 9곳, 일시 중단 0곳, 현재 미지원 11곳)
@@ -129,7 +129,7 @@
 ## Next Loop
 
 1. 단일 EC2 외부 장애 감지 구성
-2. 현재 활성화 보류 9곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
+2. 현재 활성화 보류 3곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
 3. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
 4. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 5. 사용자 별도 요청 후 실제 Gemini 제한 Local Smoke Test
@@ -686,10 +686,10 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - KBS 비표준 JSON-LD 게시일, 한국 로컬 시각과 `.view-article` 본문 추출: PASS
 - KBS `■ 제보하기` 이후 고정 안내 제거: PASS
 - 한국일보 `#article-view-content` 본문 추출: PASS
-- KBS·한국일보 Local HTML Fixture: PASS
+- KBS·한국일보 테스트 코드 내부 최소 HTML 구조 회귀 검증: PASS
 - KBS 실제 기사 재시험: PASS (본문 772자, 메뉴·광고·관련 기사 혼입 미탐지)
 - 한국일보 실제 기사 재시험: PASS (본문 1,313자, 메뉴·광고·관련 기사 혼입 미탐지)
-- Clean Clone 초기 기준: 지원 11곳·현재 미지원 9곳으로 갱신
+- 당시 Clean Clone 초기 기준: 지원 11곳·현재 미지원 9곳으로 갱신 (2단계에서 지원 17곳·현재 미지원 3곳으로 대체)
 - 기존 Local MySQL 언론사 상태 자동 변경: NOT RUN (기존 데이터 덮어쓰기 금지 정책 유지)
 - Backend Maven 전체 검증: PASS (340개 Test, 실패·오류·Skip 0)
 - Native MySQL 검증 회귀·Schema 구조·Compose 구성: PASS
@@ -720,8 +720,34 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend DOWN·Redis 장애·Queue 포화·Worker 실패율·지연·기사 추출 실패율의 6개 Alert Rule: PASS
 - 정상·장애 Prometheus Rule Fixture와 최소 표본 경계: PASS
 - 장애별 대응·복구·Rollback Runbook: PASS
-- Alertmanager Gmail SMTP 기본 수신자 `reportcheck104@gmail.com`과 쉼표 구분 다중 수신 구성: PASS
+- Alertmanager Gmail SMTP 수신자 비공개 설정과 쉼표 구분 다중 수신 구성: PASS
 - Gmail SMTP 테스트 경보 전달 시도와 Alertmanager 오류 로그 확인: PASS
 - Slack `#monitoring-alerts`·`#incident-response` 역할·주제·설명·사용 안내 구성: PASS
 - Slack Incoming Webhook 자동 경보 연결과 `#monitoring-alerts` 실제 수신 확인: PASS
 - 단일 EC2 외부 장애 감지: NOT RUN (운영 Host·관측 위치 확정 후 수행)
+
+## PR 48 Code Review 보완
+
+- Slack Webhook Local 입력의 256bit 일회용 Token과 고정 시간 검증: PASS
+- 잘못된 Token의 Webhook 저장 차단과 올바른 Token의 기존 값 저장 실제 Loopback 검증: PASS
+- 기본 모니터링 검증의 이메일·Slack 자격 증명 의존 제거: PASS
+- 기본 Actuator·Prometheus·Grafana 통합 검증: PASS
+- 실행별 고유 시험 경보와 Alertmanager 이메일·Slack 성공·실패 Counter 검증: PASS
+- Gmail·Slack 실제 시험 경보 전달: PASS
+- 새 Dependency·Public API 변경: NOT APPLICABLE
+
+## 보류 언론사 추출 보강 2단계
+
+- 공통 본문 Container와 문단 밖 본문 추출 보강: PASS
+- 공통 매체 추가·이미지 제어·제보·저작권·관련 기사 문구 정제: PASS
+- 뉴시스·YTN·동아일보·서울신문·헬스조선·코메디닷컴 테스트 코드 내부 최소 HTML 구조 회귀 검증: PASS
+- 6곳 실제 기사 제목·게시일·본문 재시험과 수동 혼입 검토: PASS
+- ACTIVE 17곳 실제 기사 최종 재시험: PASS (17건 추출 성공, 국민일보 저작권 Footer 제거 실제 확인, SBS 기사 본문의 `광고` 문구 오탐 수동 확인, Local 보고서 전체 이메일 0건)
+- 기사 추출 구조 회귀 테스트: PASS (8개, 실패·오류·Skip 0)
+- Clean Clone 초기 기준: 지원 17곳·현재 미지원 3곳으로 갱신
+- JTBC·조선일보 본문, 메디칼타임즈 게시일 추출: NOT RUN (현재 응답 구조에서 신뢰할 근거 미확인)
+- 기존 Local MySQL 언론사 상태 자동 변경: NOT RUN (기존 데이터 덮어쓰기 금지 정책 유지)
+- Backend Maven 전체 검증: PASS (346개 Test, 실패·오류·Skip 0)
+- Native MySQL 검증 회귀·Schema 구조·Compose 구성: PASS
+- 기사 전문·Secret 비저장과 Git 제외 Local 입력·보고서 경계: PASS
+- Harness·Secret·Diff 공백 검사: PASS

@@ -1,0 +1,89 @@
+# 기사체크 서비스 운영 경보 규칙
+groups:
+  - name: news-verification-service
+    rules:
+      - alert: NewsVerificationBackendUnavailable
+        expr: up{job="news-verification-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: 기사체크 Backend 응답 없음
+          description: Prometheus가 기사체크 Backend Metric을 2분 동안 수집하지 못했습니다.
+          runbook_url: docs/operations/MONITORING_RUNBOOK.md#newsverificationbackendunavailable
+
+      - alert: NewsVerificationAnalysisRedisUnavailable
+        expr: sum(increase(news_verification_analysis_requests_total{outcome="redis_unavailable"}[5m])) >= 3
+        for: 2m
+        labels:
+          severity: critical
+          service: analysis
+        annotations:
+          summary: Redis 장애로 분석 접수 실패
+          description: 최근 5분 동안 Redis 장애로 거절된 분석 요청이 3건 이상 발생했습니다.
+          runbook_url: docs/operations/MONITORING_RUNBOOK.md#newsverificationanalysisredisunavailable
+
+      - alert: NewsVerificationAnalysisQueueSaturated
+        expr: sum(increase(news_verification_analysis_requests_total{outcome="queue_full"}[5m])) >= 3
+        for: 2m
+        labels:
+          severity: warning
+          service: analysis
+        annotations:
+          summary: 분석 Queue 포화
+          description: 최근 5분 동안 Queue 포화로 거절된 분석 요청이 3건 이상 발생했습니다.
+          runbook_url: docs/operations/MONITORING_RUNBOOK.md#newsverificationanalysisqueuesaturated
+
+      - alert: NewsVerificationWorkerFailureRateHigh
+        expr: |
+          (
+            sum by (feature) (rate(news_verification_analysis_worker_results_total{outcome="failed"}[10m]))
+            /
+            clamp_min(sum by (feature) (rate(news_verification_analysis_worker_results_total[10m])), 0.001)
+          ) > 0.25
+          and
+          sum by (feature) (increase(news_verification_analysis_worker_results_total[10m])) >= 5
+        for: 5m
+        labels:
+          severity: warning
+          service: analysis-worker
+        annotations:
+          summary: "{{ $labels.feature }} Worker 실패율 증가"
+          description: 최근 10분 동안 최소 5건을 처리한 Worker의 실패율이 25%를 초과했습니다.
+          runbook_url: docs/operations/MONITORING_RUNBOOK.md#newsverificationworkerfailureratehigh
+
+      - alert: NewsVerificationWorkerLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, feature) (rate(news_verification_analysis_worker_duration_seconds_bucket[10m]))
+          ) > 75
+          and
+          sum by (feature) (increase(news_verification_analysis_worker_duration_seconds_count[10m])) >= 5
+        for: 5m
+        labels:
+          severity: warning
+          service: analysis-worker
+        annotations:
+          summary: "{{ $labels.feature }} Worker 처리 지연"
+          description: 최근 10분 동안 최소 5건을 처리한 Worker의 p95 처리 시간이 75초를 초과했습니다.
+          runbook_url: docs/operations/MONITORING_RUNBOOK.md#newsverificationworkerlatencyhigh
+
+      - alert: NewsVerificationArticleExtractionFailureRateHigh
+        expr: |
+          (
+            sum(rate(news_verification_article_extractions_total{outcome="failed"}[10m]))
+            /
+            clamp_min(sum(rate(news_verification_article_extractions_total[10m])), 0.001)
+          ) > 0.30
+          and
+          sum(increase(news_verification_article_extractions_total[10m])) >= 10
+        for: 5m
+        labels:
+          severity: warning
+          service: article-extraction
+        annotations:
+          summary: 기사 추출 실패율 증가
+          description: 최근 10분 동안 최소 10건을 처리한 기사 추출 실패율이 30%를 초과했습니다.
+          runbook_url: docs/operations/MONITORING_RUNBOOK.md#newsverificationarticleextractionfailureratehigh

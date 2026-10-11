@@ -52,11 +52,14 @@ pwsh -NoProfile -File scripts/agent/verify-local-mvp.ps1
 # Local Frontend·Backend·Native MySQL·Docker Redis Smoke E2E
 pwsh -NoProfile -File scripts/agent/verify-full-stack-smoke.ps1
 
-# Local Actuator·Prometheus·Alertmanager·Grafana 통합 검증
+# 알림 자격 증명 없는 Local Actuator·Prometheus·Grafana 통합 검증
 pwsh -NoProfile -File scripts/agent/verify-monitoring.ps1
 
 # Gmail SMTP와 Slack 테스트 경보를 포함한 Local 모니터링 통합 검증
 pwsh -NoProfile -File scripts/agent/verify-monitoring.ps1 -SendTestAlert
+
+# 비공개 이메일·Secret으로 Local Alertmanager 실행
+pwsh -NoProfile -File scripts/agent/start-alertmanager.ps1
 
 # Slack Incoming Webhook을 Git 제외 Local .env에 저장
 pwsh -NoProfile -File scripts/agent/setup-slack-webhook.ps1 -ReceiveFromBrowser
@@ -76,13 +79,13 @@ Local MVP 전체 회귀 검증은 전체 Repository 검증, Native MySQL Reposit
 
 Full-stack Smoke E2E는 Vite Browser에서 실제 Backend HTTP API를 호출하고 별도 Native MySQL 테스트 Database와 실행별 Docker Redis를 연결한다. 회원가입·로그인·CSRF·건강 및 제목 분석·저장 기록·로그아웃 경계를 검증하며, 실제 Gemini·PubMed·OAuth·Gmail SMTP 대신 `e2e` Profile의 고정 기사 입력과 기존 Mock 분석·메일 Adapter를 사용한다. 실행별 시험 언론사·회원·Redis Container와 임시 로그는 종료 시 정리하고 Secret 값은 저장하거나 출력하지 않는다.
 
-모니터링 통합 검증은 Git 추적 Prometheus·Grafana·Alertmanager 설정, 정상·장애 Alert Rule Fixture, Actuator Health·Prometheus Metric, Prometheus Backend Target·6개 Alert Rule·JVM·HTTP Query, Alertmanager Email·Slack Receiver, Grafana 데이터소스·기본 Dashboard·11개 시스템·업무 Panel Query를 확인한다. 기존 실행 Container는 유지하고 검증이 시작한 Container와 Backend만 원래 상태로 되돌리며 Redis·Grafana·Gmail 비밀번호와 Slack Webhook을 출력하거나 저장하지 않는다. `-ConfigurationOnly`는 운영 Container를 시작하지 않고 파일·Dashboard 계약, Compose 해석, `promtool` Fixture와 `amtool` 설정을 검사한다. `-SendTestAlert`는 Git에서 제외된 `.env` 또는 Process의 `MAIL_APP_PASSWORD`, `SLACK_WEBHOOK_URL`을 Docker Secret으로 전달해 Local 시험 경보 1건을 Gmail과 Slack에 발송하고 Alertmanager 오류 로그를 확인한다.
+모니터링 통합 검증은 Git 추적 Prometheus·Grafana 설정과 개인정보가 제거된 Alertmanager 템플릿, 정상·장애 Alert Rule Fixture, Actuator Health·Prometheus Metric, Prometheus Backend Target·6개 Alert Rule·JVM·HTTP Query, Grafana 데이터소스·기본 Dashboard·11개 시스템·업무 Panel Query를 확인한다. 기본 실행은 Alertmanager를 시작하지 않고 이메일·Slack 자격 증명을 요구하지 않는다. 기존 실행 Container는 유지하고 검증이 시작한 Container와 Backend만 원래 상태로 되돌리며 Redis·Grafana·Gmail 정보와 Slack Webhook을 출력하거나 저장하지 않는다. `-ConfigurationOnly`는 비식별 시험 주소로 메모리에서 설정을 생성해 Compose 해석, `promtool` Fixture와 `amtool` 설정을 검사한다. `-SendTestAlert`는 Git에서 제외된 `.env` 또는 Process의 이메일 설정과 Secret으로 메모리에서 전체 설정을 만들고 Docker Secret으로 전달한다. 실행별 고유 경보를 발송하고 Alertmanager의 이메일·Slack 성공·실패 Counter를 각각 확인한다.
 
 Native MySQL 검증 Script는 Git에서 제외된 `.env` 또는 `.env.example`의 Database·계정 값을 사용하며 이름을 다시 입력받지 않는다. Root 비밀번호는 항상 마스킹 입력한다. `.env`에 애플리케이션 비밀번호가 있으면 프로세스 내부에서 자동 사용하고, 없으면 해당 계정 비밀번호를 마스킹 입력 후 저장하지 않는다. 기존 계정의 비밀번호를 변경하거나 두 계정의 비밀번호를 같게 강제하지 않는다. 애플리케이션 계정이 없을 때만 제공된 비밀번호로 생성한다. 빈 Database에는 Local V0001과 존재하는 V0004 이상 후속 SQL을 Version 순서대로 적용한다. 비어 있지 않은 Database에는 Schema SQL을 재실행하지 않고 Table 집합, 지원 언론사 분류, 표준 INT 컬럼과 건강 분석 중복 방지 Index Metadata를 검증한다. 애플리케이션 계정의 기존 권한을 회수한 뒤 DML 권한만 부여한다.
 
 Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사를 붙인 별도 기본값을 사용한다. 최초 구성 Script는 Root와 테스트 계정 비밀번호를 마스킹 입력하고, 빈 테스트 Database에 Local V0001과 존재하는 V0004 이상 후속 SQL을 Version 순서대로 적용한다. 기존 테스트 Database에는 V0001의 현재 INT 타입과 중복 방지 Index를 Metadata로 검증하며 불일치 데이터를 임의 변경하지 않는다. 테스트 계정에는 `SELECT`, `INSERT`, `UPDATE`, `DELETE`만 부여한다. 실제 JDBC URL은 `localhost` 또는 `127.0.0.1`의 3306 포트와 기대한 `_test` Database를 정확히 사용하고, 계정은 기대한 `_test` 제한 계정과 정확히 같아야 한다. 개발 Database·계정 또는 `root`는 거부하며 JDBC Query는 Unicode·문자 인코딩·UTC 설정만 허용한다. 이 검사는 전용 Script와 `*IT` 직접 실행 진입점에 모두 적용한다. 실제 비밀번호는 Process 또는 Git에서 제외된 `.env`의 `MYSQL_TEST_PASSWORD`로만 전달하며 로그와 Git 추적 파일에는 기록하지 않는다. 일반 Backend 검증은 통합 테스트를 자동 실행하지 않으며 전용 검증 Script만 `*IT`를 명시적으로 실행한다.
 
-지원 언론사 초기 기준 데이터는 공개 언론사명·분류·허용 호스트만 포함한 Git 추적 SQL로 관리한다. 적용 Script는 Process 환경 변수, Git에서 제외된 `.env`, 마스킹 입력 순서로 유효한 비밀번호를 찾으며 값을 출력하거나 새 파일에 저장하지 않는다. 테스트와 개발 Database 모두 `news_publishers`, `news_publisher_domains`가 비어 있을 때만 입력하고, 이미 데이터가 있으면 기존 상태를 덮어쓰지 않고 중단한다. 초기 기준은 추출 품질 통과 11곳 `ACTIVE`, 보완·재시험 대기 9곳 `CANDIDATE`, 실제 지원 이력이 없는 `PAUSED_*` 0곳이다. `ACTIVE`의 호스트만 도메인 `ACTIVE`로 두고 후보 호스트는 `PAUSED`로 유지한다.
+지원 언론사 초기 기준 데이터는 공개 언론사명·분류·허용 호스트만 포함한 Git 추적 SQL로 관리한다. 적용 Script는 Process 환경 변수, Git에서 제외된 `.env`, 마스킹 입력 순서로 유효한 비밀번호를 찾으며 값을 출력하거나 새 파일에 저장하지 않는다. 테스트와 개발 Database 모두 `news_publishers`, `news_publisher_domains`가 비어 있을 때만 입력하고, 이미 데이터가 있으면 기존 상태를 덮어쓰지 않고 중단한다. 초기 기준은 추출 품질 통과 17곳 `ACTIVE`, 보완·재시험 대기 3곳 `CANDIDATE`, 실제 지원 이력이 없는 `PAUSED_*` 0곳이다. `ACTIVE`의 호스트만 도메인 `ACTIVE`로 두고 후보 호스트는 `PAUSED`로 유지한다.
 
 초기 언론사 추출 시험은 Git에서 제외된 `output/publisher-extraction-input.tsv`를 입력으로 사용한다. 각 행은 `publisher`, `allowedHosts`, `articleUrl` 세 열이며 복수 허용 호스트는 `|`로 구분한다. 결과는 Git에서 제외된 `output/publisher-extraction-report.tsv`에 원본·최종 URL, 제목, 게시·수정일, 본문 앞뒤 미리보기, 글자 수, 혼입 탐지, 처리 시간과 오류 코드만 기록하고 기사 전문은 저장하지 않는다. Mock 검증 통과와 사용자 외부 요청 승인 후에만 실행하며 응답 크기·Timeout·Redirect 상한은 확정값을 명시적으로 전달한다. 실행 성공은 시험 Process 완료를 뜻하며 언론사별 추출 성공과 수동 혼입 검토를 대신하지 않는다.
 
@@ -90,7 +93,7 @@ Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사�
 
 지원 언론사 웹 표시를 구현할 때는 공개 API와 화면에서 `지원 중`, `일시 지원 중단`, `현재 미지원`이 동일하게 구분되는지 검증한다. 현재 미지원 대상의 분석 요청은 AI 호출과 이용 횟수 차감 전에 차단하고, 추출 보강 대상은 Mock 회귀와 승인된 실제 기사 시험을 통과한 뒤에만 지원 중으로 변경한다.
 
-모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 Key·Secret·Token·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder는 허용한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
+모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 개인 이메일·Client ID·Key·Secret·Token·Webhook URL·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder와 `example.com`, `example.org`, `example.net`, `example.invalid`, `.example` 예약 Domain 이메일은 허용한다. 공개 API 경로와 Localhost URL은 자격 증명이 아니므로 이 검사 대상에서 제외한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
 
 ## 실제 검증 순서
 

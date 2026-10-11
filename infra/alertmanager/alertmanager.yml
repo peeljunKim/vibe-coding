@@ -1,0 +1,35 @@
+# 기사체크 Local 이메일·Slack 경보 전달 설정
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: smtp.gmail.com:587
+  smtp_from: __ALERT_SMTP_FROM__
+  smtp_auth_username: __ALERT_SMTP_USERNAME__
+  smtp_auth_password_file: /run/secrets/alertmanager-smtp-password
+  smtp_require_tls: true
+
+route:
+  receiver: operations-notifications
+  group_by:
+    - alertname
+    - service
+    - feature
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: operations-notifications
+    email_configs:
+      # 쉼표 구분 다중 수신자 목록
+      - to: __ALERT_EMAIL_RECIPIENTS__
+        send_resolved: true
+        headers:
+          subject: "[기사체크][{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+    slack_configs:
+      - api_url_file: /run/secrets/alertmanager-slack-webhook
+        channel: "#monitoring-alerts"
+        send_resolved: true
+        title: "[기사체크][{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ .CommonAnnotations.summary }}
+          {{ .CommonAnnotations.description }}

@@ -32,7 +32,8 @@ record ArticleHtmlStructureDiagnostics(
     private static final Pattern JSON_PUBLISHED_AT = Pattern.compile(
             "\"datePublished\"\\s*:\\s*\"([^\"\\r\\n]{1,64})\""
     );
-    private static final int MAX_BODY_CANDIDATES = 5;
+    private static final int MAX_BODY_CANDIDATES = 12;
+    private static final int MIN_BODY_CANDIDATE_LENGTH = 20;
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     /** HTML 구조 요약 생성 */
@@ -104,7 +105,8 @@ record ArticleHtmlStructureDiagnostics(
     /** 본문 후보 여부 */
     private static boolean isBodyCandidate(Element element) {
         String marker = element.id() + " " + element.className();
-        return BODY_HINT.matcher(marker).find() && !element.select("p").isEmpty();
+        return BODY_HINT.matcher(marker).find()
+                && textLength(element) >= MIN_BODY_CANDIDATE_LENGTH;
     }
 
     /** 본문 후보 요약 */

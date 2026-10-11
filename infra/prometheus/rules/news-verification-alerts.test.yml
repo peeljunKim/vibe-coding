@@ -1,0 +1,66 @@
+# 기사체크 Prometheus 경보 정상·장애 조건 검증
+rule_files:
+  - news-verification-alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: Backend 정상 상태
+    interval: 1m
+    input_series:
+      - series: 'up{job="news-verification-api"}'
+        values: '1x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: NewsVerificationBackendUnavailable
+        exp_alerts: []
+
+  - name: Backend 2분 이상 응답 없음
+    interval: 1m
+    input_series:
+      - series: 'up{job="news-verification-api"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: NewsVerificationBackendUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: news-verification-api
+              severity: critical
+              service: backend
+            exp_annotations:
+              summary: 기사체크 Backend 응답 없음
+              description: Prometheus가 기사체크 Backend Metric을 2분 동안 수집하지 못했습니다.
+              runbook_url: docs/operations/MONITORING_RUNBOOK.md#newsverificationbackendunavailable
+
+  - name: Worker 실패 최소 표본 미달
+    interval: 1m
+    input_series:
+      - series: 'news_verification_analysis_worker_results_total{feature="health",outcome="failed"}'
+        values: '0 1 2 2x10'
+      - series: 'news_verification_analysis_worker_results_total{feature="health",outcome="completed"}'
+        values: '0x13'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: NewsVerificationWorkerFailureRateHigh
+        exp_alerts: []
+
+  - name: Worker 실패율 지속 증가
+    interval: 1m
+    input_series:
+      - series: 'news_verification_analysis_worker_results_total{feature="health",outcome="failed"}'
+        values: '0+1x16'
+      - series: 'news_verification_analysis_worker_results_total{feature="health",outcome="completed"}'
+        values: '0+1x16'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: NewsVerificationWorkerFailureRateHigh
+        exp_alerts:
+          - exp_labels:
+              feature: health
+              severity: warning
+              service: analysis-worker
+            exp_annotations:
+              summary: health Worker 실패율 증가
+              description: 최근 10분 동안 최소 5건을 처리한 Worker의 실패율이 25%를 초과했습니다.
+              runbook_url: docs/operations/MONITORING_RUNBOOK.md#newsverificationworkerfailureratehigh

@@ -16,6 +16,7 @@ $updatedContent = $null
 $listener = $null
 $requestBody = $null
 $encodedValue = $null
+$requestToken = $null
 
 if (-not (Test-Path -LiteralPath $environmentPath -PathType Leaf)) {
     throw 'Ignored Local .env is required before storing the Slack Webhook URL'
@@ -49,6 +50,9 @@ function Save-SlackWebhookUrl {
 
 try {
     if ($ReceiveFromBrowser) {
+        $requestToken = [Convert]::ToHexString(
+            [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
+        )
         $listener = [Net.HttpListener]::new()
         $listener.Prefixes.Add('http://127.0.0.1:43789/')
         $listener.Start()
@@ -56,10 +60,10 @@ try {
 
         $getContext = $listener.GetContext()
         $getContext.Response.Headers.Add('Cache-Control', 'no-store')
-        $form = @'
+        $form = @"
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Slack Webhook 설정</title></head>
-<body><main><h1>Slack Webhook 설정</h1><form method="post"><label>Webhook URL <input name="webhook" type="password" required></label><button type="submit">저장</button></form></main></body></html>
-'@
+<body><main><h1>Slack Webhook 설정</h1><form method="post"><input name="requestToken" type="hidden" value="$requestToken"><label>Webhook URL <input name="webhook" type="password" required></label><button type="submit">저장</button></form></main></body></html>
+"@
         $formBytes = [Text.Encoding]::UTF8.GetBytes($form)
         $getContext.Response.ContentType = 'text/html; charset=utf-8'
         $getContext.Response.ContentLength64 = $formBytes.Length
@@ -69,23 +73,52 @@ try {
         $postContext = $null
         for ($requestCount = 0; $requestCount -lt 3 -and -not $postContext; $requestCount++) {
             $candidateContext = $listener.GetContext()
-            if ($candidateContext.Request.HttpMethod -eq 'POST') {
-                $postContext = $candidateContext
-            }
-            else {
+            if ($candidateContext.Request.HttpMethod -ne 'POST') {
                 $candidateContext.Response.StatusCode = 204
                 $candidateContext.Response.Close()
+                continue
             }
+            if ($candidateContext.Request.ContentLength64 -lt 0 `
+                    -or $candidateContext.Request.ContentLength64 -gt 2048) {
+                $candidateContext.Response.StatusCode = 413
+                $candidateContext.Response.Close()
+                continue
+            }
+            $reader = [IO.StreamReader]::new(
+                $candidateContext.Request.InputStream,
+                $candidateContext.Request.ContentEncoding
+            )
+            $candidateBody = $reader.ReadToEnd()
+            $reader.Dispose()
+            $encodedToken = ($candidateBody -split '&' `
+                | Where-Object { $_.StartsWith('requestToken=') } `
+                | Select-Object -First 1)
+            $submittedToken = if ($encodedToken) {
+                [Uri]::UnescapeDataString(
+                    $encodedToken.Substring('requestToken='.Length).Replace('+', ' ')
+                )
+            }
+            else {
+                ''
+            }
+            $expectedTokenBytes = [Text.Encoding]::UTF8.GetBytes($requestToken)
+            $submittedTokenBytes = [Text.Encoding]::UTF8.GetBytes($submittedToken)
+            $validToken = $expectedTokenBytes.Length -eq $submittedTokenBytes.Length `
+                -and [Security.Cryptography.CryptographicOperations]::FixedTimeEquals(
+                    $expectedTokenBytes,
+                    $submittedTokenBytes
+                )
+            if (-not $validToken) {
+                $candidateContext.Response.StatusCode = 403
+                $candidateContext.Response.Close()
+                continue
+            }
+            $requestBody = $candidateBody
+            $postContext = $candidateContext
         }
-        if (-not $postContext -or $postContext.Request.ContentLength64 -gt 2048) {
+        if (-not $postContext) {
             throw 'Invalid Local Slack Webhook setup request'
         }
-        $reader = [IO.StreamReader]::new(
-            $postContext.Request.InputStream,
-            $postContext.Request.ContentEncoding
-        )
-        $requestBody = $reader.ReadToEnd()
-        $reader.Dispose()
         if ([string]::IsNullOrWhiteSpace($requestBody) -or $requestBody.Length -gt 2048) {
             throw 'Invalid Local Slack Webhook setup request'
         }
@@ -127,6 +160,7 @@ finally {
     $webhookUrl = $null
     $requestBody = $null
     $encodedValue = $null
+    $requestToken = $null
     $environmentContent = $null
     $updatedContent = $null
 }

@@ -5,6 +5,15 @@ global:
   external_labels:
     environment: local
 
+rule_files:
+  - /etc/prometheus/rules/news-verification-alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
 scrape_configs:
   - job_name: news-verification-api
     metrics_path: /actuator/prometheus

@@ -225,14 +225,17 @@ function Invoke-SecretValueVerification {
     }
 
     $binaryExtensions = @('.jar', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.pdf', '.zip', '.gz', '.woff', '.woff2')
-    $assignmentPattern = '(?im)^[ \t]*["'']?(?<name>(?:[A-Z][A-Z0-9_.-]*)?(?:API_KEY|CLIENT_SECRET|APP_PASSWORD|ACCESS_TOKEN|PRIVATE_KEY|SECRET|PASSWORD|TOKEN)|(?:api[-_.]?key|client[-_.]?secret|app[-_.]?password))["'']?[ \t]*[:=][ \t]*(?<quote>["'']?)(?<value>[^"'' \t\r\n,#}]+)'
+    $assignmentPattern = '(?im)^[ \t]*["'']?(?<name>(?:[A-Z][A-Z0-9_.-]*)?(?:API_KEY|CLIENT_ID|CLIENT_SECRET|APP_PASSWORD|ACCESS_TOKEN|PRIVATE_KEY|SECRET|PASSWORD|TOKEN|WEBHOOK_URL)|(?:api[-_.]?key|client[-_.]?(?:id|secret)|app[-_.]?password|webhook[-_.]?url))["'']?[ \t]*[:=][ \t]*(?<quote>["'']?)(?<value>[^"'' \t\r\n,#}]+)'
     $knownSecretPatterns = @(
         'AIza[0-9A-Za-z_-]{35}',
         'AKIA[0-9A-Z]{16}',
         'gh[pousr]_[0-9A-Za-z]{30,}',
         'xox[baprs]-[0-9A-Za-z-]{20,}',
+        'https://hooks\.slack\.com/services/[0-9A-Za-z]+/[0-9A-Za-z]+/[0-9A-Za-z]+',
         '-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----'
     )
+    $emailPattern = '(?i)(?<local>[a-z0-9._%+\-]+)@(?<domain>[a-z0-9.-]+\.[a-z]{2,})'
+    $reservedEmailDomains = @('example.com', 'example.org', 'example.net', 'example.invalid')
     $detectedPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
     foreach ($candidatePath in $candidatePaths) {
@@ -271,12 +274,19 @@ function Invoke-SecretValueVerification {
                 [void]$detectedPaths.Add($candidatePath)
             }
         }
+        foreach ($match in [regex]::Matches($content, $emailPattern)) {
+            $domain = $match.Groups['domain'].Value.ToLowerInvariant()
+            $isReservedDomain = $domain -in $reservedEmailDomains -or $domain.EndsWith('.example')
+            if (-not $isReservedDomain) {
+                [void]$detectedPaths.Add($candidatePath)
+            }
+        }
     }
 
     if ($detectedPaths.Count -gt 0) {
-        throw "Possible Secret value detected in Repository candidate files: $($detectedPaths -join ', ')"
+        throw "Possible Secret or personal value detected in Repository candidate files: $($detectedPaths -join ', ')"
     }
-    Write-Host '[PASS] Repository candidate Secret value check'
+    Write-Host '[PASS] Repository candidate Secret and personal value check'
 }
 
 function Get-ChangedScopes {
