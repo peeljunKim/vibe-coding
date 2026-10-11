@@ -228,8 +228,8 @@ SELECT
 
     $expectedCounts = @(
         @('Publisher count', 20),
-        @('Active publisher count', 11),
-        @('Candidate publisher count', 9),
+        @('Active publisher count', 17),
+        @('Candidate publisher count', 3),
         @('Paused publisher count', 0),
         @('News agency count', 2),
         @('Broadcast news count', 5),
@@ -237,8 +237,8 @@ SELECT
         @('Business newspaper count', 2),
         @('Health medical count', 3),
         @('Publisher domain count', 35),
-        @('Active domain count', 19),
-        @('Paused domain count', 16),
+        @('Active domain count', 30),
+        @('Paused domain count', 5),
         @('Active publisher without active domain count', 0),
         @('Non-active publisher with active domain count', 0)
     )

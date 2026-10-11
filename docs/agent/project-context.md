@@ -1,7 +1,7 @@
 <!-- Repository 구조와 위험 근거 -->
 # Project Discovery와 Risk Guardrail
 
-기준일: 2026-10-07
+기준일: 2026-10-11
 
 ## Confirmed
 

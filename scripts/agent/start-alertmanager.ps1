@@ -10,14 +10,13 @@ $environmentPath = Join-Path $repoRoot '.env'
 $templatePath = Join-Path $repoRoot 'infra\alertmanager\alertmanager.yml'
 $composePath = Join-Path $repoRoot 'docker-compose.yml'
 
-if (-not (Test-Path -LiteralPath $environmentPath -PathType Leaf)) {
-    throw 'Ignored Local .env is required to start Alertmanager'
-}
-
 . (Join-Path $PSScriptRoot 'script-utilities.ps1')
 . (Join-Path $PSScriptRoot 'alertmanager-configuration.ps1')
 
-$values = Read-EnvironmentValues -Path $environmentPath
+$values = @{}
+if (Test-Path -LiteralPath $environmentPath -PathType Leaf) {
+    $values = Read-EnvironmentValues -Path $environmentPath
+}
 function Get-AlertSetting {
     param([Parameter(Mandatory)][string] $Name, [string] $Fallback = '')
 
