@@ -157,6 +157,12 @@ class ArticleHtmlExtractorTest {
                           <p>본문 첫 문단입니다.</p><p>본문 둘째 문단입니다.</p>
                         </div>
                         <article><p>추천 기사</p></article>
+                        """),
+                new PublisherStructureCase("국민일보", """
+                        <div class="view_cont">
+                          <p>본문 첫 문단입니다.</p><p>본문 둘째 문단입니다.</p>
+                          <p>기자 이름 GoodNews paper ⓒ 국민일보, 무단전재 금지</p>
+                        </div>
                         """)
         );
 
@@ -183,7 +189,9 @@ class ArticleHtmlExtractorTest {
                             "구글에서",
                             "이미지 확대",
                             "당신의 제보가 뉴스가 됩니다",
-                            "공감언론"
+                            "공감언론",
+                            "GoodNews paper",
+                            "ⓒ"
                     );
         }
     }

@@ -38,7 +38,8 @@ public final class ArticleHtmlExtractor {
     );
     private static final Pattern TRAILING_BOILERPLATE = Pattern.compile(
             "\\s*(?:■\\s*제보하기|※\\s*['‘’\"]?당신의 제보가 뉴스가 됩니다"
-                    + "|◎\\s*공감언론\\s+뉴시스|Copyright\\s*[©ⓒ])[\\s\\S]*$"
+                    + "|◎\\s*공감언론\\s+뉴시스|GoodNews\\s+paper\\s*ⓒ"
+                    + "|Copyright\\s*[©ⓒ])[\\s\\S]*$"
     );
     private static final String UNWANTED_ELEMENTS = String.join(", ",
             "script", "style", "noscript", "nav", "aside", "footer", "form", "button",

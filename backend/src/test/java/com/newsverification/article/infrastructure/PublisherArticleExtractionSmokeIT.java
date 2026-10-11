@@ -30,7 +30,11 @@ class PublisherArticleExtractionSmokeIT {
 
     private static final int REPORT_PREVIEW_CODE_POINTS = 160;
     private static final Pattern POSSIBLE_CONTAMINATION =
-            Pattern.compile("광고|댓글|추천\\s*기사|관련\\s*기사");
+            Pattern.compile("광고|댓글|추천\\s*기사|관련\\s*기사|무단\\s*전재|Copyright|ⓒ");
+    private static final Pattern EMAIL = Pattern.compile(
+            "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}",
+            Pattern.CASE_INSENSITIVE
+    );
 
     /** Local 입력 목록의 실제 기사 추출 시험 */
     @Test
@@ -104,9 +108,7 @@ class PublisherArticleExtractionSmokeIT {
                     startPreview(article.body()),
                     endPreview(article.body()),
                     Integer.toString(article.body().codePointCount(0, article.body().length())),
-                    POSSIBLE_CONTAMINATION.matcher(article.body()).find()
-                            ? "POSSIBLE_CONTAMINATION"
-                            : "NOT_DETECTED",
+                    contamination(article.body()),
                     String.join("|", diagnostics.dateSources()),
                     String.join("|", diagnostics.bodyCandidates()),
                     String.join("|", diagnostics.structuredFields()),
@@ -154,6 +156,12 @@ class PublisherArticleExtractionSmokeIT {
         return ArticleHtmlStructureDiagnostics.inspect(httpClient.lastBody());
     }
 
+    /** 본문 혼입 후보 문구 */
+    private String contamination(String body) {
+        var matcher = POSSIBLE_CONTAMINATION.matcher(body);
+        return matcher.find() ? "POSSIBLE_CONTAMINATION:" + matcher.group() : "NOT_DETECTED";
+    }
+
     /** Local TSV 입력 해석 */
     private List<SmokeCase> readCases(Path inputPath) throws IOException {
         List<String> lines = Files.readAllLines(inputPath, StandardCharsets.UTF_8);
@@ -187,7 +195,8 @@ class PublisherArticleExtractionSmokeIT {
 
     /** 보고서 줄바꿈과 Tab 제거 */
     private String singleLine(String value) {
-        return value.replace('\t', ' ').replace('\r', ' ').replace('\n', ' ').trim();
+        String normalized = value.replace('\t', ' ').replace('\r', ' ').replace('\n', ' ').trim();
+        return EMAIL.matcher(normalized).replaceAll("[email removed]");
     }
 
     /** 본문 시작 미리보기 */
