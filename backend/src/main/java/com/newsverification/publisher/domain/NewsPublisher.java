@@ -38,6 +38,11 @@ public class NewsPublisher {
     protected NewsPublisher() {
     }
 
+    /** 언론사 식별자 조회 */
+    public Long id() {
+        return id;
+    }
+
     /** 언론사 표시명 조회 */
     public String name() {
         return name;

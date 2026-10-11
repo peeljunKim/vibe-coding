@@ -127,6 +127,7 @@
 | 인증·관리자 권한 누락 | Security와 `ADMIN` 서버 검사 요구 | Frontend 숨김과 무관한 서버 인가 테스트 필수 |
 | Redis 장애 시 비용 제한 우회 | Cache·세션·이용량·Lock 책임 집중 | 이용량 또는 Lock 확인 불가 시 새 AI 분석 중단 |
 | 반복 Cache 검증의 기사 수집 비용 | 무료 Cache 재조회도 안전한 기사 수집을 선행 | 기사 수집·Queue 전 기능별 Redis 요청 제한, Polling·시스템 자동 재분석 제외 |
+| 언론사 구조 변경의 반복 추출 실패 | 건강·제목 분석이 같은 기사 수집 경로 사용 | 정상 URL의 최근 1시간 유효 시도 10회 이상·실패율 70% 이상이면 원자적으로 `PAUSED_AUTO` 전환, 사용자 입력 오류 제외, 수동 재활성화 |
 | Schema drift | `ddl-auto: validate`, Local 초기 SQL과 이후 GitHub Version SQL 방식, DB 이력 Table 미사용 | Entity와 폐기 번호를 제외한 V0004 이후 호환 SQL을 함께 추가하고 Commit·PR에 적용 결과 기록 |
 | 무료 AI 데이터 처리 | Gemini 무료 등급을 Prototype에 사용 | 공개 기사·허용 근거만 전송하고 개인정보·기밀정보 차단 |
 | 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |

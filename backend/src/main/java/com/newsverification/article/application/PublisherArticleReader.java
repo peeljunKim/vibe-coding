@@ -6,6 +6,7 @@ import com.newsverification.article.domain.ArticleProcessingError;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.monitoring.application.OperationalMetrics;
 import com.newsverification.publisher.application.PublisherDomainAccessService;
+import com.newsverification.publisher.application.PublisherExtractionPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -20,18 +21,21 @@ public class PublisherArticleReader {
     private final PublisherDomainAccessService domainAccessService;
     private final SafeArticleReader articleReader;
     private final OperationalMetrics metrics;
+    private final PublisherExtractionPolicy publisherPolicy;
 
     @Autowired
     public PublisherArticleReader(
             ArticleUrlValidator urlValidator,
             PublisherDomainAccessService domainAccessService,
             SafeArticleReader articleReader,
-            ObjectProvider<OperationalMetrics> metrics
+            ObjectProvider<OperationalMetrics> metrics,
+            ObjectProvider<PublisherExtractionPolicy> publisherPolicy
     ) {
         this.urlValidator = urlValidator;
         this.domainAccessService = domainAccessService;
         this.articleReader = articleReader;
         this.metrics = metrics.getIfAvailable(OperationalMetrics::disabled);
+        this.publisherPolicy = publisherPolicy.getIfAvailable(PublisherExtractionPolicy::disabled);
     }
 
     /** Metric 비활성 테스트 구성 */
@@ -44,32 +48,67 @@ public class PublisherArticleReader {
         this.domainAccessService = domainAccessService;
         this.articleReader = articleReader;
         this.metrics = OperationalMetrics.disabled();
+        this.publisherPolicy = PublisherExtractionPolicy.disabled();
+    }
+
+    /** 기사 추출 운영 정책 테스트 구성 */
+    public PublisherArticleReader(
+            ArticleUrlValidator urlValidator,
+            PublisherDomainAccessService domainAccessService,
+            SafeArticleReader articleReader,
+            PublisherExtractionPolicy publisherPolicy
+    ) {
+        this.urlValidator = urlValidator;
+        this.domainAccessService = domainAccessService;
+        this.articleReader = articleReader;
+        this.metrics = OperationalMetrics.disabled();
+        this.publisherPolicy = publisherPolicy;
     }
 
     /** 활성 언론사 기사만 안전 수집 */
     public ExtractedArticle read(String rawUrl) {
+        String hostname = null;
+        boolean publisherApproved = false;
+        boolean extractionCompleted = false;
         try {
-            String hostname = urlValidator.hostname(rawUrl);
+            hostname = urlValidator.hostname(rawUrl);
             Set<String> allowedHosts = domainAccessService.requireActivePublisherHosts(hostname);
+            publisherApproved = true;
             ExtractedArticle article = articleReader.read(rawUrl, allowedHosts);
+            extractionCompleted = true;
+            publisherPolicy.recordSuccess(hostname);
             metrics.recordArticleExtraction(
                     OperationalMetrics.ExtractionOutcome.SUCCEEDED,
                     OperationalMetrics.ExtractionFailure.NONE
             );
             return article;
         } catch (ArticleProcessingException exception) {
+            if (publisherApproved && isExtractionFailure(exception.error())) {
+                publisherPolicy.recordFailure(hostname);
+            }
             metrics.recordArticleExtraction(
                     OperationalMetrics.ExtractionOutcome.FAILED,
                     extractionFailure(exception.error())
             );
             throw exception;
         } catch (RuntimeException exception) {
+            if (publisherApproved && !extractionCompleted) {
+                publisherPolicy.recordFailure(hostname);
+            }
             metrics.recordArticleExtraction(
                     OperationalMetrics.ExtractionOutcome.FAILED,
                     OperationalMetrics.ExtractionFailure.INTERNAL
             );
             throw exception;
         }
+    }
+
+    /** 사용자 입력 오류를 제외한 추출 실패 판정 */
+    private boolean isExtractionFailure(ArticleProcessingError error) {
+        OperationalMetrics.ExtractionFailure failure = extractionFailure(error);
+        return failure == OperationalMetrics.ExtractionFailure.NETWORK
+                || failure == OperationalMetrics.ExtractionFailure.CONTENT
+                || failure == OperationalMetrics.ExtractionFailure.INTERNAL;
     }
 
     /** 상세 오류의 제한된 Metric 분류 */
