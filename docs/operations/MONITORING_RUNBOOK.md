@@ -93,3 +93,5 @@ Alertmanager는 개인정보가 제거된 추적 템플릿을 사용한다. 실�
 ```powershell
 pwsh -NoProfile -File scripts/agent/start-alertmanager.ps1
 ```
+
+기본 모니터링 통합 검증은 이메일과 Slack 자격 증명을 요구하지 않는다. 실제 수신 검증은 `verify-monitoring.ps1 -SendTestAlert`로 분리하며 실행별 고유 경보와 Alertmanager 수신기별 성공 Counter를 확인한다.

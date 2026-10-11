@@ -213,6 +213,10 @@ try {
         $failures.Add('Alertmanager runtime configuration contains an unresolved private placeholder')
     }
 
+    $slackSetupScript = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'scripts\agent\setup-slack-webhook.ps1')
+    Assert-Contains 'Slack setup one-time token field' $slackSetupScript 'name="requestToken"'
+    Assert-Contains 'Slack setup fixed-time token verification' $slackSetupScript 'FixedTimeEquals'
+
     . $utilitiesScript
     $environmentFixture = Join-Path $testRoot 'environment.fixture'
     Set-Content -LiteralPath $environmentFixture -Value @(

@@ -35,7 +35,7 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - Git 제외 `ALERT_EMAIL_RECIPIENTS` 기반 쉼표 구분 다중 수신자 지원
 - 운영 환경에서는 Prometheus endpoint를 내부 네트워크로 제한
 - 현재 Compose의 `9090`, `9093`, `3000` Host Port 공개는 Local 전용이며 운영 설정으로 재사용하지 않음
-- `verify-monitoring.ps1`로 Actuator → Prometheus → Alertmanager·Grafana 연결과 Alert·Panel Query 검증
+- `verify-monitoring.ps1`로 자격 증명 없는 Actuator → Prometheus·Grafana 연결과 Alert·Panel Query 검증, `-SendTestAlert`에서만 Alertmanager 실제 전달 확인
 
 ## 로컬 실행 순서
 

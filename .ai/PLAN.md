@@ -725,3 +725,13 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Slack `#monitoring-alerts`·`#incident-response` 역할·주제·설명·사용 안내 구성: PASS
 - Slack Incoming Webhook 자동 경보 연결과 `#monitoring-alerts` 실제 수신 확인: PASS
 - 단일 EC2 외부 장애 감지: NOT RUN (운영 Host·관측 위치 확정 후 수행)
+
+## PR 48 Code Review 보완
+
+- Slack Webhook Local 입력의 256bit 일회용 Token과 고정 시간 검증: PASS
+- 잘못된 Token의 Webhook 저장 차단과 올바른 Token의 기존 값 저장 실제 Loopback 검증: PASS
+- 기본 모니터링 검증의 이메일·Slack 자격 증명 의존 제거: PASS
+- 기본 Actuator·Prometheus·Grafana 통합 검증: PASS
+- 실행별 고유 시험 경보와 Alertmanager 이메일·Slack 성공·실패 Counter 검증: PASS
+- Gmail·Slack 실제 시험 경보 전달: PASS
+- 새 Dependency·Public API 변경: NOT APPLICABLE
