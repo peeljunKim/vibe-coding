@@ -5,11 +5,8 @@ import com.newsverification.article.domain.ArticleProcessingError;
 import com.newsverification.article.domain.ArticleProcessingException;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,8 +33,19 @@ class ArticleHtmlExtractorTest {
 
     /** 제목·날짜·정제 본문 추출 */
     @Test
-    void extractsRequiredArticleContentFromMockHtml() throws IOException {
-        String html = fixture("generic-news.html");
+    void extractsRequiredArticleContentFromMockHtml() {
+        String html = """
+                <meta property="og:title" content="비타민 D 연구 결과를 확인했습니다">
+                <meta property="article:published_time" content="2026-08-14T09:30:00+09:00">
+                <meta property="article:modified_time" content="2026-08-14T10:00:00+09:00">
+                <nav>메뉴 영역</nav>
+                <article itemprop="articleBody">
+                  <p>연구진은 비타민 D와 건강 지표의 연관성을 분석했습니다.</p>
+                  <aside class="advertisement">광고 영역</aside>
+                  <p>연구 결과만으로 예방 효과를 단정할 수는 없습니다.</p>
+                  <div class="comments">댓글 영역</div>
+                </article>
+                """;
 
         var article = extractor.extract(URI.create("https://news.example/article/123"), html);
 
@@ -53,10 +61,23 @@ class ArticleHtmlExtractorTest {
 
     /** JSON-LD 게시일과 KBS 본문 Container 추출 */
     @Test
-    void extractsKbsArticleFromStructuredDateAndViewContainer() throws IOException {
+    void extractsKbsArticleFromStructuredDateAndViewContainer() {
+        String html = """
+                <meta property="og:title" content="지역 의료 지원 정책을 확대합니다">
+                <script type="application/ld+json">
+                {"@type":"NewsArticle","datePublished":"2026-08-14 09:30:00",}
+                </script>
+                <div class="view-article">
+                  <p>지역 의료기관을 지원하는 정책이 발표됐습니다.</p>
+                  <p>지원 대상과 적용 시기는 추가 안내될 예정입니다.</p>
+                  <p>■ 제보하기 ▷ 전화 : 02-000-0000</p>
+                </div>
+                <div class="related">관련 기사 목록</div>
+                """;
+
         var article = extractor.extract(
                 URI.create("https://news.kbs.co.kr/news/pc/view/view.do?ncd=1"),
-                fixture("kbs-news.html")
+                html
         );
 
         assertThat(article.title()).isEqualTo("지역 의료 지원 정책을 확대합니다");
@@ -70,10 +91,20 @@ class ArticleHtmlExtractorTest {
 
     /** 한국일보 본문 Container 추출 */
     @Test
-    void extractsHankookilboArticleFromArticleViewContent() throws IOException {
+    void extractsHankookilboArticleFromArticleViewContent() {
+        String html = """
+                <meta property="og:title" content="지역 공공의료 서비스를 강화합니다">
+                <meta property="article:published_time" content="2026-08-15T11:20:00+09:00">
+                <div id="article-view-content">
+                  <p>지역 공공병원의 의료 인력을 확충합니다.</p>
+                  <p>세부 지원 계획은 단계적으로 시행됩니다.</p>
+                </div>
+                <div class="related">함께 읽는 기사입니다.</div>
+                """;
+
         var article = extractor.extract(
                 URI.create("https://www.hankookilbo.com/news/article/A1"),
-                fixture("hankookilbo-news.html")
+                html
         );
 
         assertThat(article.title()).isEqualTo("지역 공공의료 서비스를 강화합니다");
@@ -83,6 +114,78 @@ class ArticleHtmlExtractorTest {
                         + "세부 지원 계획은 단계적으로 시행됩니다."
         );
         assertThat(article.body()).doesNotContain("함께 읽는 기사");
+    }
+
+    /** 지원 언론사 본문 구조 회귀 검증 */
+    @Test
+    void extractsSupportedPublisherArticleContainers() {
+        List<PublisherStructureCase> cases = List.of(
+                new PublisherStructureCase("뉴시스", """
+                        <div class="viewer">
+                          구글에서 선호하는 매체로 추가
+                          <p>본문 첫 문단입니다.</p><p>본문 둘째 문단입니다.</p>
+                          <p>◎공감언론 뉴시스 reporter@example.com</p>
+                        </div>
+                        """),
+                new PublisherStructureCase("YTN", """
+                        <div id="CmAdContent">
+                          본문 첫 문단입니다.<br>본문 둘째 문단입니다.
+                          ※ '당신의 제보가 뉴스가 됩니다' 이후 안내 문구
+                        </div>
+                        """),
+                new PublisherStructureCase("동아일보", """
+                        <section class="news_view">
+                          본문 첫 문단입니다.<br>본문 둘째 문단입니다.
+                        </section>
+                        """),
+                new PublisherStructureCase("서울신문", """
+                        <div class="viewContent">
+                          구글에서 서울신문 먼저 보기 이미지 확대 닫기
+                          <p>본문 첫 문단입니다.</p><div>본문 둘째 문단입니다.</div>
+                          <div>Copyright ⓒ 언론사 안내 문구</div>
+                        </div>
+                        """),
+                new PublisherStructureCase("헬스조선", """
+                        <div class="news_body">
+                          본문 첫 문단입니다.<br>본문 둘째 문단입니다.
+                          <div class="news_relArt">관련 기사</div>
+                          <div class="news_copyright">무단 전재 안내</div>
+                        </div>
+                        """),
+                new PublisherStructureCase("코메디닷컴", """
+                        <div class="entry-content">
+                          <p>본문 첫 문단입니다.</p><p>본문 둘째 문단입니다.</p>
+                        </div>
+                        <article><p>추천 기사</p></article>
+                        """)
+        );
+
+        for (PublisherStructureCase structureCase : cases) {
+            String html = """
+                    <meta property="og:title" content="구조 검증 기사">
+                    <meta property="article:published_time" content="2026-10-01T09:00:00+09:00">
+                    %s
+                    """.formatted(structureCase.bodyHtml());
+            var article = extractor.extract(
+                    URI.create("https://news.example/structure"),
+                    html
+            );
+
+            assertThat(article.body())
+                    .as(structureCase.publisher())
+                    .contains("본문 첫 문단입니다.")
+                    .contains("본문 둘째 문단입니다.")
+                    .doesNotContain(
+                            "관련 기사",
+                            "추천 기사",
+                            "무단 전재",
+                            "공유하기",
+                            "구글에서",
+                            "이미지 확대",
+                            "당신의 제보가 뉴스가 됩니다",
+                            "공감언론"
+                    );
+        }
     }
 
     /** 배열형 NewsArticle 구조화 게시일 추출 */
@@ -137,12 +240,7 @@ class ArticleHtmlExtractorTest {
                 .isEqualTo(ArticleProcessingError.ARTICLE_TOO_LONG);
     }
 
-    /** 기사 HTML Fixture 조회 */
-    private String fixture(String name) throws IOException {
-        try (InputStream input = Objects.requireNonNull(
-                getClass().getResourceAsStream("/articles/" + name)
-        )) {
-            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
-        }
+    /** 언론사별 최소 본문 구조 */
+    private record PublisherStructureCase(String publisher, String bodyHtml) {
     }
 }

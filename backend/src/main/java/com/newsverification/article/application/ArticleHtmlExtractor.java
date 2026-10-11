@@ -33,13 +33,17 @@ public final class ArticleHtmlExtractor {
     private static final Pattern KOREAN_LOCAL_DATE_TIME = Pattern.compile(
             "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"
     );
-    private static final Pattern TRAILING_REPORT_GUIDE = Pattern.compile(
-            "\\s*■\\s*제보하기[\\s\\S]*$"
+    private static final Pattern INLINE_BOILERPLATE = Pattern.compile(
+            "구글에서\\s*(?:선호하는 매체로 추가|서울신문 먼저 보기)|이미지 확대|(?<!\\S)닫기(?!\\S)"
+    );
+    private static final Pattern TRAILING_BOILERPLATE = Pattern.compile(
+            "\\s*(?:■\\s*제보하기|※\\s*['‘’\"]?당신의 제보가 뉴스가 됩니다"
+                    + "|◎\\s*공감언론\\s+뉴시스|Copyright\\s*[©ⓒ])[\\s\\S]*$"
     );
     private static final String UNWANTED_ELEMENTS = String.join(", ",
             "script", "style", "noscript", "nav", "aside", "footer", "form", "button",
             "[aria-hidden=true]", ".advertisement", ".ad", ".ads", ".comment", ".comments",
-            ".recommend", ".related"
+            ".recommend", ".related", ".news_relArt", ".news_copyright", ".copyright"
     );
 
     /** 기사 필수 정보와 정제 본문 생성 */
@@ -69,13 +73,16 @@ public final class ArticleHtmlExtractor {
         }
         bodyElement.select(UNWANTED_ELEMENTS).remove();
 
-        String body = bodyElement.select("p").stream()
+        String paragraphBody = bodyElement.select("p").stream()
                 .map(Element::text)
                 .map(ArticleHtmlExtractor::normalizeText)
                 .filter(text -> !text.isBlank())
                 .reduce((left, right) -> left + "\n" + right)
-                .orElseGet(() -> normalizeText(bodyElement.text()));
-        body = TRAILING_REPORT_GUIDE.matcher(body).replaceFirst("").trim();
+                .orElse("");
+        String fullBody = normalizeText(bodyElement.text());
+        String body = useFullBody(paragraphBody, fullBody) ? fullBody : paragraphBody;
+        body = INLINE_BOILERPLATE.matcher(body).replaceAll(" ");
+        body = TRAILING_BOILERPLATE.matcher(body).replaceFirst("").trim();
         if (body.isBlank()) {
             throw new ArticleProcessingException(ArticleProcessingError.MISSING_BODY);
         }
@@ -115,6 +122,13 @@ public final class ArticleHtmlExtractor {
                 "[itemprop=articleBody]",
                 "#article-view-content",
                 ".view-article",
+                ".viewer",
+                "#CmAdContent",
+                "section.news_view",
+                ".viewContent",
+                ".news_body",
+                ".entry-content",
+                ".view_cont",
                 "article"
         }) {
             Element element = document.selectFirst(selector);
@@ -123,6 +137,16 @@ public final class ArticleHtmlExtractor {
             }
         }
         return null;
+    }
+
+    /** 문단 밖 본문 포함 여부 판정 */
+    private static boolean useFullBody(String paragraphBody, String fullBody) {
+        if (paragraphBody.isBlank()) {
+            return true;
+        }
+        int paragraphLength = paragraphBody.codePointCount(0, paragraphBody.length());
+        int fullLength = fullBody.codePointCount(0, fullBody.length());
+        return paragraphLength * 2 < fullLength;
     }
 
     /** NewsArticle 구조화 필드 첫 값 조회 */
