@@ -37,6 +37,7 @@ services:
       - "9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -45,6 +46,23 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=15d
       - --web.enable-lifecycle
+
+  # Monitoring: optional email and Slack alert delivery
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: news-verification-alertmanager
+    profiles:
+      - alerts
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9093:9093"
+    secrets:
+      - alertmanager-config
+      - alertmanager-smtp-password
+      - alertmanager-slack-webhook
+    command:
+      - --config.file=/run/secrets/alertmanager-config
+      - --storage.path=/alertmanager
 
   # Monitoring: metrics dashboards
   grafana:
@@ -70,3 +88,11 @@ volumes:
   redis-data:
   prometheus-data:
   grafana-data:
+
+secrets:
+  alertmanager-config:
+    environment: ALERTMANAGER_CONFIG
+  alertmanager-smtp-password:
+    environment: MAIL_APP_PASSWORD
+  alertmanager-slack-webhook:
+    environment: SLACK_WEBHOOK_URL

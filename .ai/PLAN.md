@@ -720,7 +720,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend DOWN·Redis 장애·Queue 포화·Worker 실패율·지연·기사 추출 실패율의 6개 Alert Rule: PASS
 - 정상·장애 Prometheus Rule Fixture와 최소 표본 경계: PASS
 - 장애별 대응·복구·Rollback Runbook: PASS
-- Alertmanager Gmail SMTP 기본 수신자 `reportcheck104@gmail.com`과 쉼표 구분 다중 수신 구성: PASS
+- Alertmanager Gmail SMTP 수신자 비공개 설정과 쉼표 구분 다중 수신 구성: PASS
 - Gmail SMTP 테스트 경보 전달 시도와 Alertmanager 오류 로그 확인: PASS
 - Slack `#monitoring-alerts`·`#incident-response` 역할·주제·설명·사용 안내 구성: PASS
 - Slack Incoming Webhook 자동 경보 연결과 `#monitoring-alerts` 실제 수신 확인: PASS

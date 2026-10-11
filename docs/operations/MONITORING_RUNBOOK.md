@@ -73,7 +73,7 @@
 
 ## 이메일 수신자 관리
 
-기본 수신자는 `reportcheck104@gmail.com`이다. 여러 수신자는 `infra/alertmanager/alertmanager.yml`의 `to` 값에 쉼표로 구분해 추가한다. Gmail App Password는 `MAIL_APP_PASSWORD` 환경 변수에서 Docker Secret으로 전달하며 Git 추적 파일과 로그에 기록하지 않는다.
+발신 계정은 Git에서 제외된 `.env`의 `MAIL_USERNAME`과 `MAIL_FROM`으로 관리한다. 수신자는 `ALERT_EMAIL_RECIPIENTS`에 쉼표로 구분해 여러 주소를 지정하며, 값이 없으면 `MAIL_USERNAME`을 사용한다. Gmail App Password는 `MAIL_APP_PASSWORD`에서 Docker Secret으로 전달한다. 이메일 주소와 비밀번호는 Git 추적 설정, 메시지 또는 로그에 기록하지 않는다.
 
 ## Slack 채널 역할
 
@@ -86,4 +86,10 @@ Webhook을 새로 발급하거나 교체할 때는 다음 Local 수신 화면으
 
 ```powershell
 pwsh -NoProfile -File scripts/agent/setup-slack-webhook.ps1 -ReceiveFromBrowser
+```
+
+Alertmanager는 개인정보가 제거된 추적 템플릿을 사용한다. 실제 이메일과 Webhook을 메모리에서 Docker Secret으로 조합해 실행할 때는 다음 명령을 사용한다.
+
+```powershell
+pwsh -NoProfile -File scripts/agent/start-alertmanager.ps1
 ```

@@ -56,13 +56,15 @@
 
 ## External Credential Guardrail
 
-- Prompt나 문서에 제공된 실제 Key, Secret, App Password를 Repository 파일·로그·테스트 Fixture에 복사 금지
+- Prompt나 문서에 제공된 실제 개인 이메일, 계정·Client 식별자, API Key, Secret, Token, Webhook URL, App Password를 Repository 파일·로그·테스트 Fixture에 복사 금지
 - 무시된 Local 설정을 읽거나 수정하기 위해 `.gitignore` 규칙을 일시 해제하지 않음
 - AI Agent는 Git 무시 여부와 관계없이 Local 파일을 직접 읽고 필요한 범위에서 수정
 - 실제 설정 파일에 `git add -f` 사용 금지
 - YAML 설정은 Local 전용으로 유지하고 활성 CI Workflow만 Git 추적 예외 적용
-- 추적·Stage·비무시 신규 파일에서 실제 Key, Secret, Token, App Password, Private Key 값 검사 필수
+- 추적·Stage·비무시 신규 파일에서 실제 개인 이메일, Client ID, Key, Secret, Token, Webhook URL, App Password, Private Key 값 검사 필수
+- Git 추적 설정에는 환경 변수 이름, Docker Secret 경로와 명시적 Placeholder만 보관하고 실제 값이 필요한 전체 설정은 실행 중 Process 메모리에서 조합
 - `.env.example`에는 변수 이름과 비민감 Local URL만 기록하고 실제 값은 사용자가 `.env`에 직접 입력
+- 테스트 이메일은 `example.com`, `example.org`, `example.net`, `example.invalid` 또는 `.example` 예약 Domain만 사용
 - OAuth 공급자 Console의 Callback URL과 Backend 처리 경로를 구현·테스트에서 동일하게 유지
 - Google Identity Services의 Client Callback 방식과 Spring Security OAuth2 Redirect 방식을 한 흐름에 혼합 금지
 

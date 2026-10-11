@@ -39,6 +39,9 @@ service-account*.json
 *.yml
 *.yaml
 !infra/prometheus/prometheus.yml
+!infra/prometheus/rules/news-verification-alerts.yml
+!infra/prometheus/rules/news-verification-alerts.test.yml
+!infra/alertmanager/alertmanager.yml
 !infra/grafana/provisioning/dashboards/dashboards.yml
 !infra/grafana/provisioning/datasources/prometheus.yml
 
@@ -124,6 +127,8 @@ docs/architecture/images/database-erd.svg
 !docs/agent/*.md
 !docs/architecture/
 !docs/architecture/*.md
+!docs/operations/
+!docs/operations/*.md
 
 # Local API 계약 문서
 docs/api/

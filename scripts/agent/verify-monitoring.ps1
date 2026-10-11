@@ -17,6 +17,7 @@ $dashboardPath = Join-Path $repoRoot 'infra\grafana\dashboards\news-verification
 $alertRulesPath = Join-Path $repoRoot 'infra\prometheus\rules\news-verification-alerts.yml'
 $alertRulesTestPath = Join-Path $repoRoot 'infra\prometheus\rules\news-verification-alerts.test.yml'
 $alertmanagerPath = Join-Path $repoRoot 'infra\alertmanager\alertmanager.yml'
+$alertmanagerUtilityPath = Join-Path $PSScriptRoot 'alertmanager-configuration.ps1'
 $requiredPaths = @(
     $composePath,
     $utilitiesPath,
@@ -24,6 +25,7 @@ $requiredPaths = @(
     $alertRulesPath,
     $alertRulesTestPath,
     $alertmanagerPath,
+    $alertmanagerUtilityPath,
     (Join-Path $repoRoot 'infra\prometheus\prometheus.yml'),
     (Join-Path $repoRoot 'infra\grafana\provisioning\dashboards\dashboards.yml'),
     (Join-Path $repoRoot 'infra\grafana\provisioning\datasources\prometheus.yml')
@@ -36,6 +38,7 @@ foreach ($path in $requiredPaths) {
 }
 
 . $utilitiesPath
+. $alertmanagerUtilityPath
 
 $dashboard = Get-Content -Raw -LiteralPath $dashboardPath | ConvertFrom-Json
 if ($dashboard.uid -ne 'news-verification-overview' -or $dashboard.title -ne '기사체크 서비스 개요') {
@@ -72,8 +75,14 @@ $alertmanagerConfiguration = Get-Content -Raw -LiteralPath $alertmanagerPath
 if (-not $alertmanagerConfiguration.Contains('smtp_auth_password_file: /run/secrets/alertmanager-smtp-password')) {
     throw 'Alertmanager SMTP password must use a Docker Secret file'
 }
-if (-not $alertmanagerConfiguration.Contains('to: reportcheck104@gmail.com')) {
-    throw 'Alertmanager default email recipient is invalid'
+foreach ($placeholder in @(
+        '__ALERT_SMTP_FROM__',
+        '__ALERT_SMTP_USERNAME__',
+        '__ALERT_EMAIL_RECIPIENTS__'
+    )) {
+    if (-not $alertmanagerConfiguration.Contains($placeholder)) {
+        throw "Alertmanager private email placeholder missing: $placeholder"
+    }
 }
 if (-not $alertmanagerConfiguration.Contains('api_url_file: /run/secrets/alertmanager-slack-webhook') `
         -or -not $alertmanagerConfiguration.Contains('channel: "#monitoring-alerts"')) {
@@ -85,15 +94,33 @@ if ($alertmanagerConfiguration -match '(?m)^\s*smtp_auth_password:\s*\S+') {
 if ($alertmanagerConfiguration -match '(?m)^\s*api_url:\s*\S+') {
     throw 'Alertmanager Slack Webhook URL must not be stored in tracked configuration'
 }
+if ($alertmanagerConfiguration -match '[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}') {
+    throw 'Alertmanager tracked configuration must not contain an email address'
+}
 Write-Host '[PASS] Prometheus alert rules and Alertmanager contract'
 
 $previousComposeValues = @{}
-foreach ($name in @('REDIS_PASSWORD', 'GRAFANA_ADMIN_PASSWORD', 'MAIL_APP_PASSWORD', 'SLACK_WEBHOOK_URL')) {
+foreach ($name in @(
+        'REDIS_PASSWORD',
+        'GRAFANA_ADMIN_PASSWORD',
+        'ALERTMANAGER_CONFIG',
+        'MAIL_APP_PASSWORD',
+        'SLACK_WEBHOOK_URL'
+    )) {
     $previousComposeValues[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     if (-not $previousComposeValues[$name]) {
         [Environment]::SetEnvironmentVariable($name, 'monitoring-configuration-check', 'Process')
     }
 }
+[Environment]::SetEnvironmentVariable(
+    'ALERTMANAGER_CONFIG',
+    (New-AlertmanagerRuntimeConfiguration `
+        -TemplatePath $alertmanagerPath `
+        -SenderEmail 'alerts@example.invalid' `
+        -Username 'alerts@example.invalid' `
+        -Recipients 'alerts@example.invalid'),
+    'Process'
+)
 try {
     & docker compose --file $composePath --profile alerts config --quiet
     if ($LASTEXITCODE -ne 0) {
@@ -107,7 +134,7 @@ try {
     }
 
     & docker compose --file $composePath --profile alerts run --rm --no-deps `
-        --entrypoint amtool alertmanager check-config /etc/alertmanager/alertmanager.yml
+        --entrypoint amtool alertmanager check-config /run/secrets/alertmanager-config
     if ($LASTEXITCODE -ne 0) {
         throw "Alertmanager configuration verification failed with exit code $LASTEXITCODE"
     }
@@ -198,6 +225,29 @@ if (-not $mailAppPassword) {
 if (-not $mailAppPassword) {
     throw 'MAIL_APP_PASSWORD must be configured in Process environment or ignored .env'
 }
+$mailUsername = [Environment]::GetEnvironmentVariable('MAIL_USERNAME', 'Process')
+if (-not $mailUsername) {
+    $mailUsername = Get-ConfiguredValue -Values $localValues -Name 'MAIL_USERNAME'
+}
+$mailFrom = [Environment]::GetEnvironmentVariable('MAIL_FROM', 'Process')
+if (-not $mailFrom) {
+    $mailFrom = Get-ConfiguredValue -Values $localValues -Name 'MAIL_FROM' -Fallback $mailUsername
+}
+$mailRecipients = [Environment]::GetEnvironmentVariable('ALERT_EMAIL_RECIPIENTS', 'Process')
+if (-not $mailRecipients) {
+    $mailRecipients = Get-ConfiguredValue `
+        -Values $localValues `
+        -Name 'ALERT_EMAIL_RECIPIENTS' `
+        -Fallback $mailUsername
+}
+if (-not $mailUsername -or -not $mailFrom -or -not $mailRecipients) {
+    throw 'MAIL_USERNAME, MAIL_FROM and alert email recipients must be configured in Process environment or ignored .env'
+}
+$runtimeAlertmanagerConfiguration = New-AlertmanagerRuntimeConfiguration `
+    -TemplatePath $alertmanagerPath `
+    -SenderEmail $mailFrom `
+    -Username $mailUsername `
+    -Recipients $mailRecipients
 $slackWebhookUrl = [Environment]::GetEnvironmentVariable('SLACK_WEBHOOK_URL', 'Process')
 if (-not $slackWebhookUrl) {
     $slackWebhookUrl = Get-ConfiguredValue -Values $localValues -Name 'SLACK_WEBHOOK_URL'
@@ -206,11 +256,18 @@ if (-not $slackWebhookUrl) {
     throw 'SLACK_WEBHOOK_URL must be configured in Process environment or ignored .env'
 }
 $runtimeEnvironmentBackup = @{}
-foreach ($name in @('REDIS_PASSWORD', 'GRAFANA_ADMIN_PASSWORD', 'MAIL_APP_PASSWORD', 'SLACK_WEBHOOK_URL')) {
+foreach ($name in @(
+        'REDIS_PASSWORD',
+        'GRAFANA_ADMIN_PASSWORD',
+        'ALERTMANAGER_CONFIG',
+        'MAIL_APP_PASSWORD',
+        'SLACK_WEBHOOK_URL'
+    )) {
     $runtimeEnvironmentBackup[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 [Environment]::SetEnvironmentVariable('REDIS_PASSWORD', $redisPassword, 'Process')
 [Environment]::SetEnvironmentVariable('GRAFANA_ADMIN_PASSWORD', $grafanaPassword, 'Process')
+[Environment]::SetEnvironmentVariable('ALERTMANAGER_CONFIG', $runtimeAlertmanagerConfiguration, 'Process')
 [Environment]::SetEnvironmentVariable('MAIL_APP_PASSWORD', $mailAppPassword, 'Process')
 [Environment]::SetEnvironmentVariable('SLACK_WEBHOOK_URL', $slackWebhookUrl, 'Process')
 
@@ -342,7 +399,8 @@ try {
     Write-Host '[PASS] Prometheus alert rules loaded'
 
     $alertmanagerStatus = Invoke-RestMethod -Uri 'http://127.0.0.1:9093/api/v2/status' -TimeoutSec 5
-    if (-not $alertmanagerStatus.config.original.Contains('reportcheck104@gmail.com') `
+    if ($alertmanagerStatus.config.original.Contains('__ALERT_') `
+            -or -not $alertmanagerStatus.config.original.Contains('email_configs:') `
             -or -not $alertmanagerStatus.config.original.Contains('#monitoring-alerts')) {
         throw 'Alertmanager notification receiver was not loaded'
     }
@@ -465,6 +523,10 @@ finally {
     $redisPassword = $null
     $grafanaPassword = $null
     $mailAppPassword = $null
+    $mailUsername = $null
+    $mailFrom = $null
+    $mailRecipients = $null
+    $runtimeAlertmanagerConfiguration = $null
     $slackWebhookUrl = $null
     $basicValue = $null
     if ($localValues) {

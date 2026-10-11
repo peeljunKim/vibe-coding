@@ -47,6 +47,7 @@ function New-VerificationRepository {
     Set-Content -LiteralPath (Join-Path $repository 'README.md') -Value 'fixture' -NoNewline
 
     Invoke-Git $repository @('init', '--quiet')
+    Invoke-Git $repository @('config', 'core.fsmonitor', 'false')
     Invoke-Git $repository @('config', 'user.email', 'verification-tests@example.invalid')
     Invoke-Git $repository @('config', 'user.name', 'Verification Tests')
     Invoke-Git $repository @('add', '.')
@@ -167,9 +168,16 @@ try {
 
     foreach ($relativePath in @(
             'scripts/agent/verify-monitoring.ps1',
+            'scripts/agent/alertmanager-configuration.ps1',
+            'scripts/agent/start-alertmanager.ps1',
+            'scripts/agent/setup-slack-webhook.ps1',
             'infra/prometheus/prometheus.yml',
+            'infra/prometheus/rules/news-verification-alerts.yml',
+            'infra/prometheus/rules/news-verification-alerts.test.yml',
+            'infra/alertmanager/alertmanager.yml',
             'infra/grafana/provisioning/dashboards/dashboards.yml',
-            'infra/grafana/provisioning/datasources/prometheus.yml'
+            'infra/grafana/provisioning/datasources/prometheus.yml',
+            'docs/operations/MONITORING_RUNBOOK.md'
         )) {
         $path = Join-Path $repoRoot $relativePath
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -181,6 +189,28 @@ try {
         if ($LASTEXITCODE -eq 0) {
             $failures.Add("monitoring Clean Clone file is ignored: $relativePath")
         }
+    }
+
+    $alertmanagerTemplatePath = Join-Path $repoRoot 'infra\alertmanager\alertmanager.yml'
+    $alertmanagerTemplate = Get-Content -Raw -LiteralPath $alertmanagerTemplatePath
+    if ($alertmanagerTemplate -match '[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}') {
+        $failures.Add('Alertmanager tracked configuration contains an email address')
+    }
+    foreach ($placeholder in @(
+            '__ALERT_SMTP_FROM__',
+            '__ALERT_SMTP_USERNAME__',
+            '__ALERT_EMAIL_RECIPIENTS__'
+        )) {
+        Assert-Contains "Alertmanager placeholder $placeholder" $alertmanagerTemplate $placeholder
+    }
+    . (Join-Path $repoRoot 'scripts\agent\alertmanager-configuration.ps1')
+    $renderedAlertmanagerConfiguration = New-AlertmanagerRuntimeConfiguration `
+        -TemplatePath $alertmanagerTemplatePath `
+        -SenderEmail 'alerts@example.invalid' `
+        -Username 'alerts@example.invalid' `
+        -Recipients 'first@example.invalid,second@example.invalid'
+    if ($renderedAlertmanagerConfiguration.Contains('__ALERT_')) {
+        $failures.Add('Alertmanager runtime configuration contains an unresolved private placeholder')
     }
 
     . $utilitiesScript
@@ -200,6 +230,19 @@ try {
     Assert-Equal 'clean repository exits successfully' 0 $result.ExitCode
     Assert-Contains 'clean repository checks required documents' $result.Output '[PASS] Harness file structure'
     Assert-Contains 'clean repository checks staged whitespace' $result.Output '[PASS] Git staged diff whitespace check'
+
+    $repository = New-VerificationRepository
+    $privateContact = 'owner@' + 'privacy-check.dev'
+    Set-Content -LiteralPath (Join-Path $repository 'private-contact.txt') -Value $privateContact -NoNewline
+    $result = Invoke-Verification $repository
+    Assert-Equal 'personal email exits with failure' 1 $result.ExitCode
+    Assert-Contains 'personal email reaches privacy check' $result.Output 'Possible Secret or personal value detected'
+
+    $repository = New-VerificationRepository
+    Set-Content -LiteralPath (Join-Path $repository 'example-contact.txt') -Value 'owner@example.invalid' -NoNewline
+    $result = Invoke-Verification $repository
+    Assert-Equal 'reserved example email exits successfully' 0 $result.ExitCode
+    Assert-Contains 'reserved example email passes privacy check' $result.Output '[PASS] Repository candidate Secret and personal value check'
 
     foreach ($reviewDocument in @('docs/agent/code-review.md', 'docs/agent/backend-review.md')) {
         $repository = New-VerificationRepository

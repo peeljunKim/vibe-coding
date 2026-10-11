@@ -58,6 +58,9 @@ pwsh -NoProfile -File scripts/agent/verify-monitoring.ps1
 # Gmail SMTP와 Slack 테스트 경보를 포함한 Local 모니터링 통합 검증
 pwsh -NoProfile -File scripts/agent/verify-monitoring.ps1 -SendTestAlert
 
+# 비공개 이메일·Secret으로 Local Alertmanager 실행
+pwsh -NoProfile -File scripts/agent/start-alertmanager.ps1
+
 # Slack Incoming Webhook을 Git 제외 Local .env에 저장
 pwsh -NoProfile -File scripts/agent/setup-slack-webhook.ps1 -ReceiveFromBrowser
 
@@ -76,7 +79,7 @@ Local MVP 전체 회귀 검증은 전체 Repository 검증, Native MySQL Reposit
 
 Full-stack Smoke E2E는 Vite Browser에서 실제 Backend HTTP API를 호출하고 별도 Native MySQL 테스트 Database와 실행별 Docker Redis를 연결한다. 회원가입·로그인·CSRF·건강 및 제목 분석·저장 기록·로그아웃 경계를 검증하며, 실제 Gemini·PubMed·OAuth·Gmail SMTP 대신 `e2e` Profile의 고정 기사 입력과 기존 Mock 분석·메일 Adapter를 사용한다. 실행별 시험 언론사·회원·Redis Container와 임시 로그는 종료 시 정리하고 Secret 값은 저장하거나 출력하지 않는다.
 
-모니터링 통합 검증은 Git 추적 Prometheus·Grafana·Alertmanager 설정, 정상·장애 Alert Rule Fixture, Actuator Health·Prometheus Metric, Prometheus Backend Target·6개 Alert Rule·JVM·HTTP Query, Alertmanager Email·Slack Receiver, Grafana 데이터소스·기본 Dashboard·11개 시스템·업무 Panel Query를 확인한다. 기존 실행 Container는 유지하고 검증이 시작한 Container와 Backend만 원래 상태로 되돌리며 Redis·Grafana·Gmail 비밀번호와 Slack Webhook을 출력하거나 저장하지 않는다. `-ConfigurationOnly`는 운영 Container를 시작하지 않고 파일·Dashboard 계약, Compose 해석, `promtool` Fixture와 `amtool` 설정을 검사한다. `-SendTestAlert`는 Git에서 제외된 `.env` 또는 Process의 `MAIL_APP_PASSWORD`, `SLACK_WEBHOOK_URL`을 Docker Secret으로 전달해 Local 시험 경보 1건을 Gmail과 Slack에 발송하고 Alertmanager 오류 로그를 확인한다.
+모니터링 통합 검증은 Git 추적 Prometheus·Grafana 설정과 개인정보가 제거된 Alertmanager 템플릿, 정상·장애 Alert Rule Fixture, Actuator Health·Prometheus Metric, Prometheus Backend Target·6개 Alert Rule·JVM·HTTP Query, Alertmanager Email·Slack Receiver, Grafana 데이터소스·기본 Dashboard·11개 시스템·업무 Panel Query를 확인한다. 기존 실행 Container는 유지하고 검증이 시작한 Container와 Backend만 원래 상태로 되돌리며 Redis·Grafana·Gmail 정보와 Slack Webhook을 출력하거나 저장하지 않는다. `-ConfigurationOnly`는 비식별 시험 주소로 메모리에서 설정을 생성해 Compose 해석, `promtool` Fixture와 `amtool` 설정을 검사한다. `-SendTestAlert`는 Git에서 제외된 `.env` 또는 Process의 이메일 설정과 Secret으로 메모리에서 전체 설정을 만들고 Docker Secret으로 전달해 Local 시험 경보 1건을 Gmail과 Slack에 발송한 뒤 Alertmanager 오류 로그를 확인한다.
 
 Native MySQL 검증 Script는 Git에서 제외된 `.env` 또는 `.env.example`의 Database·계정 값을 사용하며 이름을 다시 입력받지 않는다. Root 비밀번호는 항상 마스킹 입력한다. `.env`에 애플리케이션 비밀번호가 있으면 프로세스 내부에서 자동 사용하고, 없으면 해당 계정 비밀번호를 마스킹 입력 후 저장하지 않는다. 기존 계정의 비밀번호를 변경하거나 두 계정의 비밀번호를 같게 강제하지 않는다. 애플리케이션 계정이 없을 때만 제공된 비밀번호로 생성한다. 빈 Database에는 Local V0001과 존재하는 V0004 이상 후속 SQL을 Version 순서대로 적용한다. 비어 있지 않은 Database에는 Schema SQL을 재실행하지 않고 Table 집합, 지원 언론사 분류, 표준 INT 컬럼과 건강 분석 중복 방지 Index Metadata를 검증한다. 애플리케이션 계정의 기존 권한을 회수한 뒤 DML 권한만 부여한다.
 
@@ -90,7 +93,7 @@ Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사�
 
 지원 언론사 웹 표시를 구현할 때는 공개 API와 화면에서 `지원 중`, `일시 지원 중단`, `현재 미지원`이 동일하게 구분되는지 검증한다. 현재 미지원 대상의 분석 요청은 AI 호출과 이용 횟수 차감 전에 차단하고, 추출 보강 대상은 Mock 회귀와 승인된 실제 기사 시험을 통과한 뒤에만 지원 중으로 변경한다.
 
-모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 Key·Secret·Token·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder는 허용한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
+모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 개인 이메일·Client ID·Key·Secret·Token·Webhook URL·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder와 `example.com`, `example.org`, `example.net`, `example.invalid`, `.example` 예약 Domain 이메일은 허용한다. 공개 API 경로와 Localhost URL은 자격 증명이 아니므로 이 검사 대상에서 제외한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
 
 ## 실제 검증 순서
 

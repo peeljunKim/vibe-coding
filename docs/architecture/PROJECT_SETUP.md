@@ -32,7 +32,7 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - Grafana 데이터소스와 기본 대시보드 자동 등록
 - Prometheus 6개 운영 경보와 정상·장애 Fixture
 - 선택적 `alerts` Profile의 Alertmanager Gmail SMTP 수신
-- 기본 수신자 `reportcheck104@gmail.com`, 쉼표 구분 다중 수신자 지원
+- Git 제외 `ALERT_EMAIL_RECIPIENTS` 기반 쉼표 구분 다중 수신자 지원
 - 운영 환경에서는 Prometheus endpoint를 내부 네트워크로 제한
 - 현재 Compose의 `9090`, `9093`, `3000` Host Port 공개는 Local 전용이며 운영 설정으로 재사용하지 않음
 - `verify-monitoring.ps1`로 Actuator → Prometheus → Alertmanager·Grafana 연결과 Alert·Panel Query 검증
@@ -43,7 +43,7 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 2. `.env.example`을 `.env`로 복사하고 모든 `replace-with-` 값을 로컬 비밀번호로 변경한다.
 3. Windows MySQL Service를 실행하고 `DATABASE_SCHEMA.md`의 초기 SQL을 적용한다.
 4. `docker compose up -d redis prometheus grafana`로 기본 인프라를 실행한다.
-5. Local 이메일·Slack 경보가 필요하면 `docker compose --profile alerts up -d alertmanager`를 추가 실행한다.
+5. Local 이메일·Slack 경보가 필요하면 `pwsh -NoProfile -File scripts/agent/start-alertmanager.ps1`을 실행한다.
 6. `backend`에서 Maven Wrapper로 Spring Boot를 실행한다.
 7. `frontend`에서 npm으로 Vite 개발 서버를 실행한다.
 8. Prometheus Targets 화면에서 backend가 `UP`인지 확인한다.
@@ -99,7 +99,7 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - Native MySQL 데이터 디렉터리와 Redis, Prometheus, Grafana, Alertmanager의 Docker Volume 데이터
 - 로그, 빌드 결과물, 테스트 결과, 캐시와 임시 파일
 
-MySQL, Redis, Grafana 비밀번호는 기본값 없이 필수 환경 변수로 받는다. MySQL은 Native Service와 Backend 연결 단계에서, Redis와 Grafana는 Compose 시작 단계에서 검증한다. Alertmanager Gmail App Password와 Slack Incoming Webhook은 Process 환경 변수 또는 Git에서 제외된 `.env`의 `MAIL_APP_PASSWORD`, `SLACK_WEBHOOK_URL`에서 Docker Secret으로 전달한다. 모니터링 검증은 이 값을 출력하거나 Git 추적 파일에 저장하지 않는다.
+MySQL, Redis, Grafana 비밀번호는 기본값 없이 필수 환경 변수로 받는다. MySQL은 Native Service와 Backend 연결 단계에서, Redis와 Grafana는 Compose 시작 단계에서 검증한다. Alertmanager 이메일 주소는 Process 환경 변수 또는 Git에서 제외된 `.env`의 `MAIL_USERNAME`, `MAIL_FROM`, `ALERT_EMAIL_RECIPIENTS`에서 읽고, Gmail App Password와 Slack Incoming Webhook은 `MAIL_APP_PASSWORD`, `SLACK_WEBHOOK_URL`에서 읽는다. 추적 템플릿의 Placeholder를 메모리에서 치환한 전체 설정과 Secret을 Docker Secret으로 전달하며 실제 값은 출력하거나 Git 추적 파일에 저장하지 않는다.
 
 ## 아직 설정하지 않는 항목
 
