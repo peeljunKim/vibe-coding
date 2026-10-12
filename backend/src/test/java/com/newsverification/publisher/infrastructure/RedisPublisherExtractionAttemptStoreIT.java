@@ -63,13 +63,13 @@ class RedisPublisherExtractionAttemptStoreIT {
         RedisPublisherExtractionAttemptStore store = store(Duration.ofHours(1));
 
         for (int attempt = 1; attempt <= 6; attempt++) {
-            assertThat(store.record("news.example", true)).isFalse();
+            assertThat(store.record(17L, true)).isFalse();
         }
         for (int attempt = 1; attempt <= 3; attempt++) {
-            assertThat(store.record("news.example", false)).isFalse();
+            assertThat(store.record(17L, false)).isFalse();
         }
 
-        assertThat(store.record("news.example", true)).isTrue();
+        assertThat(store.record(17L, true)).isTrue();
     }
 
     /** 실패율 70% 미만 상태 유지 */
@@ -78,10 +78,10 @@ class RedisPublisherExtractionAttemptStoreIT {
         RedisPublisherExtractionAttemptStore store = store(Duration.ofHours(1));
 
         for (int attempt = 1; attempt <= 6; attempt++) {
-            store.record("news.example", true);
+            store.record(17L, true);
         }
         for (int attempt = 1; attempt <= 4; attempt++) {
-            assertThat(store.record("news.example", false)).isFalse();
+            assertThat(store.record(17L, false)).isFalse();
         }
     }
 
@@ -90,12 +90,12 @@ class RedisPublisherExtractionAttemptStoreIT {
     void excludesAttemptsAfterWindowExpires() throws InterruptedException {
         RedisPublisherExtractionAttemptStore store = store(Duration.ofMillis(150));
         for (int attempt = 1; attempt <= 9; attempt++) {
-            store.record("news.example", true);
+            store.record(17L, true);
         }
 
         Thread.sleep(250);
 
-        assertThat(store.record("news.example", true)).isFalse();
+        assertThat(store.record(17L, true)).isFalse();
     }
 
     /** 언론사별 독립 집계 */
@@ -103,10 +103,24 @@ class RedisPublisherExtractionAttemptStoreIT {
     void separatesPublisherNamespaces() {
         RedisPublisherExtractionAttemptStore store = store(Duration.ofHours(1));
         for (int attempt = 1; attempt <= 9; attempt++) {
-            store.record("first.example", true);
+            store.record(17L, true);
         }
 
-        assertThat(store.record("second.example", true)).isFalse();
+        assertThat(store.record(18L, true)).isFalse();
+    }
+
+    /** 같은 언론사 ID의 분산 시도 통합 */
+    @Test
+    void combinesAttemptsForTheSamePublisherId() {
+        RedisPublisherExtractionAttemptStore store = store(Duration.ofHours(1));
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            assertThat(store.record(17L, true)).isFalse();
+        }
+        for (int attempt = 1; attempt <= 4; attempt++) {
+            assertThat(store.record(17L, true)).isFalse();
+        }
+
+        assertThat(store.record(17L, true)).isTrue();
     }
 
     private RedisPublisherExtractionAttemptStore store(Duration window) {

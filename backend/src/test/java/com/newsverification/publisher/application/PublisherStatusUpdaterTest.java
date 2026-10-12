@@ -2,8 +2,6 @@
 package com.newsverification.publisher.application;
 
 import com.newsverification.publisher.domain.NewsPublisher;
-import com.newsverification.publisher.domain.NewsPublisherDomain;
-import com.newsverification.publisher.infrastructure.NewsPublisherDomainRepository;
 import com.newsverification.publisher.infrastructure.NewsPublisherRepository;
 import org.junit.jupiter.api.Test;
 
@@ -21,19 +19,13 @@ class PublisherStatusUpdaterTest {
     @Test
     void pausesActivePublisherAndReturnsDisplayName() {
         NewsPublisherRepository publisherRepository = mock(NewsPublisherRepository.class);
-        NewsPublisherDomainRepository domainRepository = mock(NewsPublisherDomainRepository.class);
         NewsPublisher publisher = mock(NewsPublisher.class);
-        NewsPublisherDomain domain = mock(NewsPublisherDomain.class);
-        when(domainRepository.findByHostname("news.example")).thenReturn(Optional.of(domain));
-        when(domain.publisher()).thenReturn(publisher);
-        when(publisher.id()).thenReturn(7L);
+        when(publisherRepository.findById(7L)).thenReturn(Optional.of(publisher));
         when(publisher.name()).thenReturn("테스트 언론사");
         when(publisherRepository.pauseAutomatically(7L)).thenReturn(1);
-        PublisherStatusUpdater updater = new PublisherStatusUpdater(
-                domainRepository, publisherRepository
-        );
+        PublisherStatusUpdater updater = new PublisherStatusUpdater(publisherRepository);
 
-        Optional<String> result = updater.pauseAutomatically("news.example");
+        Optional<String> result = updater.pauseAutomatically(7L);
 
         assertThat(result).contains("테스트 언론사");
         verify(publisherRepository).pauseAutomatically(7L);
@@ -43,18 +35,12 @@ class PublisherStatusUpdaterTest {
     @Test
     void returnsEmptyWhenConditionalUpdateDoesNotMatch() {
         NewsPublisherRepository publisherRepository = mock(NewsPublisherRepository.class);
-        NewsPublisherDomainRepository domainRepository = mock(NewsPublisherDomainRepository.class);
         NewsPublisher publisher = mock(NewsPublisher.class);
-        NewsPublisherDomain domain = mock(NewsPublisherDomain.class);
-        when(domainRepository.findByHostname("news.example")).thenReturn(Optional.of(domain));
-        when(domain.publisher()).thenReturn(publisher);
-        when(publisher.id()).thenReturn(7L);
+        when(publisherRepository.findById(7L)).thenReturn(Optional.of(publisher));
         when(publisherRepository.pauseAutomatically(7L)).thenReturn(0);
-        PublisherStatusUpdater updater = new PublisherStatusUpdater(
-                domainRepository, publisherRepository
-        );
+        PublisherStatusUpdater updater = new PublisherStatusUpdater(publisherRepository);
 
-        Optional<String> result = updater.pauseAutomatically("news.example");
+        Optional<String> result = updater.pauseAutomatically(7L);
 
         assertThat(result).isEmpty();
     }

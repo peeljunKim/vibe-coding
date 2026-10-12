@@ -42,6 +42,7 @@ class PublisherDomainAccessServiceTest {
         NewsPublisher publisher = mock(NewsPublisher.class);
         NewsPublisherDomain requested = mock(NewsPublisherDomain.class);
         NewsPublisherDomain alias = mock(NewsPublisherDomain.class);
+        when(publisher.id()).thenReturn(17L);
         when(requested.publisher()).thenReturn(publisher);
         when(requested.hostname()).thenReturn("news.example");
         when(requested.availability()).thenReturn(PublisherAvailability.ACTIVE);
@@ -50,9 +51,10 @@ class PublisherDomainAccessServiceTest {
         when(domainRepository.findAllByPublisherAndStatusOrderByHostnameAsc(
                 publisher, PublisherDomainStatus.ACTIVE)).thenReturn(List.of(alias, requested));
 
-        var allowedHosts = service.requireActivePublisherHosts("news.example");
+        var access = service.requireActivePublisher("news.example");
 
-        assertThat(allowedHosts).containsExactlyInAnyOrder("news.example", "m.news.example");
+        assertThat(access.publisherId()).isEqualTo(17L);
+        assertThat(access.allowedHosts()).containsExactlyInAnyOrder("news.example", "m.news.example");
     }
 
     /** 후보 언론사 추출 차단 */

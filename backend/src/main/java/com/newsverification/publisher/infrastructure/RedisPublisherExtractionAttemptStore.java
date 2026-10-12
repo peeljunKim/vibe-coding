@@ -15,7 +15,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -97,11 +96,11 @@ public class RedisPublisherExtractionAttemptStore implements PublisherExtraction
 
     /** 언론사별 성공·실패 추가와 자동 중단 판정 */
     @Override
-    public boolean record(String hostname, boolean failed) {
-        if (hostname == null || hostname.isBlank()) {
-            throw new IllegalArgumentException("Publisher hostname is required");
+    public boolean record(long publisherId, boolean failed) {
+        if (publisherId < 1) {
+            throw new IllegalArgumentException("Publisher ID must be positive");
         }
-        String baseKey = keyPrefix + sha256(hostname.toLowerCase(Locale.ROOT));
+        String baseKey = keyPrefix + sha256(Long.toString(publisherId));
         Long shouldPause = redisTemplate.execute(
                 RECORD_SCRIPT,
                 List.of(baseKey + ":attempts", baseKey + ":failures"),

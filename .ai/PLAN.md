@@ -756,14 +756,16 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 
 - 건강·제목 분석 공통 `PublisherArticleReader`의 정상 URL 추출 성공·실패 집계: PASS
 - 사용자 URL·미등록·기존 중단 상태 오류의 실패율 집계 제외: PASS
-- Redis 최근 1시간 Sliding Window와 언론사별 SHA-256 Namespace: PASS
+- Redis 최근 1시간 Sliding Window와 언론사 ID별 SHA-256 Namespace: PASS
+- 기본·`www`·모바일 등 별칭 Host의 동일 언론사 집계: PASS
+- Redis 집계 장애와 기사 추출 성공·원래 오류 분리: PASS
 - 유효 시도 10회 이상·추출 실패율 70% 이상 원자 판정: PASS
 - `ACTIVE`에서 시간·사유를 기록하며 `PAUSED_AUTO`로 한 번만 변경하는 조건부 JPA 갱신: PASS (단위 검증)
 - 기존 `GET /api/publishers`의 `일시 지원 중단` 상태 변환 회귀: PASS
 - 보강·재시험 후 `PAUSED_AUTO`만 복구하는 Local 운영 Script와 안전장치 회귀: PASS
 - 기본 Profile Mock 알림과 `smtp`·`prod` Profile Gmail 관리자 알림 구성: PASS
 - Docker Redis 8.8 통합 검증: PASS (기존 Redis 검증 묶음 포함)
-- Backend Maven 전체 검증: PASS (361개, 실패·오류·Skip 0)
-- Native MySQL 자동 중단·공개 상태·수동 복구 통합 검증: NOT RUN (테스트 계정 비밀번호 비대화형 입력 없음)
+- Backend Maven 전체 검증: PASS (363개, 실패·오류·Skip 0)
+- Native MySQL 자동 중단·공개 상태·수동 복구 통합 검증: PASS (사용자 실행 확인: `verify-publisher-native-mysql.ps1`)
 - 실제 Gmail SMTP 발송과 외부 기사 호출: NOT RUN
 - 새 Dependency·Public API·Frontend 변경: NOT APPLICABLE

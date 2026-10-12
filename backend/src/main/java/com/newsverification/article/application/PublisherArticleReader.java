@@ -6,16 +6,19 @@ import com.newsverification.article.domain.ArticleProcessingError;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.monitoring.application.OperationalMetrics;
 import com.newsverification.publisher.application.PublisherDomainAccessService;
+import com.newsverification.publisher.application.PublisherExtractionAccess;
 import com.newsverification.publisher.application.PublisherExtractionPolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
-import java.util.Set;
-
 /** 분석 전 언론사 상태 확인과 안전 수집 연결 */
 @Service
 public class PublisherArticleReader {
+
+    private static final Logger log = LoggerFactory.getLogger(PublisherArticleReader.class);
 
     private final ArticleUrlValidator urlValidator;
     private final PublisherDomainAccessService domainAccessService;
@@ -67,16 +70,17 @@ public class PublisherArticleReader {
 
     /** 활성 언론사 기사만 안전 수집 */
     public ExtractedArticle read(String rawUrl) {
-        String hostname = null;
+        long publisherId = 0;
         boolean publisherApproved = false;
         boolean extractionCompleted = false;
         try {
-            hostname = urlValidator.hostname(rawUrl);
-            Set<String> allowedHosts = domainAccessService.requireActivePublisherHosts(hostname);
+            String hostname = urlValidator.hostname(rawUrl);
+            PublisherExtractionAccess access = domainAccessService.requireActivePublisher(hostname);
+            publisherId = access.publisherId();
             publisherApproved = true;
-            ExtractedArticle article = articleReader.read(rawUrl, allowedHosts);
+            ExtractedArticle article = articleReader.read(rawUrl, access.allowedHosts());
             extractionCompleted = true;
-            publisherPolicy.recordSuccess(hostname);
+            recordPublisherOutcomeSafely(publisherId, false);
             metrics.recordArticleExtraction(
                     OperationalMetrics.ExtractionOutcome.SUCCEEDED,
                     OperationalMetrics.ExtractionFailure.NONE
@@ -84,7 +88,7 @@ public class PublisherArticleReader {
             return article;
         } catch (ArticleProcessingException exception) {
             if (publisherApproved && isExtractionFailure(exception.error())) {
-                publisherPolicy.recordFailure(hostname);
+                recordPublisherOutcomeSafely(publisherId, true);
             }
             metrics.recordArticleExtraction(
                     OperationalMetrics.ExtractionOutcome.FAILED,
@@ -93,13 +97,30 @@ public class PublisherArticleReader {
             throw exception;
         } catch (RuntimeException exception) {
             if (publisherApproved && !extractionCompleted) {
-                publisherPolicy.recordFailure(hostname);
+                recordPublisherOutcomeSafely(publisherId, true);
             }
             metrics.recordArticleExtraction(
                     OperationalMetrics.ExtractionOutcome.FAILED,
                     OperationalMetrics.ExtractionFailure.INTERNAL
             );
             throw exception;
+        }
+    }
+
+    /** 추출 결과와 보조 집계 장애 분리 */
+    private void recordPublisherOutcomeSafely(long publisherId, boolean failed) {
+        try {
+            if (failed) {
+                publisherPolicy.recordFailure(publisherId);
+            } else {
+                publisherPolicy.recordSuccess(publisherId);
+            }
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "Publisher extraction aggregation failed: outcome={}, cause={}",
+                    failed ? "failed" : "succeeded",
+                    exception.getClass().getSimpleName()
+            );
         }
     }
 

@@ -4,9 +4,9 @@ package com.newsverification.publisher.application;
 /** 기사 추출 성공·실패 기록 경계 */
 public interface PublisherExtractionPolicy {
 
-    void recordSuccess(String hostname);
+    void recordSuccess(long publisherId);
 
-    void recordFailure(String hostname);
+    void recordFailure(long publisherId);
 
     static PublisherExtractionPolicy disabled() {
         return DisabledPublisherExtractionPolicy.INSTANCE;
@@ -17,11 +17,11 @@ public interface PublisherExtractionPolicy {
         INSTANCE;
 
         @Override
-        public void recordSuccess(String hostname) {
+        public void recordSuccess(long publisherId) {
         }
 
         @Override
-        public void recordFailure(String hostname) {
+        public void recordFailure(long publisherId) {
         }
     }
 }

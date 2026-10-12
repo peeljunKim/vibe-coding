@@ -4,6 +4,7 @@ package com.newsverification.article.application;
 import com.newsverification.article.domain.ArticleProcessingError;
 import com.newsverification.article.domain.ArticleProcessingException;
 import com.newsverification.publisher.application.PublisherDomainAccessService;
+import com.newsverification.publisher.application.PublisherExtractionAccess;
 import com.newsverification.publisher.application.PublisherExtractionPolicy;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -37,8 +39,8 @@ class PublisherArticleReaderTest {
     @Test
     void readsArticleAfterPublisherAccessApproval() throws Exception {
         PublisherDomainAccessService accessService = mock(PublisherDomainAccessService.class);
-        when(accessService.requireActivePublisherHosts("news.example"))
-                .thenReturn(Set.of("news.example"));
+        when(accessService.requireActivePublisher("news.example"))
+                .thenReturn(new PublisherExtractionAccess(17L, Set.of("news.example")));
         AtomicInteger requestCount = new AtomicInteger();
         PublisherArticleReader reader = reader(accessService, requestCount);
 
@@ -46,14 +48,14 @@ class PublisherArticleReaderTest {
 
         assertThat(article.title()).isEqualTo("건강 기사 제목");
         assertThat(requestCount).hasValue(1);
-        verify(accessService).requireActivePublisherHosts("news.example");
+        verify(accessService).requireActivePublisher("news.example");
     }
 
     /** 후보·중단·미등록 상태의 외부 요청 전 차단 */
     @Test
     void doesNotCallExternalHttpWhenPublisherAccessIsRejected() throws Exception {
         PublisherDomainAccessService accessService = mock(PublisherDomainAccessService.class);
-        when(accessService.requireActivePublisherHosts("news.example"))
+        when(accessService.requireActivePublisher("news.example"))
                 .thenThrow(new ArticleProcessingException(
                         ArticleProcessingError.PUBLISHER_TEMPORARILY_DISABLED));
         AtomicInteger requestCount = new AtomicInteger();
@@ -71,13 +73,32 @@ class PublisherArticleReaderTest {
     void recordsSuccessfulExtractionAfterPublisherApproval() throws Exception {
         PublisherDomainAccessService accessService = mock(PublisherDomainAccessService.class);
         PublisherExtractionPolicy policy = mock(PublisherExtractionPolicy.class);
-        when(accessService.requireActivePublisherHosts("news.example"))
-                .thenReturn(Set.of("news.example"));
+        when(accessService.requireActivePublisher("news.example"))
+                .thenReturn(new PublisherExtractionAccess(17L, Set.of("news.example")));
         PublisherArticleReader reader = reader(accessService, new AtomicInteger(), policy, 200);
 
         reader.read("https://news.example/article/1");
 
-        verify(policy).recordSuccess("news.example");
+        verify(policy).recordSuccess(17L);
+    }
+
+    /** 별칭 도메인의 동일 언론사 집계 */
+    @Test
+    void recordsAliasDomainsUnderTheSamePublisher() throws Exception {
+        PublisherDomainAccessService accessService = mock(PublisherDomainAccessService.class);
+        PublisherExtractionPolicy policy = mock(PublisherExtractionPolicy.class);
+        PublisherExtractionAccess access = new PublisherExtractionAccess(
+                17L,
+                Set.of("news.example", "www.news.example")
+        );
+        when(accessService.requireActivePublisher("news.example")).thenReturn(access);
+        when(accessService.requireActivePublisher("www.news.example")).thenReturn(access);
+        PublisherArticleReader reader = reader(accessService, new AtomicInteger(), policy, 200);
+
+        reader.read("https://news.example/article/1");
+        reader.read("https://www.news.example/article/2");
+
+        verify(policy, times(2)).recordSuccess(17L);
     }
 
     /** 승인 뒤 본문 추출 실패 집계 */
@@ -85,15 +106,15 @@ class PublisherArticleReaderTest {
     void recordsExtractionFailureAfterPublisherApproval() throws Exception {
         PublisherDomainAccessService accessService = mock(PublisherDomainAccessService.class);
         PublisherExtractionPolicy policy = mock(PublisherExtractionPolicy.class);
-        when(accessService.requireActivePublisherHosts("news.example"))
-                .thenReturn(Set.of("news.example"));
+        when(accessService.requireActivePublisher("news.example"))
+                .thenReturn(new PublisherExtractionAccess(17L, Set.of("news.example")));
         PublisherArticleReader reader = reader(accessService, new AtomicInteger(), policy, 500);
 
         assertThatThrownBy(() -> reader.read("https://news.example/article/1"))
                 .isInstanceOf(ArticleProcessingException.class)
                 .extracting(exception -> ((ArticleProcessingException) exception).error())
                 .isEqualTo(ArticleProcessingError.HTTP_ERROR);
-        verify(policy).recordFailure("news.example");
+        verify(policy).recordFailure(17L);
     }
 
     /** 잘못된 사용자 URL의 추출 실패 집계 제외 */
@@ -115,16 +136,33 @@ class PublisherArticleReaderTest {
     void doesNotRecordExtractionFailureWhenSuccessAggregationFails() throws Exception {
         PublisherDomainAccessService accessService = mock(PublisherDomainAccessService.class);
         PublisherExtractionPolicy policy = mock(PublisherExtractionPolicy.class);
-        when(accessService.requireActivePublisherHosts("news.example"))
-                .thenReturn(Set.of("news.example"));
+        when(accessService.requireActivePublisher("news.example"))
+                .thenReturn(new PublisherExtractionAccess(17L, Set.of("news.example")));
         doThrow(new IllegalStateException("Redis unavailable"))
-                .when(policy).recordSuccess("news.example");
+                .when(policy).recordSuccess(17L);
         PublisherArticleReader reader = reader(accessService, new AtomicInteger(), policy, 200);
 
+        var article = reader.read("https://news.example/article/1");
+
+        assertThat(article.title()).isEqualTo("건강 기사 제목");
+        verify(policy, never()).recordFailure(17L);
+    }
+
+    /** Redis 집계 장애와 원래 추출 오류 분리 */
+    @Test
+    void preservesExtractionFailureWhenFailureAggregationFails() throws Exception {
+        PublisherDomainAccessService accessService = mock(PublisherDomainAccessService.class);
+        PublisherExtractionPolicy policy = mock(PublisherExtractionPolicy.class);
+        when(accessService.requireActivePublisher("news.example"))
+                .thenReturn(new PublisherExtractionAccess(17L, Set.of("news.example")));
+        doThrow(new IllegalStateException("Redis unavailable"))
+                .when(policy).recordFailure(17L);
+        PublisherArticleReader reader = reader(accessService, new AtomicInteger(), policy, 500);
+
         assertThatThrownBy(() -> reader.read("https://news.example/article/1"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Redis unavailable");
-        verify(policy, never()).recordFailure("news.example");
+                .isInstanceOf(ArticleProcessingException.class)
+                .extracting(exception -> ((ArticleProcessingException) exception).error())
+                .isEqualTo(ArticleProcessingError.HTTP_ERROR);
     }
 
     /** 실제 보안·추출 구성의 테스트 Reader */

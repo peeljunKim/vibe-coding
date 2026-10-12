@@ -25,21 +25,21 @@ public class PublisherAutoPausePolicy implements PublisherExtractionPolicy {
 
     /** 성공 시도 집계 */
     @Override
-    public void recordSuccess(String hostname) {
-        evaluate(hostname, false);
+    public void recordSuccess(long publisherId) {
+        evaluate(publisherId, false);
     }
 
     /** 추출 실패 집계 */
     @Override
-    public void recordFailure(String hostname) {
-        evaluate(hostname, true);
+    public void recordFailure(long publisherId) {
+        evaluate(publisherId, true);
     }
 
-    private void evaluate(String hostname, boolean failed) {
-        if (!attemptStore.record(hostname, failed)) {
+    private void evaluate(long publisherId, boolean failed) {
+        if (!attemptStore.record(publisherId, failed)) {
             return;
         }
-        statusUpdater.pauseAutomatically(hostname).ifPresent(this::notifySafely);
+        statusUpdater.pauseAutomatically(publisherId).ifPresent(this::notifySafely);
     }
 
     private void notifySafely(String publisherName) {

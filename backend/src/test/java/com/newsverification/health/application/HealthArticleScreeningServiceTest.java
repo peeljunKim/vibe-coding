@@ -10,6 +10,7 @@ import com.newsverification.article.application.PublisherArticleReader;
 import com.newsverification.article.application.SafeArticleReader;
 import com.newsverification.article.domain.ExtractedArticle;
 import com.newsverification.publisher.application.PublisherDomainAccessService;
+import com.newsverification.publisher.application.PublisherExtractionAccess;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
@@ -100,8 +101,8 @@ class HealthArticleScreeningServiceTest {
             Map<URI, HealthArticleTopicDecision> decisions
     ) throws Exception {
         PublisherDomainAccessService accessService = mock(PublisherDomainAccessService.class);
-        when(accessService.requireActivePublisherHosts("news.example"))
-                .thenReturn(Set.of("news.example"));
+        when(accessService.requireActivePublisher("news.example"))
+                .thenReturn(new PublisherExtractionAccess(17L, Set.of("news.example")));
 
         HostResolver resolver = hostname -> List.of(
                 InetAddress.getByAddress(new byte[]{1, 1, 1, 1}));
