@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class HttpGeminiHealthAnalysisAdapterTest {
 
     private static final Instant NOW = Instant.parse("2026-10-06T01:00:00Z");
-    private static final String MODEL = "gemini-3.7-flash";
+    private static final String MODEL = "gemini-3.8-flash";
     private static final String API_KEY = "fixture-api-key";
 
     /** 최소 기사 입력과 검증된 PubMed 근거의 구조화 결과 변환 */

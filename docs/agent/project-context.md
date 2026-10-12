@@ -42,7 +42,8 @@
 
 ### AI와 Evidence
 
-- `gemini-3.7-flash` 무료 등급 사용
+- `gemini-3.8-flash` 무료 등급 사용
+- Gemini 모델 기본값은 Backend 코드에서 관리하며 `AI_MODEL` 환경 변수는 선택 Override로만 사용
 - 공개 기사와 허용된 근거만 AI에 전송
 - 개인정보, 기밀정보, 개인 건강정보 전송 금지
 - PubMed 검색은 NCBI E-utilities 사용

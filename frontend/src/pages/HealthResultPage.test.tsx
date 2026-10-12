@@ -13,6 +13,62 @@ import HealthResultPage from './HealthResultPage'
 afterEach(cleanup)
 
 describe('HealthResultPage report flow', () => {
+  it('판정 강조를 기본으로 숨기고 사용자가 켠 주장만 펼친다', () => {
+    render(
+      <MemoryRouter>
+        <HealthResultPage
+          data={{
+            analysisId: 'health-highlight',
+            article: {
+              title: '건강 기사',
+              publisher: '테스트 언론사',
+              url: 'https://news.example/article',
+            },
+            analyzedAt: '2026-09-26T01:00:00Z',
+            claim: '강조할 건강 주장',
+            claimStatus: 'NEEDS_REVIEW',
+            reasons: ['추가 확인이 필요한 이유입니다.'],
+            evidences: [],
+          }}
+          onNewArticle={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    const highlightToggle = screen.getByRole('button', { name: '판정 표시' })
+    expect(highlightToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(
+      screen.getByRole('heading', { name: '강조할 건강 주장' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('판정 이유')).not.toBeInTheDocument()
+    expect(screen.queryByText('확인 필요')).not.toBeInTheDocument()
+
+    fireEvent.click(highlightToggle)
+
+    expect(highlightToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByText('확인 필요')).toHaveLength(2)
+    const claimButton = screen.getByRole('button', {
+      name: '강조할 건강 주장 · 확인 필요 · 판정 근거 보기',
+    })
+    expect(claimButton).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(claimButton)
+
+    expect(claimButton).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('판정 이유')).toBeInTheDocument()
+    expect(
+      screen.getByText('추가 확인이 필요한 이유입니다.'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(highlightToggle)
+
+    expect(highlightToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByText('판정 이유')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: '강조할 건강 주장' }),
+    ).toBeInTheDocument()
+  })
+
   it('로그인 회원이 현재 분석 결과를 신고한다', () => {
     const onReport = vi.fn().mockResolvedValue(undefined)
     render(

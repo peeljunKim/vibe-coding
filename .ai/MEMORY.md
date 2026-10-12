@@ -12,7 +12,7 @@
 - Local MySQL: Windows Service Binary와 전용 Client 8.0.30, Scoop 기본 Client 9.7.1은 Schema 작업에 사용하지 않음
 - Schema 관리: Flyway·Liquibase와 DB 이력 Table 없이 Local 전용 초기 SQL, 이후 GitHub Version SQL·Commit·PR 이력, JPA `ddl-auto: validate`
 - Monitoring: Spring Boot Actuator, 분석 접수·Worker·Cache·기사 추출의 제한된 Label Custom Metric, Git 추적 Prometheus·Grafana Provisioning과 11개 시스템·업무 Panel Dashboard, 6개 Prometheus Alert Rule·Runbook·Alertmanager Gmail·Slack 수신 구성; 정상·장애 Fixture와 Local Actuator → Prometheus → Alertmanager·Grafana E2E 및 Slack 실제 수신 PASS
-- AI: 비공개 Prototype에서 Gemini 3.7 Flash 무료 등급 사용
+- AI: 비공개 Prototype에서 Gemini 3.8 Flash 무료 등급 사용
 - Evidence Search: PubMed NCBI E-utilities와 허용된 공식 기관 자료 사용
 - 기사 외부 추출 제한: 압축 해제 후 원본 HTML 2 MiB, 단일 요청 Timeout 10초, Redirect 최대 3회
 - 초기 언론사 실제 추출 시험과 보강: 20곳 중 뉴시스·YTN·동아일보·서울신문·헬스조선·코메디닷컴을 포함한 본문 품질 검토 통과 17곳
@@ -45,8 +45,8 @@
 
 - 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, Google·Naver·Kakao OAuth2 Redirect 로그인·초대 가입, OAuth Provider 활성화 공개 조회, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; 기존 소셜 회원 기준 실제 Google·Naver·Kakao Provider의 로그인·Callback·내부 Session 전환 Smoke는 PASS
 - Google 신규 소셜 가입은 구현과 Native MySQL ACTIVE 연결 근거를 확인했으나 초대 코드 입력부터 완료까지의 실제 화면 E2E 근거는 EVIDENCE INCOMPLETE
-- MVP 검증 체크리스트 최신 점검은 19개 PASS, 2개 FAIL, 0개 EVIDENCE INCOMPLETE이며 핵심 주장 3개 경계·종합 판정 조합·미인증 계정 로그인 차단 전용 테스트와 Backend 전체 368개 테스트를 통과함; 남은 FAIL은 판정 강조 해제와 외부 무료 API 한도별 기능 잠금임
-- Gemini 건강 분석 Adapter는 명시적 `gemini` Profile과 Provider에서만 활성화되며 기사 앞부분 최대 6,000자와 검증된 PubMed 최소 Metadata를 분리 전송하고 구조화 응답·허용 PMID·고정 판정 규칙을 서버에서 재검증함; 실제 Gemini API 호출은 사용자 별도 요청 전까지 보류하며 현재 검증은 Local Fixture만 사용함; PubMed 제한 외부 Smoke는 ESearch 2회·EFetch 1회 PASS
+- MVP 검증 체크리스트 최신 점검은 20개 PASS, 1개 FAIL, 0개 EVIDENCE INCOMPLETE이며 판정 강조 기본 OFF·상태별 밑줄과 아이콘·판정 이유 펼침·OFF 초기화 및 핵심 주장 원문 가독성을 Frontend 단위·Browser 테스트로 확인함; 남은 FAIL은 외부 무료 API 한도별 기능 잠금임
+- Gemini 건강 분석 Adapter는 명시적 `gemini` Profile과 Provider에서만 활성화되며 기본 모델 `gemini-3.8-flash`, Local `.env`의 `AI_API_KEY`, 기사 앞부분 최대 6,000자와 검증된 PubMed 최소 Metadata를 사용함; `AI_MODEL` 환경 변수는 선택 Override이며 필수값이 아님; 실제 Gemini 호출은 최대 2회 수동 Smoke로만 허용하고 현재 실제 호출은 NOT RUN, Local Fixture 검증만 PASS; PubMed 제한 외부 Smoke는 ESearch 2회·EFetch 1회 PASS
 - 지원 언론사 분류와 건강 저장 중복 방지 후속 Schema는 사용자 승인으로 초기 SQL V0001에 통합됨; V0002·V0003 번호는 폐기하고 기존 개발·테스트 DB는 전용 정렬 Script로 6개 표준 `INT UNSIGNED` 컬럼과 중복 방지 UNIQUE Metadata 검증 PASS
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
