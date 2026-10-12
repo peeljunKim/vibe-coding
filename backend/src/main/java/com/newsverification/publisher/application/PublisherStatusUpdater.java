@@ -1,7 +1,6 @@
 /* 언론사 운영 상태 원자 변경 */
 package com.newsverification.publisher.application;
 
-import com.newsverification.publisher.domain.PublisherStatus;
 import com.newsverification.publisher.infrastructure.NewsPublisherDomainRepository;
 import com.newsverification.publisher.infrastructure.NewsPublisherRepository;
 import org.springframework.stereotype.Service;
@@ -28,11 +27,7 @@ public class PublisherStatusUpdater {
     @Transactional
     public Optional<String> pauseAutomatically(String hostname) {
         return domainRepository.findByHostname(hostname)
-                .filter(domain -> publisherRepository.pauseAutomatically(
-                        domain.publisher().id(),
-                        PublisherStatus.ACTIVE,
-                        PublisherStatus.PAUSED_AUTO
-                ) == 1)
+                .filter(domain -> publisherRepository.pauseAutomatically(domain.publisher().id()) == 1)
                 .map(domain -> domain.publisher().name());
     }
 }

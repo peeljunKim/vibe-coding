@@ -3,7 +3,6 @@ package com.newsverification.publisher.application;
 
 import com.newsverification.publisher.domain.NewsPublisher;
 import com.newsverification.publisher.domain.NewsPublisherDomain;
-import com.newsverification.publisher.domain.PublisherStatus;
 import com.newsverification.publisher.infrastructure.NewsPublisherDomainRepository;
 import com.newsverification.publisher.infrastructure.NewsPublisherRepository;
 import org.junit.jupiter.api.Test;
@@ -29,9 +28,7 @@ class PublisherStatusUpdaterTest {
         when(domain.publisher()).thenReturn(publisher);
         when(publisher.id()).thenReturn(7L);
         when(publisher.name()).thenReturn("테스트 언론사");
-        when(publisherRepository.pauseAutomatically(
-                7L, PublisherStatus.ACTIVE, PublisherStatus.PAUSED_AUTO
-        )).thenReturn(1);
+        when(publisherRepository.pauseAutomatically(7L)).thenReturn(1);
         PublisherStatusUpdater updater = new PublisherStatusUpdater(
                 domainRepository, publisherRepository
         );
@@ -39,9 +36,7 @@ class PublisherStatusUpdaterTest {
         Optional<String> result = updater.pauseAutomatically("news.example");
 
         assertThat(result).contains("테스트 언론사");
-        verify(publisherRepository).pauseAutomatically(
-                7L, PublisherStatus.ACTIVE, PublisherStatus.PAUSED_AUTO
-        );
+        verify(publisherRepository).pauseAutomatically(7L);
     }
 
     /** 이미 중단된 언론사의 중복 전환 차단 */
@@ -54,9 +49,7 @@ class PublisherStatusUpdaterTest {
         when(domainRepository.findByHostname("news.example")).thenReturn(Optional.of(domain));
         when(domain.publisher()).thenReturn(publisher);
         when(publisher.id()).thenReturn(7L);
-        when(publisherRepository.pauseAutomatically(
-                7L, PublisherStatus.ACTIVE, PublisherStatus.PAUSED_AUTO
-        )).thenReturn(0);
+        when(publisherRepository.pauseAutomatically(7L)).thenReturn(0);
         PublisherStatusUpdater updater = new PublisherStatusUpdater(
                 domainRepository, publisherRepository
         );

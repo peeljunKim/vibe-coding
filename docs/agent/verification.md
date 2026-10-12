@@ -37,6 +37,12 @@ pwsh -NoProfile -File scripts/agent/seed-news-publishers.ps1 -Target Development
 # 기존 지원 언론사 초기 데이터 재검증
 pwsh -NoProfile -File scripts/agent/seed-news-publishers.ps1 -Target Development -VerifyOnly
 
+# 재시험을 통과한 자동 중단 언론사를 테스트 Database에서 수동 재활성화
+pwsh -NoProfile -File scripts/agent/reactivate-news-publisher.ps1 -PublisherName '<언론사명>' -Target Test -RetestPassed
+
+# 테스트 확인 후 Local 개발 Database에서 수동 재활성화
+pwsh -NoProfile -File scripts/agent/reactivate-news-publisher.ps1 -PublisherName '<언론사명>' -Target Development -RetestPassed
+
 # Native MySQL Schema와 테스트 연결 회귀 검사
 pwsh -NoProfile -File scripts/agent/native-mysql-validation.Tests.ps1
 
@@ -92,6 +98,8 @@ Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사�
 언론사 추출 시험은 의료 전문 매체 여부를 판정하지 않는다. 언론사별 공개 기사 구조의 기술 호환성을 검증하며, 건강 분석 분야 판별을 검증할 때는 같은 지원 언론사의 건강 기사 Positive 사례와 일반 기사 Negative 사례를 별도로 사용한다. 제목 분석에는 기사 분야 거절이 적용되지 않는지 함께 확인한다.
 
 지원 언론사 웹 표시를 구현할 때는 공개 API와 화면에서 `지원 중`, `일시 지원 중단`, `현재 미지원`이 동일하게 구분되는지 검증한다. 현재 미지원 대상의 분석 요청은 AI 호출과 이용 횟수 차감 전에 차단하고, 추출 보강 대상은 Mock 회귀와 승인된 실제 기사 시험을 통과한 뒤에만 지원 중으로 변경한다.
+
+자동 중단 언론사의 수동 재활성화는 추출 규칙 보강과 재시험 성공 뒤에만 실행한다. Local 운영 Script는 기본적으로 분리된 테스트 Database를 대상으로 하며 `-RetestPassed` 명시, DML 전용 계정, 정확한 언론사명과 현재 `PAUSED_AUTO` 상태를 모두 확인한다. 갱신은 `PAUSED_AUTO` 조건부 단일 행 변경으로 수행하고 대상·변경 전·변경 후 상태를 출력한다. `ACTIVE`, `PAUSED_MANUAL`, `CANDIDATE`는 덮어쓰지 않으며 언론사 도메인 상태도 변경하지 않는다. 실제 비밀번호는 Process 환경 변수, Git에서 제외된 `.env`, 마스킹 입력 순서로만 사용하고 저장하거나 출력하지 않는다.
 
 모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 개인 이메일·Client ID·Key·Secret·Token·Webhook URL·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder와 `example.com`, `example.org`, `example.net`, `example.invalid`, `.example` 예약 Domain 이메일은 허용한다. 공개 API 경로와 Localhost URL은 자격 증명이 아니므로 이 검사 대상에서 제외한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
 
