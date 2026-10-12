@@ -763,7 +763,8 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 유효 시도 10회 이상·추출 실패율 70% 이상 원자 판정: PASS
 - `ACTIVE`에서 시간·사유를 기록하며 `PAUSED_AUTO`로 한 번만 변경하는 조건부 JPA 갱신: PASS (단위 검증)
 - 기존 `GET /api/publishers`의 `일시 지원 중단` 상태 변환 회귀: PASS
-- 보강·재시험 후 `PAUSED_AUTO`만 복구하는 Local 운영 Script와 안전장치 회귀: PASS
+- 보강·재시험 후 Redis 시도·실패 집계를 제거하고 `PAUSED_AUTO`만 복구하는 Local 운영 Script의 SQL 입력·실패 시 중단 Harness 회귀: PASS
+- 실제 `PAUSED_AUTO` Fixture의 Redis 집계 삭제와 재활성화 실행: NOT RUN (실제 상태 변경 방지)
 - 기본 Profile Mock 알림과 `smtp`·`prod` Profile Gmail 관리자 알림 구성: PASS
 - Docker Redis 8.8 통합 검증: PASS (기존 Redis 검증 묶음 포함)
 - Backend Maven 전체 검증: PASS (363개, 실패·오류·Skip 0)

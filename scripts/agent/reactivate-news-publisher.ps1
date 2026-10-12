@@ -84,6 +84,62 @@ function Invoke-MySql {
     }
 }
 
+function Invoke-RedisCli {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Password,
+
+        [Parameter(Mandatory)]
+        [string[]] $Arguments
+    )
+
+    $dockerPath = (Get-Command 'docker.exe' -ErrorAction Stop).Source
+    $startInfo = [Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $dockerPath
+    foreach ($argument in @(
+            'compose',
+            '--project-directory', $repoRoot,
+            'exec', '-T', '-e', 'REDISCLI_AUTH',
+            'redis', 'redis-cli', '--raw'
+        ) + $Arguments) {
+        $startInfo.ArgumentList.Add($argument)
+    }
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+    $startInfo.Environment['REDISCLI_AUTH'] = $Password
+
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    [void]$process.Start()
+    $standardOutput = $process.StandardOutput.ReadToEnd().Trim()
+    [void]$process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    if ($process.ExitCode -ne 0) {
+        throw "Redis command failed with exit code $($process.ExitCode)"
+    }
+    return $standardOutput
+}
+
+function Get-Sha256Hex {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Value
+    )
+
+    $digest = [Security.Cryptography.SHA256]::Create()
+    try {
+        return [Convert]::ToHexString(
+            $digest.ComputeHash([Text.Encoding]::UTF8.GetBytes($Value))
+        ).ToLowerInvariant()
+    }
+    finally {
+        $digest.Dispose()
+    }
+}
+
 $localValues = Read-EnvironmentValues -Path $environmentPath
 $developmentDatabase = Get-ConfiguredValue -Values $localValues -Name 'MYSQL_DATABASE'
 $developmentUser = Get-ConfiguredValue -Values $localValues -Name 'MYSQL_USER'
@@ -123,7 +179,16 @@ if ($databaseUser -eq 'root') {
 $securePassword = $null
 $passwordPointer = [IntPtr]::Zero
 $databasePassword = $null
-$escapedPublisherName = $PublisherName.Replace("'", "''")
+$publisherNameHex = [Convert]::ToHexString([Text.Encoding]::UTF8.GetBytes($PublisherName))
+$redisPassword = [Environment]::GetEnvironmentVariable('REDIS_PASSWORD', 'Process')
+if (-not $redisPassword) {
+    $redisPassword = Get-ConfiguredValue -Values $localValues -Name 'REDIS_PASSWORD'
+}
+$configuredRedisKeyPrefix = Get-ConfiguredValue -Values $localValues -Name 'REDIS_KEY_PREFIX' -Fallback 'news-verification'
+if ($configuredRedisKeyPrefix -notmatch '^[A-Za-z0-9:._-]{1,100}$') {
+    throw 'REDIS_KEY_PREFIX contains unsupported characters'
+}
+$redisKeyPrefix = if ($Target -eq 'Test') { "$configuredRedisKeyPrefix`:test" } else { $configuredRedisKeyPrefix }
 
 try {
     foreach ($candidate in $passwordCandidates) {
@@ -151,7 +216,7 @@ try {
     $current = (Invoke-MySql -Password $databasePassword -User $databaseUser -Database $databaseName -Sql @"
 SELECT id, name, status
 FROM news_publishers
-WHERE name = '$escapedPublisherName';
+WHERE name = CONVERT(0x$publisherNameHex USING utf8mb4);
 "@).Output
     if (-not $current) {
         throw "Publisher not found: $PublisherName"
@@ -169,6 +234,29 @@ WHERE name = '$escapedPublisherName';
     if ($currentStatus -ne 'PAUSED_AUTO') {
         throw "Publisher recovery requires PAUSED_AUTO status; actual status: $currentStatus"
     }
+
+    if (-not $redisPassword) {
+        throw 'REDIS_PASSWORD must be configured in Process environment or ignored .env'
+    }
+    if ((Invoke-RedisCli -Password $redisPassword -Arguments @('PING')) -ne 'PONG') {
+        throw 'Redis publisher extraction counter cleanup preflight failed'
+    }
+    $publisherDigest = Get-Sha256Hex -Value $publisherId.ToString()
+    $redisBaseKey = "$redisKeyPrefix`:publisher-extraction-health:v1:$publisherDigest"
+    [void](Invoke-RedisCli -Password $redisPassword -Arguments @(
+            'DEL',
+            "$redisBaseKey`:attempts",
+            "$redisBaseKey`:failures"
+        ))
+    $remainingRedisKeys = Invoke-RedisCli -Password $redisPassword -Arguments @(
+        'EXISTS',
+        "$redisBaseKey`:attempts",
+        "$redisBaseKey`:failures"
+    )
+    if ($remainingRedisKeys -ne '0') {
+        throw 'Redis publisher extraction counters were not cleared'
+    }
+    Write-Host '[PASS] Publisher extraction counters cleared'
 
     $affectedRows = [int](Invoke-MySql -Password $databasePassword -User $databaseUser -Database $databaseName -Sql @"
 UPDATE news_publishers
@@ -197,6 +285,7 @@ finally {
         [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
     }
     $databasePassword = $null
+    $redisPassword = $null
     $passwordCandidates = $null
     $candidate = $null
     if ($localValues) {

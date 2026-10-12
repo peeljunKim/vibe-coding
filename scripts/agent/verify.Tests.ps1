@@ -240,6 +240,14 @@ try {
             'version = version + 1',
             'Publisher recovery must use a DML-only application account',
             'expected 8.0.30',
+            '[Text.Encoding]::UTF8.GetBytes($PublisherName)',
+            'WHERE name = CONVERT(0x$publisherNameHex USING utf8mb4);',
+            "'exec', '-T', '-e', 'REDISCLI_AUTH'",
+            ':publisher-extraction-health:v1:',
+            '"$redisBaseKey`:attempts"',
+            '"$redisBaseKey`:failures"',
+            'Redis publisher extraction counters were not cleared',
+            '[PASS] Publisher extraction counters cleared',
             '[INFO] Current status:',
             '[PASS] After status:'
         )) {
@@ -247,6 +255,14 @@ try {
     }
     if ($publisherRecoveryScript -match '(?i)UPDATE\s+news_publisher_domains') {
         $failures.Add('Publisher recovery must not change domain allow-list state')
+    }
+    if ($publisherRecoveryScript.Contains('$escapedPublisherName')) {
+        $failures.Add('Publisher recovery must not interpolate an escaped publisher name into SQL')
+    }
+    $redisCleanupIndex = $publisherRecoveryScript.IndexOf("'DEL',")
+    $publisherUpdateIndex = $publisherRecoveryScript.IndexOf('UPDATE news_publishers')
+    if ($redisCleanupIndex -lt 0 -or $publisherUpdateIndex -lt 0 -or $redisCleanupIndex -gt $publisherUpdateIndex) {
+        $failures.Add('Publisher recovery must clear Redis extraction counters before activation')
     }
 
     $repository = New-VerificationRepository
