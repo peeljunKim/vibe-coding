@@ -1,7 +1,7 @@
 <!-- Repository 구조와 위험 근거 -->
 # Project Discovery와 Risk Guardrail
 
-기준일: 2026-10-11
+기준일: 2026-10-12
 
 ## Confirmed
 
@@ -35,7 +35,7 @@
 
 - README와 CI는 Maven Wrapper 실행 파일을 사용하지만 현재 `mvnw`와 `mvnw.cmd`는 없고 Wrapper JAR와 속성만 있음
 - Frontend Playwright 설정과 E2E 시나리오는 존재하며 외부 Provider 실제 연동은 별도 Smoke 검증이 필요함
-- Google·Naver·Kakao OAuth2 로그인 시작·Callback·내부 Session 전환과 소셜 초대 가입을 구현했고 세 Provider의 실제 로그인 Smoke는 PASS; Google 신규 소셜 가입은 아직 미검증
+- Google·Naver·Kakao OAuth2 로그인 시작·Callback·내부 Session 전환과 소셜 초대 가입을 구현했고 기존 회원 기준 세 Provider의 실제 로그인 Smoke는 PASS; Google 신규 소셜 가입은 구현·ACTIVE DB 연결 근거를 확인했지만 초대 코드 입력부터 완료까지의 화면 E2E는 EVIDENCE INCOMPLETE
 - Local Schema 작업은 Windows Service 전용 MySQL 8.0.30 Client를 사용하며 Scoop 기본 Client 9.7.1은 사용하지 않음
 
 ## 확정된 Prototype 결정
@@ -86,7 +86,7 @@
 - Naver 서비스 URL과 Google 서비스 URL은 `http://localhost:8080`
 - Naver 로그인·연결 끊기 Callback은 각각 `/oauth/naver`, `/oauth/naver/disconnect`
 - Kakao와 Google 로그인 Callback은 각각 `/oauth/kakao`, `/oauth/google`
-- Google·Naver·Kakao Spring Security OAuth 처리 경로 `/oauth/google`, `/oauth/naver`, `/oauth/kakao`와 Callback 일치는 Mock Security 검증 `PASS`; 세 Provider의 실제 로그인·Callback·내부 Session 전환도 `PASS`, 신규 Google 가입은 `NOT RUN`
+- Google·Naver·Kakao Spring Security OAuth 처리 경로 `/oauth/google`, `/oauth/naver`, `/oauth/kakao`와 Callback 일치는 Mock Security 검증 `PASS`; 기존 회원 기준 세 Provider의 실제 로그인·Callback·내부 Session 전환도 `PASS`, 신규 Google 가입은 구현·ACTIVE DB 연결 근거를 확인했지만 실제 화면 E2E는 `EVIDENCE INCOMPLETE`
 
 ## Inferred
 
@@ -132,7 +132,7 @@
 | 무료 AI 데이터 처리 | Gemini 무료 등급을 Prototype에 사용 | 공개 기사·허용 근거만 전송하고 개인정보·기밀정보 차단 |
 | 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |
 | Blue/Green Schema 충돌 | 두 Application Version이 동일 DB 사용 | Traffic 전환 전 양쪽 Version 호환 Migration 검증 |
-| 선언된 검증과 실행 차이 | Wrapper launcher 부재, Google 신규 소셜 가입 미실행 | 실행 가능성 먼저 확인하고 `NOT RUN`과 도구 실패를 구분 |
+| 선언된 검증과 실행 차이 | Wrapper launcher 부재, Google 신규 가입 화면 E2E 근거 불완전 | 실행 가능성 먼저 확인하고 `NOT RUN`·`EVIDENCE INCOMPLETE`·도구 실패를 구분 |
 | Harness 비추적 | Local Markdown 제외 요청과 CI의 Harness 문서 의존 | `AGENTS.md`, `.ai`, `docs/agent`, 연결된 Architecture 문서를 명시적으로 Git 추적 |
 
 ## Harness Architecture
