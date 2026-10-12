@@ -34,7 +34,7 @@ public final class ArticleHtmlExtractor {
             "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"
     );
     private static final Pattern INLINE_BOILERPLATE = Pattern.compile(
-            "구글에서\\s*(?:선호하는 매체로 추가|서울신문 먼저 보기)|이미지 확대|(?<!\\S)닫기(?!\\S)"
+            "구글에서\\s*(?:선호하는 매체로 추가|서울신문 먼저 보기)|이미지\\s*확대(?:\\s*닫기)?"
     );
     private static final Pattern TRAILING_BOILERPLATE = Pattern.compile(
             "\\s*(?:■\\s*제보하기|※\\s*['‘’\"]?당신의 제보가 뉴스가 됩니다"

@@ -116,6 +116,20 @@ class ArticleHtmlExtractorTest {
         assertThat(article.body()).doesNotContain("함께 읽는 기사");
     }
 
+    /** 기사 문맥의 닫기 표현 보존 */
+    @Test
+    void preservesStandaloneCloseWordInArticleBody() {
+        String html = """
+                <meta property="og:title" content="지역 상점 운영 기사">
+                <meta property="article:published_time" content="2026-10-11T09:00:00+09:00">
+                <article><p>지역 상점의 문 닫기 결정이 주민에게 알려졌습니다.</p></article>
+                """;
+
+        var article = extractor.extract(URI.create("https://news.example/article/close"), html);
+
+        assertThat(article.body()).contains("문 닫기 결정");
+    }
+
     /** 지원 언론사 본문 구조 회귀 검증 */
     @Test
     void extractsSupportedPublisherArticleContainers() {
@@ -188,6 +202,7 @@ class ArticleHtmlExtractorTest {
                             "공유하기",
                             "구글에서",
                             "이미지 확대",
+                            "닫기",
                             "당신의 제보가 뉴스가 됩니다",
                             "공감언론",
                             "GoodNews paper",

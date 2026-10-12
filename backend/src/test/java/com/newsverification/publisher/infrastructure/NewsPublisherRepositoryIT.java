@@ -95,6 +95,26 @@ class NewsPublisherRepositoryIT {
                 );
     }
 
+    /** ACTIVE 상태의 단일 자동 중단 갱신 */
+    @Test
+    void pausesPublisherAutomaticallyOnlyOnce() {
+        NewsPublisher publisher = domainRepository.findByHostname("news.example")
+                .orElseThrow()
+                .publisher();
+
+        int firstUpdate = publisherRepository.pauseAutomatically(
+                publisher.id(), PublisherStatus.ACTIVE, PublisherStatus.PAUSED_AUTO
+        );
+        int secondUpdate = publisherRepository.pauseAutomatically(
+                publisher.id(), PublisherStatus.ACTIVE, PublisherStatus.PAUSED_AUTO
+        );
+
+        assertThat(firstUpdate).isEqualTo(1);
+        assertThat(secondUpdate).isZero();
+        assertThat(publisherRepository.findById(publisher.id()).orElseThrow().status())
+                .isEqualTo(PublisherStatus.PAUSED_AUTO);
+    }
+
     /** 테스트 Fixture 입력 */
     private void insertPublisher(String name, PublisherCategory category, PublisherStatus status) {
         jdbcTemplate.update(
