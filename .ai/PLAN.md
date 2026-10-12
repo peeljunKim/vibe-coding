@@ -773,9 +773,10 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 
 ## MVP 출시 준비 상태 점검
 
-- 요구사항 검증 체크리스트: PASS 16개, FAIL 2개, EVIDENCE INCOMPLETE 3개
+- 요구사항 검증 체크리스트: PASS 19개, FAIL 2개, EVIDENCE INCOMPLETE 0개
 - FAIL: 판정 강조 해제 후 원문 가독성, 무료 외부 API 한도 소진 시 기능별 운영 잠금
-- EVIDENCE INCOMPLETE: 핵심 주장 최대 3개 경계, 종합 판정 상태 조합, `PENDING_EMAIL` 로그인 차단 전용 테스트
+- 핵심 주장 최대 3개·종합 판정 상태 조합·`PENDING_EMAIL` 로그인 차단 전용 테스트: PASS
+- Backend Maven 전체 검증: PASS (368개, 실패·오류·Skip 0)
 - Google 신규 소셜 가입: 구현·ACTIVE DB 연결 근거 확인, 초대 코드 입력부터 완료까지의 실제 화면 E2E는 EVIDENCE INCOMPLETE
 - Docs/Harness·Secret·Diff 공백 검사: PASS
-- Backend·Frontend·Native MySQL·Docker Redis 전체 재실행: NOT RUN (문서 상태 점검 범위)
+- Frontend·Native MySQL·Docker Redis 전체 재실행: NOT RUN (Backend 경계 테스트 보강 범위)

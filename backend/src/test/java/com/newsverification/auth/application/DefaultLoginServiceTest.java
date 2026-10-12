@@ -111,6 +111,19 @@ class DefaultLoginServiceTest {
                 .hasMessage("INVALID_CREDENTIALS");
     }
 
+    /** 이메일 미인증 계정의 공통 인증 오류 */
+    @Test
+    void rejectsPendingEmailAccountWithoutRevealingItsState() {
+        UserAccount account = pendingEmailAccount();
+        when(repository.findByUsernameForLogin("health26")).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> service.authenticate(
+                new LoginService.LoginCommand("health26", "Password!23", false)
+        )).isInstanceOf(LoginException.class)
+                .hasMessage("INVALID_CREDENTIALS");
+        assertThat(account.pendingEmail()).isTrue();
+    }
+
     /** 탈퇴 유예 계정의 복구 확인 요구 */
     @Test
     void requiresRecoveryConfirmationDuringSevenDayGracePeriod() {
@@ -158,6 +171,12 @@ class DefaultLoginServiceTest {
     }
 
     private UserAccount activeAccount() {
+        UserAccount account = pendingEmailAccount();
+        account.activate(NOW.minusSeconds(60));
+        return account;
+    }
+
+    private UserAccount pendingEmailAccount() {
         UserAccount account = new UserAccount(
                 "health26",
                 passwordEncoder.encode("Password!23"),
@@ -166,7 +185,6 @@ class DefaultLoginServiceTest {
                 NOW.minusSeconds(120)
         );
         ReflectionTestUtils.setField(account, "id", 42L);
-        account.activate(NOW.minusSeconds(60));
         return account;
     }
 }
