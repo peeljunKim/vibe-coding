@@ -14,7 +14,7 @@ import static org.mockito.Mockito.when;
 /** 집계 결과와 원자 상태 전환 기반 알림 검증 */
 class PublisherAutoPausePolicyTest {
 
-    private static final String HOSTNAME = "news.example";
+    private static final long PUBLISHER_ID = 17L;
 
     /** 임계치 미달 상태 유지 */
     @Test
@@ -22,13 +22,13 @@ class PublisherAutoPausePolicyTest {
         PublisherExtractionAttemptStore attemptStore = mock(PublisherExtractionAttemptStore.class);
         PublisherStatusUpdater statusUpdater = mock(PublisherStatusUpdater.class);
         PublisherAlertPort alertPort = mock(PublisherAlertPort.class);
-        when(attemptStore.record(HOSTNAME, true)).thenReturn(false);
+        when(attemptStore.record(PUBLISHER_ID, true)).thenReturn(false);
         PublisherAutoPausePolicy policy = new PublisherAutoPausePolicy(
                 attemptStore, statusUpdater, alertPort);
 
-        policy.recordFailure(HOSTNAME);
+        policy.recordFailure(PUBLISHER_ID);
 
-        verify(statusUpdater, never()).pauseAutomatically(HOSTNAME);
+        verify(statusUpdater, never()).pauseAutomatically(PUBLISHER_ID);
         verify(alertPort, never()).notifyAutomaticallyPaused("언론사");
     }
 
@@ -38,12 +38,12 @@ class PublisherAutoPausePolicyTest {
         PublisherExtractionAttemptStore attemptStore = mock(PublisherExtractionAttemptStore.class);
         PublisherStatusUpdater statusUpdater = mock(PublisherStatusUpdater.class);
         PublisherAlertPort alertPort = mock(PublisherAlertPort.class);
-        when(attemptStore.record(HOSTNAME, true)).thenReturn(true);
-        when(statusUpdater.pauseAutomatically(HOSTNAME)).thenReturn(Optional.of("언론사"));
+        when(attemptStore.record(PUBLISHER_ID, true)).thenReturn(true);
+        when(statusUpdater.pauseAutomatically(PUBLISHER_ID)).thenReturn(Optional.of("언론사"));
         PublisherAutoPausePolicy policy = new PublisherAutoPausePolicy(
                 attemptStore, statusUpdater, alertPort);
 
-        policy.recordFailure(HOSTNAME);
+        policy.recordFailure(PUBLISHER_ID);
 
         verify(alertPort).notifyAutomaticallyPaused("언론사");
     }
@@ -54,12 +54,12 @@ class PublisherAutoPausePolicyTest {
         PublisherExtractionAttemptStore attemptStore = mock(PublisherExtractionAttemptStore.class);
         PublisherStatusUpdater statusUpdater = mock(PublisherStatusUpdater.class);
         PublisherAlertPort alertPort = mock(PublisherAlertPort.class);
-        when(attemptStore.record(HOSTNAME, true)).thenReturn(true);
-        when(statusUpdater.pauseAutomatically(HOSTNAME)).thenReturn(Optional.empty());
+        when(attemptStore.record(PUBLISHER_ID, true)).thenReturn(true);
+        when(statusUpdater.pauseAutomatically(PUBLISHER_ID)).thenReturn(Optional.empty());
         PublisherAutoPausePolicy policy = new PublisherAutoPausePolicy(
                 attemptStore, statusUpdater, alertPort);
 
-        policy.recordFailure(HOSTNAME);
+        policy.recordFailure(PUBLISHER_ID);
 
         verify(alertPort, never()).notifyAutomaticallyPaused("언론사");
     }
@@ -70,14 +70,14 @@ class PublisherAutoPausePolicyTest {
         PublisherExtractionAttemptStore attemptStore = mock(PublisherExtractionAttemptStore.class);
         PublisherStatusUpdater statusUpdater = mock(PublisherStatusUpdater.class);
         PublisherAlertPort alertPort = mock(PublisherAlertPort.class);
-        when(attemptStore.record(HOSTNAME, true)).thenReturn(true);
-        when(statusUpdater.pauseAutomatically(HOSTNAME)).thenReturn(Optional.of("언론사"));
+        when(attemptStore.record(PUBLISHER_ID, true)).thenReturn(true);
+        when(statusUpdater.pauseAutomatically(PUBLISHER_ID)).thenReturn(Optional.of("언론사"));
         doThrow(new IllegalStateException("SMTP unavailable"))
                 .when(alertPort).notifyAutomaticallyPaused("언론사");
         PublisherAutoPausePolicy policy = new PublisherAutoPausePolicy(
                 attemptStore, statusUpdater, alertPort);
 
-        policy.recordFailure(HOSTNAME);
+        policy.recordFailure(PUBLISHER_ID);
 
         verify(alertPort).notifyAutomaticallyPaused("언론사");
     }

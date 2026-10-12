@@ -19,7 +19,7 @@
 - 언론사 지원 기준: 의료 전문 여부가 아닌 국내 이용 가능성·URL 안전성·공개 접근·추출 품질
 - 기사 분야 기준: `건강·의학 뉴스 확인`에서만 추출된 개별 기사의 건강·의학·보건 관련성 판별, `기사 제목 확인`은 모든 분야 허용
 - 언론사 공개 상태: 관리 중인 언론사를 `지원 중`, `일시 지원 중단`, `현재 미지원`으로 구분해 웹에 표시하며 실패 언론사는 추출 보강·재시험 후 활성화
-- 언론사 추출 장애 정책: 건강·제목 공통 기사 수집 경로에서 정상 URL의 최근 1시간 시도를 Redis로 집계하고 10회 이상·실패율 70% 이상이면 `ACTIVE`를 `PAUSED_AUTO`로 한 번만 전환하며, 기본 Profile은 Mock 알림이고 `smtp`·`prod`는 관리자 Gmail 알림 사용
+- 언론사 추출 장애 정책: 건강·제목 공통 기사 수집 경로에서 정상 URL의 최근 1시간 시도를 별칭 Host가 아닌 언론사 ID 기준으로 Redis 집계하고 10회 이상·실패율 70% 이상이면 시간·사유와 함께 `ACTIVE`를 `PAUSED_AUTO`로 한 번만 전환하며, Redis 집계 장애는 기사 추출 결과와 분리하고 기본 Profile은 Mock 알림, `smtp`·`prod`는 관리자 Gmail 알림 사용; 보강·재시험 후 Local Script는 `PAUSED_AUTO`만 조건부로 `ACTIVE` 복구
 - 현재 기술 지원 후보: 연합뉴스, 뉴시스, KBS, MBC, SBS, YTN, 중앙일보, 동아일보, 한겨레, 경향신문, 한국일보, 국민일보, 서울신문, 매일경제, 한국경제, 헬스조선, 코메디닷컴
 - 의료 전문 보완 후보: 청년의사, 의협신문, 데일리메디, 메디게이트뉴스, 라포르시안, 병원신문, 메디칼업저버, 의학신문
 - Deployment: AWS Free Plan의 단일 EC2, DuckDNS, Local과 동일한 Native MySQL 8.0.30과 동일 서버 Redis
@@ -43,11 +43,14 @@
 
 ## 현재 구현 경계
 
-- 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, Google·Naver·Kakao OAuth2 Redirect 로그인·초대 가입, OAuth Provider 활성화 공개 조회, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; 실제 Google·Naver·Kakao Provider의 로그인·Callback·내부 Session 전환 Smoke는 PASS
+- 일반 회원가입·이메일 인증, 일반 로그인·로그아웃 Redis Session, Google·Naver·Kakao OAuth2 Redirect 로그인·초대 가입, OAuth Provider 활성화 공개 조회, 계정 복구, 회원 탈퇴 7일 복구·신청 후 30일 보관 삭제, 건강 분석 결과 저장·만료 정리, 문제 신고·관리자 처리와 건강·제목 분석 결과 공유는 구현됨; 기존 소셜 회원 기준 실제 Google·Naver·Kakao Provider의 로그인·Callback·내부 Session 전환 Smoke는 PASS
+- Google 신규 소셜 가입은 구현과 Native MySQL ACTIVE 연결 근거를 확인했으나 초대 코드 입력부터 완료까지의 실제 화면 E2E 근거는 EVIDENCE INCOMPLETE
+- MVP 검증 체크리스트 최신 점검은 16개 PASS, 2개 FAIL, 3개 EVIDENCE INCOMPLETE이며 FAIL은 판정 강조 해제와 외부 무료 API 한도별 기능 잠금, 보완 검증은 핵심 주장 3개 경계·종합 판정 조합·미인증 계정 로그인 차단임
 - Gemini 건강 분석 Adapter는 명시적 `gemini` Profile과 Provider에서만 활성화되며 기사 앞부분 최대 6,000자와 검증된 PubMed 최소 Metadata를 분리 전송하고 구조화 응답·허용 PMID·고정 판정 규칙을 서버에서 재검증함; 실제 Gemini API 호출은 사용자 별도 요청 전까지 보류하며 현재 검증은 Local Fixture만 사용함; PubMed 제한 외부 Smoke는 ESearch 2회·EFetch 1회 PASS
 - 지원 언론사 분류와 건강 저장 중복 방지 후속 Schema는 사용자 승인으로 초기 SQL V0001에 통합됨; V0002·V0003 번호는 폐기하고 기존 개발·테스트 DB는 전용 정렬 Script로 6개 표준 `INT UNSIGNED` 컬럼과 중복 방지 UNIQUE Metadata 검증 PASS
 - 기사 HTTP: Apache HttpClient 5의 요청별 고정 DNS 주소, TLS Host 검증 유지; Jsoup는 HTML 분석 담당
 - 지원 언론사 Native MySQL 통합 테스트용 별도 Database·제한 계정 구성과 실제 Repository 검증 완료
+- 언론사 자동 중단·공개 상태·수동 복구의 Native MySQL 통합 검증 PASS
 - 회원 탈퇴 Native MySQL 수명주기 검증 완료: 세션 만료 선행 변경 후에도 7일 복구, 신청 후 30일 삭제와 Foreign Key CASCADE 경계 PASS
 - 도움말 `/help` 화면은 로그인·건강 분석 결과에서 진입하며 기능 선택, 이용 횟수, 결과 해석과 지원 제한을 안내함; Frontend 16개 Test File·76개 Test와 Desktop 1024·1280·1440px Browser E2E PASS
 - 분석 작업 상태에는 회원·비회원 비식별 소유권 Key를 함께 저장하며 다른 소유자의 Polling 조회는 빈 결과로 처리

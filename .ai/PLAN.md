@@ -164,8 +164,9 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Backend Maven 전체 검증: PASS (313개, 실패·오류·Skip 0)
 - Frontend Test·Lint·TypeScript·Build: PASS (22개 Test File·101개 Test)
 - Google Redirect Mock Browser E2E: PASS (2개)
-- Native MySQL 소셜 계정 Repository 통합 검증: NOT RUN (비대화형 실행에서 테스트 계정 비밀번호 입력 대기, 실행 중단)
+- Native MySQL 소셜 계정 Repository 통합 검증: PASS (`verify-publisher-native-mysql.ps1` 사용자 실행 결과, ACTIVE 소셜 가입 연결 포함)
 - 실제 Google Provider 호출: PASS (기존 소셜 회원 로그인, Callback·내부 Redis Session·Frontend 홈 복귀와 로그인 전용 UI 확인)
+- 실제 Google 신규 소셜 가입 화면 E2E: EVIDENCE INCOMPLETE (ACTIVE Google 소셜 가입 DB 연결은 확인했으나 초대 코드 입력부터 완료까지의 화면 흐름은 별도 관찰 기록 없음)
 - Naver·Kakao OAuth 구현: NOT APPLICABLE (Google Vertical Slice 당시 범위 제외, 현재 상태는 아래 절 참조)
 
 ## Naver OAuth2 Redirect Vertical Slice
@@ -756,13 +757,25 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 
 - 건강·제목 분석 공통 `PublisherArticleReader`의 정상 URL 추출 성공·실패 집계: PASS
 - 사용자 URL·미등록·기존 중단 상태 오류의 실패율 집계 제외: PASS
-- Redis 최근 1시간 Sliding Window와 언론사별 SHA-256 Namespace: PASS
+- Redis 최근 1시간 Sliding Window와 언론사 ID별 SHA-256 Namespace: PASS
+- 기본·`www`·모바일 등 별칭 Host의 동일 언론사 집계: PASS
+- Redis 집계 장애와 기사 추출 성공·원래 오류 분리: PASS
 - 유효 시도 10회 이상·추출 실패율 70% 이상 원자 판정: PASS
-- `ACTIVE`에서 `PAUSED_AUTO`로 한 번만 변경하는 조건부 JPA 갱신: PASS (단위 검증)
+- `ACTIVE`에서 시간·사유를 기록하며 `PAUSED_AUTO`로 한 번만 변경하는 조건부 JPA 갱신: PASS (단위 검증)
 - 기존 `GET /api/publishers`의 `일시 지원 중단` 상태 변환 회귀: PASS
+- 보강·재시험 후 `PAUSED_AUTO`만 복구하는 Local 운영 Script와 안전장치 회귀: PASS
 - 기본 Profile Mock 알림과 `smtp`·`prod` Profile Gmail 관리자 알림 구성: PASS
 - Docker Redis 8.8 통합 검증: PASS (기존 Redis 검증 묶음 포함)
-- Backend Maven 전체 검증: PASS (361개, 실패·오류·Skip 0)
-- Native MySQL 조건부 상태 전환 통합 검증: NOT RUN (테스트 계정 비밀번호 비대화형 입력 없음)
+- Backend Maven 전체 검증: PASS (363개, 실패·오류·Skip 0)
+- Native MySQL 자동 중단·공개 상태·수동 복구 통합 검증: PASS (사용자 실행 확인: `verify-publisher-native-mysql.ps1`)
 - 실제 Gmail SMTP 발송과 외부 기사 호출: NOT RUN
 - 새 Dependency·Public API·Frontend 변경: NOT APPLICABLE
+
+## MVP 출시 준비 상태 점검
+
+- 요구사항 검증 체크리스트: PASS 16개, FAIL 2개, EVIDENCE INCOMPLETE 3개
+- FAIL: 판정 강조 해제 후 원문 가독성, 무료 외부 API 한도 소진 시 기능별 운영 잠금
+- EVIDENCE INCOMPLETE: 핵심 주장 최대 3개 경계, 종합 판정 상태 조합, `PENDING_EMAIL` 로그인 차단 전용 테스트
+- Google 신규 소셜 가입: 구현·ACTIVE DB 연결 근거 확인, 초대 코드 입력부터 완료까지의 실제 화면 E2E는 EVIDENCE INCOMPLETE
+- Docs/Harness·Secret·Diff 공백 검사: PASS
+- Backend·Frontend·Native MySQL·Docker Redis 전체 재실행: NOT RUN (문서 상태 점검 범위)

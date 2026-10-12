@@ -26,6 +26,12 @@ public class PublisherDomainAccessService {
     /** 활성 언론사의 Redirect 허용 호스트 조회 */
     @Transactional(readOnly = true)
     public Set<String> requireActivePublisherHosts(String hostname) {
+        return requireActivePublisher(hostname).allowedHosts();
+    }
+
+    /** 활성 언론사의 식별자와 Redirect 허용 호스트 조회 */
+    @Transactional(readOnly = true)
+    public PublisherExtractionAccess requireActivePublisher(String hostname) {
         NewsPublisherDomain requestedDomain = domainRepository.findByHostname(hostname)
                 .orElseThrow(() -> new ArticleProcessingException(
                         ArticleProcessingError.UNSUPPORTED_PUBLISHER));
@@ -39,10 +45,11 @@ public class PublisherDomainAccessService {
                     ArticleProcessingError.PUBLISHER_TEMPORARILY_DISABLED);
         }
 
-        return domainRepository.findAllByPublisherAndStatusOrderByHostnameAsc(
+        Set<String> allowedHosts = domainRepository.findAllByPublisherAndStatusOrderByHostnameAsc(
                         requestedDomain.publisher(), PublisherDomainStatus.ACTIVE)
                 .stream()
                 .map(NewsPublisherDomain::hostname)
                 .collect(Collectors.toUnmodifiableSet());
+        return new PublisherExtractionAccess(requestedDomain.publisher().id(), allowedHosts);
     }
 }

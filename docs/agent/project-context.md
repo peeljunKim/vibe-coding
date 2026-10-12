@@ -1,7 +1,7 @@
 <!-- Repository 구조와 위험 근거 -->
 # Project Discovery와 Risk Guardrail
 
-기준일: 2026-10-11
+기준일: 2026-10-12
 
 ## Confirmed
 
@@ -35,7 +35,7 @@
 
 - README와 CI는 Maven Wrapper 실행 파일을 사용하지만 현재 `mvnw`와 `mvnw.cmd`는 없고 Wrapper JAR와 속성만 있음
 - Frontend Playwright 설정과 E2E 시나리오는 존재하며 외부 Provider 실제 연동은 별도 Smoke 검증이 필요함
-- Google·Naver·Kakao OAuth2 로그인 시작·Callback·내부 Session 전환과 소셜 초대 가입을 구현했고 세 Provider의 실제 로그인 Smoke는 PASS; Google 신규 소셜 가입은 아직 미검증
+- Google·Naver·Kakao OAuth2 로그인 시작·Callback·내부 Session 전환과 소셜 초대 가입을 구현했고 기존 회원 기준 세 Provider의 실제 로그인 Smoke는 PASS; Google 신규 소셜 가입은 구현·ACTIVE DB 연결 근거를 확인했지만 초대 코드 입력부터 완료까지의 화면 E2E는 EVIDENCE INCOMPLETE
 - Local Schema 작업은 Windows Service 전용 MySQL 8.0.30 Client를 사용하며 Scoop 기본 Client 9.7.1은 사용하지 않음
 
 ## 확정된 Prototype 결정
@@ -86,7 +86,7 @@
 - Naver 서비스 URL과 Google 서비스 URL은 `http://localhost:8080`
 - Naver 로그인·연결 끊기 Callback은 각각 `/oauth/naver`, `/oauth/naver/disconnect`
 - Kakao와 Google 로그인 Callback은 각각 `/oauth/kakao`, `/oauth/google`
-- Google·Naver·Kakao Spring Security OAuth 처리 경로 `/oauth/google`, `/oauth/naver`, `/oauth/kakao`와 Callback 일치는 Mock Security 검증 `PASS`; 세 Provider의 실제 로그인·Callback·내부 Session 전환도 `PASS`, 신규 Google 가입은 `NOT RUN`
+- Google·Naver·Kakao Spring Security OAuth 처리 경로 `/oauth/google`, `/oauth/naver`, `/oauth/kakao`와 Callback 일치는 Mock Security 검증 `PASS`; 기존 회원 기준 세 Provider의 실제 로그인·Callback·내부 Session 전환도 `PASS`, 신규 Google 가입은 구현·ACTIVE DB 연결 근거를 확인했지만 실제 화면 E2E는 `EVIDENCE INCOMPLETE`
 
 ## Inferred
 
@@ -127,12 +127,12 @@
 | 인증·관리자 권한 누락 | Security와 `ADMIN` 서버 검사 요구 | Frontend 숨김과 무관한 서버 인가 테스트 필수 |
 | Redis 장애 시 비용 제한 우회 | Cache·세션·이용량·Lock 책임 집중 | 이용량 또는 Lock 확인 불가 시 새 AI 분석 중단 |
 | 반복 Cache 검증의 기사 수집 비용 | 무료 Cache 재조회도 안전한 기사 수집을 선행 | 기사 수집·Queue 전 기능별 Redis 요청 제한, Polling·시스템 자동 재분석 제외 |
-| 언론사 구조 변경의 반복 추출 실패 | 건강·제목 분석이 같은 기사 수집 경로 사용 | 정상 URL의 최근 1시간 유효 시도 10회 이상·실패율 70% 이상이면 원자적으로 `PAUSED_AUTO` 전환, 사용자 입력 오류 제외, 수동 재활성화 |
+| 언론사 구조 변경의 반복 추출 실패 | 건강·제목 분석이 같은 기사 수집 경로 사용 | 별칭 Host를 언론사 ID로 합산해 최근 1시간 유효 시도 10회 이상·실패율 70% 이상이면 원자적으로 `PAUSED_AUTO` 전환, 집계 장애와 기사 추출 결과 분리, 사용자 입력 오류 제외, 보강·재시험 후 조건부 수동 재활성화 |
 | Schema drift | `ddl-auto: validate`, Local 초기 SQL과 이후 GitHub Version SQL 방식, DB 이력 Table 미사용 | Entity와 폐기 번호를 제외한 V0004 이후 호환 SQL을 함께 추가하고 Commit·PR에 적용 결과 기록 |
 | 무료 AI 데이터 처리 | Gemini 무료 등급을 Prototype에 사용 | 공개 기사·허용 근거만 전송하고 개인정보·기밀정보 차단 |
 | 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |
 | Blue/Green Schema 충돌 | 두 Application Version이 동일 DB 사용 | Traffic 전환 전 양쪽 Version 호환 Migration 검증 |
-| 선언된 검증과 실행 차이 | Wrapper launcher 부재, Google 신규 소셜 가입 미실행 | 실행 가능성 먼저 확인하고 `NOT RUN`과 도구 실패를 구분 |
+| 선언된 검증과 실행 차이 | Wrapper launcher 부재, Google 신규 가입 화면 E2E 근거 불완전 | 실행 가능성 먼저 확인하고 `NOT RUN`·`EVIDENCE INCOMPLETE`·도구 실패를 구분 |
 | Harness 비추적 | Local Markdown 제외 요청과 CI의 Harness 문서 의존 | `AGENTS.md`, `.ai`, `docs/agent`, 연결된 Architecture 문서를 명시적으로 Git 추적 |
 
 ## Harness Architecture

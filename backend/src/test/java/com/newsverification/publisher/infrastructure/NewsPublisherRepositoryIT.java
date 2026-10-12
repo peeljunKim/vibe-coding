@@ -2,7 +2,9 @@
 package com.newsverification.publisher.infrastructure;
 
 import com.newsverification.NewsVerificationApplication;
+import com.newsverification.publisher.application.PublisherService;
 import com.newsverification.publisher.domain.NewsPublisher;
+import com.newsverification.publisher.domain.PublisherAvailability;
 import com.newsverification.publisher.domain.PublisherCategory;
 import com.newsverification.publisher.domain.PublisherDomainStatus;
 import com.newsverification.publisher.domain.PublisherStatus;
@@ -32,6 +34,9 @@ class NewsPublisherRepositoryIT {
 
     @Autowired
     private NewsPublisherDomainRepository domainRepository;
+
+    @Autowired
+    private PublisherService publisherService;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -102,17 +107,64 @@ class NewsPublisherRepositoryIT {
                 .orElseThrow()
                 .publisher();
 
-        int firstUpdate = publisherRepository.pauseAutomatically(
-                publisher.id(), PublisherStatus.ACTIVE, PublisherStatus.PAUSED_AUTO
-        );
-        int secondUpdate = publisherRepository.pauseAutomatically(
-                publisher.id(), PublisherStatus.ACTIVE, PublisherStatus.PAUSED_AUTO
-        );
+        int firstUpdate = publisherRepository.pauseAutomatically(publisher.id());
+        int secondUpdate = publisherRepository.pauseAutomatically(publisher.id());
 
         assertThat(firstUpdate).isEqualTo(1);
         assertThat(secondUpdate).isZero();
         assertThat(publisherRepository.findById(publisher.id()).orElseThrow().status())
                 .isEqualTo(PublisherStatus.PAUSED_AUTO);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT auto_disabled_at IS NOT NULL FROM news_publishers WHERE id = ?",
+                Boolean.class,
+                publisher.id()
+        )).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status_reason FROM news_publishers WHERE id = ?",
+                String.class,
+                publisher.id()
+        )).isEqualTo("최근 1시간 기사 추출 실패율 기준 초과");
+        assertThat(publisherService.findPublisherDirectory())
+                .filteredOn(entry -> entry.name().equals("가나다 통신"))
+                .extracting(entry -> entry.status())
+                .containsExactly(PublisherAvailability.TEMPORARILY_DISABLED);
+    }
+
+    /** 자동 중단 상태만 수동 복구 허용 */
+    @Test
+    void reactivatesOnlyAutomaticallyPausedPublisher() {
+        NewsPublisher publisher = domainRepository.findByHostname("news.example")
+                .orElseThrow()
+                .publisher();
+        assertThat(publisherRepository.pauseAutomatically(publisher.id())).isEqualTo(1);
+
+        int reactivated = jdbcTemplate.update(
+                """
+                UPDATE news_publishers
+                SET status = 'ACTIVE',
+                    status_reason = '수동 재활성화: 추출 보완 및 재시험 통과',
+                    auto_disabled_at = NULL,
+                    status_changed_at = CURRENT_TIMESTAMP(6),
+                    version = version + 1
+                WHERE id = ?
+                  AND status = 'PAUSED_AUTO'
+                """,
+                publisher.id()
+        );
+        int duplicate = jdbcTemplate.update(
+                "UPDATE news_publishers SET status = 'ACTIVE' WHERE id = ? AND status = 'PAUSED_AUTO'",
+                publisher.id()
+        );
+
+        assertThat(reactivated).isEqualTo(1);
+        assertThat(duplicate).isZero();
+        assertThat(publisherRepository.findById(publisher.id()).orElseThrow().status())
+                .isEqualTo(PublisherStatus.ACTIVE);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT auto_disabled_at IS NULL FROM news_publishers WHERE id = ?",
+                Boolean.class,
+                publisher.id()
+        )).isTrue();
     }
 
     /** 테스트 Fixture 입력 */

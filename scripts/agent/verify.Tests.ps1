@@ -229,6 +229,26 @@ try {
     Assert-Equal 'placeholder fallback' 'fallback_user' (Get-ConfiguredValue -Values $environmentValues -Name 'MYSQL_USER' -Fallback 'fallback_user')
     Assert-Equal 'environment value replacement' "MYSQL_DATABASE=updated" (Set-EnvironmentValue -Content 'MYSQL_DATABASE=old' -Name 'MYSQL_DATABASE' -Value 'updated')
 
+    $publisherRecoveryScript = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'scripts\agent\reactivate-news-publisher.ps1')
+    foreach ($requiredPattern in @(
+            '[switch] $RetestPassed',
+            "if (-not `$RetestPassed)",
+            "if (`$currentStatus -ne 'PAUSED_AUTO')",
+            "SET status = 'ACTIVE'",
+            'auto_disabled_at = NULL',
+            "AND status = 'PAUSED_AUTO'",
+            'version = version + 1',
+            'Publisher recovery must use a DML-only application account',
+            'expected 8.0.30',
+            '[INFO] Current status:',
+            '[PASS] After status:'
+        )) {
+        Assert-Contains "Publisher recovery safety rule $requiredPattern" $publisherRecoveryScript $requiredPattern
+    }
+    if ($publisherRecoveryScript -match '(?i)UPDATE\s+news_publisher_domains') {
+        $failures.Add('Publisher recovery must not change domain allow-list state')
+    }
+
     $repository = New-VerificationRepository
     $result = Invoke-Verification $repository
     Assert-Equal 'clean repository exits successfully' 0 $result.ExitCode
