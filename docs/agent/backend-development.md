@@ -118,7 +118,7 @@ Request/Response와 Entity를 분리한다. 단순 비민감 불변 DTO는 recor
 - 실행기 Thread·Queue 크기는 유한하게 설정; 수용 실패 시 접수 성공·이용량 차감 처리 금지
 - 비동기 Polling 채택; 시간·소유권·상태 전환은 Local 결정 문서 적용
 - 작업 만료·Worker 종료·늦은 결과에서 실패→성공 역전과 중복 차감 방지
-- 단일 EC2에서도 Blue/Green 실행기가 공존하므로 Redis 상태 전환·Lock 소유권 확인
+- 단일 Oracle VM에서도 Blue/Green 실행기가 공존하므로 Redis 상태 전환·Lock 소유권 확인
 - 이용량·Lock 검증 불가 시 새로운 AI 호출 차단; DB와 Redis 성공 처리 순서 테스트
 - JSON 등 명시적인 직렬화 모델 사용, 변경 시 이전 Version 데이터 호환성 검토
 - `analysis-job:v1`에는 소유권 정보가 없으므로 임의 소유자 지정·무소유 조회 허용·자동 변환 금지
