@@ -117,6 +117,35 @@ test('완료 결과는 표시하고 새로고침 뒤에는 비영속 안내를 �
       name: '브라우저에서 확인한 건강 기사 주장',
     }),
   ).toBeVisible()
+  const highlightToggle = page.getByRole('button', { name: '판정 표시' })
+  await expect(highlightToggle).toHaveAttribute('aria-pressed', 'false')
+  await highlightToggle.click()
+  const claimButton = page.getByRole('button', {
+    name: '브라우저에서 확인한 건강 기사 주장 · 자료 부족 · 판정 근거 보기',
+  })
+  await claimButton.click()
+  await expect(page.getByText('판정 이유')).toBeVisible()
+  await expect(
+    page.getByText('확인 가능한 외부 근거가 부족합니다.'),
+  ).toBeVisible()
+
+  for (const width of [1024, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(claimButton).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
+  }
+
+  await highlightToggle.click()
+  await expect(page.getByText('판정 이유')).toHaveCount(0)
+  await expect(
+    page.getByRole('heading', {
+      name: '브라우저에서 확인한 건강 기사 주장',
+    }),
+  ).toBeVisible()
   await page.reload()
   await expect(
     page.getByRole('heading', { name: '[핵심 주장 데이터가 필요합니다.]' }),

@@ -76,7 +76,7 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - Redis는 API와 동일 EC2의 영구 Volume 사용
 - 애플리케이션 배포 중 연결 유지와 실패 시 기존 Version 복귀
 - EC2·MySQL·Redis 장애 고가용성은 Prototype 범위 밖
-- Gemini 3.7 Flash 무료 등급과 PubMed NCBI E-utilities 사용
+- Gemini 3.8 Flash 무료 등급과 PubMed NCBI E-utilities 사용
 
 ## Git 포함 기준
 

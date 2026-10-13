@@ -100,7 +100,6 @@ class HealthAnalysisConfigTest {
         geminiContextRunner()
                 .withPropertyValues(
                         "app.analysis.provider=gemini",
-                        "AI_MODEL=gemini-3.7-flash",
                         "AI_API_KEY=test-api-key"
                 )
                 .run(context -> {
@@ -118,7 +117,7 @@ class HealthAnalysisConfigTest {
         geminiContextRunner()
                 .withPropertyValues(
                         "app.analysis.provider=gemini",
-                        "AI_MODEL=gemini-3.7-flash",
+                        "AI_MODEL=gemini-3.8-flash",
                         "AI_API_KEY="
                 )
                 .run(context -> assertThat(context).hasFailed());
@@ -131,7 +130,7 @@ class HealthAnalysisConfigTest {
                 .withUserConfiguration(GeminiHealthAnalysisConfig.class)
                 .withPropertyValues(
                         "app.analysis.provider=gemini",
-                        "AI_MODEL=gemini-3.7-flash",
+                        "AI_MODEL=gemini-3.8-flash",
                         "AI_API_KEY=test-api-key"
                 )
                 .run(context -> {
@@ -157,7 +156,7 @@ class HealthAnalysisConfigTest {
                 .withBean(
                         AnalysisCacheVersions.class,
                         () -> new AnalysisCacheVersions(
-                                "gemini-3.7-flash",
+                                "gemini-3.8-flash",
                                 "health-analysis-policy-v1",
                                 "evidence-allowlist-v1",
                                 "mock-headline-analysis-v1",

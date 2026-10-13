@@ -26,6 +26,8 @@ import java.time.Clock;
 )
 public class GeminiHealthAnalysisConfig {
 
+    static final String DEFAULT_MODEL = "gemini-3.8-flash";
+
     /** 외부 분석 전 Local 기사 분야 1차 판별 */
     @Bean
     HealthArticleTopicClassifier geminiHealthArticleTopicClassifier() {
@@ -39,7 +41,7 @@ public class GeminiHealthAnalysisConfig {
             Clock clock,
             PubMedEvidenceSearchService pubMedSearchService,
             AnalysisCacheVersions cacheVersions,
-            @Value("${AI_MODEL:}") String model,
+            @Value("${AI_MODEL:" + DEFAULT_MODEL + "}") String model,
             @Value("${AI_API_KEY:}") String apiKey
     ) {
         String normalizedModel = model == null ? "" : model.trim();

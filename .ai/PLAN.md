@@ -699,7 +699,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 ## PR 45 Code Review 보완
 
 - 정상·비표준 JSON-LD의 배열형 `NewsArticle` 게시일 추출: PASS
-- Gemini 3.7 Flash 요청의 `thinkingLevel=low`와 출력 예산 8,192 적용: PASS
+- Gemini 3.8 Flash 요청의 `thinkingLevel=low`와 출력 예산 8,192 적용: PASS
 - 기사 추출·Gemini 요청 계약 관련 테스트: PASS (12개, 실패·오류·Skip 0)
 - Backend Maven 전체 검증: PASS (343개, 실패·오류·Skip 0)
 - Harness·Secret·Diff 공백 검사: PASS
@@ -763,7 +763,8 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - 유효 시도 10회 이상·추출 실패율 70% 이상 원자 판정: PASS
 - `ACTIVE`에서 시간·사유를 기록하며 `PAUSED_AUTO`로 한 번만 변경하는 조건부 JPA 갱신: PASS (단위 검증)
 - 기존 `GET /api/publishers`의 `일시 지원 중단` 상태 변환 회귀: PASS
-- 보강·재시험 후 `PAUSED_AUTO`만 복구하는 Local 운영 Script와 안전장치 회귀: PASS
+- 보강·재시험 후 Redis 시도·실패 집계를 제거하고 `PAUSED_AUTO`만 복구하는 Local 운영 Script의 SQL 입력·실패 시 중단 Harness 회귀: PASS
+- 실제 `PAUSED_AUTO` Fixture의 Redis 집계 삭제와 재활성화 실행: NOT RUN (실제 상태 변경 방지)
 - 기본 Profile Mock 알림과 `smtp`·`prod` Profile Gmail 관리자 알림 구성: PASS
 - Docker Redis 8.8 통합 검증: PASS (기존 Redis 검증 묶음 포함)
 - Backend Maven 전체 검증: PASS (363개, 실패·오류·Skip 0)
@@ -773,9 +774,33 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 
 ## MVP 출시 준비 상태 점검
 
-- 요구사항 검증 체크리스트: PASS 16개, FAIL 2개, EVIDENCE INCOMPLETE 3개
-- FAIL: 판정 강조 해제 후 원문 가독성, 무료 외부 API 한도 소진 시 기능별 운영 잠금
-- EVIDENCE INCOMPLETE: 핵심 주장 최대 3개 경계, 종합 판정 상태 조합, `PENDING_EMAIL` 로그인 차단 전용 테스트
+- 요구사항 검증 체크리스트: PASS 20개, FAIL 1개, EVIDENCE INCOMPLETE 0개
+- 판정 강조 기본 OFF·상태별 밑줄과 아이콘·판정 이유 펼침·OFF 초기화 및 원문 가독성: PASS (Frontend 22개 Test File·107개 Test, Chrome 건강 분석 E2E 10개, Desktop 1024·1280·1440px)
+- FAIL: 무료 외부 API 한도 소진 시 기능별 운영 잠금
+- 핵심 주장 최대 3개·종합 판정 상태 조합·`PENDING_EMAIL` 로그인 차단 전용 테스트: PASS
+- Backend Maven 전체 검증: PASS (368개, 실패·오류·Skip 0)
 - Google 신규 소셜 가입: 구현·ACTIVE DB 연결 근거 확인, 초대 코드 입력부터 완료까지의 실제 화면 E2E는 EVIDENCE INCOMPLETE
 - Docs/Harness·Secret·Diff 공백 검사: PASS
-- Backend·Frontend·Native MySQL·Docker Redis 전체 재실행: NOT RUN (문서 상태 점검 범위)
+- Frontend·Native MySQL·Docker Redis 전체 재실행: NOT RUN (Backend 경계 테스트 보강 범위)
+
+## Gemini 실제 연결 준비
+
+- Local `.env`의 `AI_API_KEY` 존재 여부 확인과 값 비출력: PASS
+- Local `.env`의 `AI_MODEL` 제거 상태와 Backend 기본 모델 `gemini-3.8-flash` 적용: PASS
+- Local 기본 Provider·Cache 모델 Version의 Mock 유지와 자동 외부 호출 차단: PASS
+- API Key 누락 차단과 `AI_MODEL` 없는 Gemini Bean 조립 회귀: PASS
+- Gemini 요청·응답 Schema·횟수 제한 Fixture 검증: PASS
+- 명시적 `-AllowExternalGemini` 옵션과 최대 2회 제한의 수동 Smoke 진입점: PASS
+- HTTP 상태 진단 보강 후 Backend Maven 전체 검증: PASS (369개, 실패·오류·Skip 0)
+- 실제 Gemini 주장 추출: FAIL (첫 요청 HTTP 403, API Key 또는 연결 프로젝트 권한 확인 필요)
+- 실제 Gemini 근거 판정: NOT RUN (첫 요청 실패로 미호출)
+- Provider 응답 본문을 숨긴 HTTP 상태 분류 보강: PASS
+- Google Cloud 새 무결제 프로젝트 생성·AI Studio 연결: PASS
+- Google 계정 성인 인증 완료 확인: PASS
+- 성인 인증 후 새 무결제 프로젝트 재생성·AI Studio 연결: PASS
+- 새 프로젝트의 Gemini Free Tier 사용 가능 여부: FAIL (`사용할 수 없음`·`제한됨`, 계정 복원 이후의 신뢰 제한 또는 인증 상태 전파 대기 필요)
+- Local `.env` 기본 Provider·모델 Version의 Mock 유지와 Git 제외 확인: PASS
+- 새 Gemini API Key 생성·교체: NOT RUN (제한된 프로젝트의 Key는 동일한 HTTP 403이 예상되어 불필요한 외부 설정 중단)
+- 실제 `gemini` Profile의 전체 애플리케이션 실행: NOT RUN (외부 호출 승인과 실제 PubMed 연결은 별도 단계)
+- 실제 Gemini 호출 횟수: 1회
+- 실제 PubMed 호출: NOT APPLICABLE (수동 Gemini Smoke는 고정 Fixture 사용)

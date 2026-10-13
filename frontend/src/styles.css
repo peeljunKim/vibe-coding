@@ -1053,10 +1053,117 @@ input:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.health-result-summary > h2,
+.claim-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.claim-section-heading h2,
 .evidence-order h2 {
   margin: 0;
   font-size: 16px;
+}
+
+.verdict-highlight-toggle {
+  min-width: 94px;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #b8cbd3;
+  border-radius: 999px;
+  background: #fff;
+  color: #334f5b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.verdict-highlight-toggle[aria-pressed='true'] {
+  border-color: #17637a;
+  background: #17637a;
+  color: #fff;
+}
+
+.verdict-highlight-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.claim-statement-button {
+  --claim-accent: #83969e;
+
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.claim-statement-button--success {
+  --claim-accent: #6fa98f;
+}
+
+.claim-statement-button--warning {
+  --claim-accent: #c7954f;
+}
+
+.claim-statement-button--danger {
+  --claim-accent: #c47a84;
+}
+
+.claim-statement-button--neutral {
+  --claim-accent: #8ba0aa;
+}
+
+.claim-statement-button__text {
+  border-bottom: 2px solid var(--claim-accent);
+}
+
+.claim-statement-button__status {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  color: #334f5b;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+.claim-statement-button__status span {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition:
+    max-width 160ms ease,
+    opacity 160ms ease;
+}
+
+.claim-statement-button:hover .claim-statement-button__status span,
+.claim-statement-button:focus-visible .claim-statement-button__status span,
+.claim-statement-button[aria-expanded='true']
+  .claim-statement-button__status
+  span {
+  max-width: 110px;
+  opacity: 1;
+}
+
+.claim-statement-button:focus-visible,
+.verdict-highlight-toggle:focus-visible {
+  outline: 3px solid rgb(23 99 122 / 30%);
+  outline-offset: 4px;
 }
 
 .verdict-card {
@@ -1078,6 +1185,12 @@ input:focus-visible {
   color: #334f5b;
   font-size: 16px;
   line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .claim-statement-button__status span {
+    transition: none;
+  }
 }
 
 .evidence-order {

@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class HttpGeminiHealthAnalysisAdapterTest {
 
     private static final Instant NOW = Instant.parse("2026-10-06T01:00:00Z");
-    private static final String MODEL = "gemini-3.7-flash";
+    private static final String MODEL = "gemini-3.8-flash";
     private static final String API_KEY = "fixture-api-key";
 
     /** 최소 기사 입력과 검증된 PubMed 근거의 구조화 결과 변환 */
@@ -135,6 +135,77 @@ class HttpGeminiHealthAnalysisAdapterTest {
         });
     }
 
+    /** 최대 세 개 핵심 주장 허용 */
+    @Test
+    void acceptsExactlyThreeClaims() {
+        GeminiHttpClient client = request -> response(200, envelope("""
+                {"claims":[
+                {"order":1,"claim":"첫 번째 주장","pubMedQuery":"first concept AND outcome"},
+                {"order":2,"claim":"두 번째 주장","pubMedQuery":"second concept AND outcome"},
+                {"order":3,"claim":"세 번째 주장","pubMedQuery":"third concept AND outcome"}
+                ]}
+                """));
+
+        HealthAnalysisResult result = adapter(
+                client,
+                PubMedEvidenceSearchPort.SearchResponse.noResults()
+        ).analyze(article("건강 기사 본문"), NOW.plusSeconds(90));
+
+        assertThat(result.claims()).hasSize(3);
+    }
+
+    /** 네 개 이상 핵심 주장 응답 차단 */
+    @Test
+    void rejectsMoreThanThreeClaims() {
+        GeminiHttpClient client = request -> response(200, envelope("""
+                {"claims":[
+                {"order":1,"claim":"첫 번째 주장","pubMedQuery":"first concept AND outcome"},
+                {"order":2,"claim":"두 번째 주장","pubMedQuery":"second concept AND outcome"},
+                {"order":3,"claim":"세 번째 주장","pubMedQuery":"third concept AND outcome"},
+                {"order":4,"claim":"네 번째 주장","pubMedQuery":"fourth concept AND outcome"}
+                ]}
+                """));
+
+        assertThatThrownBy(() -> adapter(
+                client,
+                PubMedEvidenceSearchPort.SearchResponse.noResults()
+        ).analyze(article("건강 기사 본문"), NOW.plusSeconds(90)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("claim response");
+    }
+
+    /** 누락·빈 핵심 주장 응답 차단 */
+    @Test
+    void rejectsMissingAndEmptyClaims() {
+        for (String payload : List.of("{}", "{\"claims\":[]}")) {
+            GeminiHttpClient client = request -> response(200, envelope(payload));
+
+            assertThatThrownBy(() -> adapter(
+                    client,
+                    PubMedEvidenceSearchPort.SearchResponse.noResults()
+            ).analyze(article("건강 기사 본문"), NOW.plusSeconds(90)))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("claim response");
+        }
+    }
+
+    /** 서버 고정 종합 판정 조합 */
+    @Test
+    void calculatesOverallStatusFromFixedRules() {
+        assertThat(analyzeStatuses("SUPPORTED").overallStatus())
+                .isEqualTo(HealthAnalysisResult.OverallStatus.RELIABLE);
+        assertThat(analyzeStatuses("SUPPORTED", "SUPPORTED", "INSUFFICIENT").overallStatus())
+                .isEqualTo(HealthAnalysisResult.OverallStatus.RELIABLE);
+        assertThat(analyzeStatuses("CONTRADICTED", "SUPPORTED", "SUPPORTED").overallStatus())
+                .isEqualTo(HealthAnalysisResult.OverallStatus.DOUBTFUL);
+        assertThat(analyzeStatuses("SUPPORTED", "CONTRADICTED").overallStatus())
+                .isEqualTo(HealthAnalysisResult.OverallStatus.DOUBTFUL);
+        assertThat(analyzeStatuses("SUPPORTED", "CONTRADICTED", "INSUFFICIENT").overallStatus())
+                .isEqualTo(HealthAnalysisResult.OverallStatus.CAUTION);
+        assertThat(analyzeStatuses("SUPPORTED", "INSUFFICIENT", "INSUFFICIENT").overallStatus())
+                .isEqualTo(HealthAnalysisResult.OverallStatus.CAUTION);
+    }
+
     /** 허용되지 않은 PMID 참조 응답 차단 */
     @Test
     void rejectsUnknownEvidenceReference() {
@@ -174,6 +245,22 @@ class HttpGeminiHealthAnalysisAdapterTest {
         assertThat(requests).isEmpty();
     }
 
+    /** 비정상 응답의 상태만 노출하고 Provider 본문 차단 */
+    @Test
+    void reportsRejectedHttpStatusWithoutProviderBody() {
+        GeminiHttpClient client = request -> response(
+                403,
+                "{\"error\":{\"message\":\"provider-sensitive-detail\"}}"
+        );
+
+        assertThatThrownBy(() -> adapter(client, completedEvidence()).analyze(
+                article("건강 기사 본문"),
+                NOW.plusSeconds(90)
+        )).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Gemini analysis unavailable: HTTP 403")
+                .hasMessageNotContaining("provider-sensitive-detail");
+    }
+
     /** Gemini Fixture Adapter */
     private HttpGeminiHealthAnalysisAdapter adapter(
             GeminiHttpClient client,
@@ -201,6 +288,55 @@ class HttpGeminiHealthAnalysisAdapterTest {
                 evidence("1001", "독감 예방접종 체계적 문헌고찰"),
                 evidence("1002", "고위험군 예방접종 메타분석")
         ));
+    }
+
+    /** 주장 상태 조합 분석 Fixture */
+    private HealthAnalysisResult analyzeStatuses(String... statuses) {
+        var claims = new StringBuilder("{\"claims\":[");
+        var decisions = new StringBuilder("{\"decisions\":[");
+        for (int index = 0; index < statuses.length; index++) {
+            if (index > 0) {
+                claims.append(',');
+                decisions.append(',');
+            }
+            int order = index + 1;
+            claims.append("{\"order\":").append(order)
+                    .append(",\"claim\":\"주장 ").append(order)
+                    .append("\",\"pubMedQuery\":\"concept ").append(order)
+                    .append(" AND outcome\"}");
+            decisions.append("{\"order\":").append(order)
+                    .append(",\"status\":\"").append(statuses[index])
+                    .append("\",\"reason\":\"서버 판정 규칙 검증\",\"evidences\":")
+                    .append(evidenceDecisions(statuses[index]))
+                    .append('}');
+        }
+        claims.append("]}");
+        decisions.append("]}");
+        var responses = new ArrayDeque<GeminiHttpClient.Response>();
+        responses.add(response(200, envelope(claims.toString())));
+        responses.add(response(200, envelope(decisions.toString())));
+
+        return adapter(
+                request -> responses.removeFirst(),
+                completedEvidence()
+        ).analyze(article("건강 기사 본문"), NOW.plusSeconds(90));
+    }
+
+    /** 상태별 근거 판정 Fixture */
+    private String evidenceDecisions(String status) {
+        if ("INSUFFICIENT".equals(status)) {
+            return "[]";
+        }
+        if ("SUPPORTED".equals(status)) {
+            return """
+                    [{"pmid":"1001","relationType":"SUPPORTS","summary":"첫 근거",\
+                    "conflictDescription":null},{"pmid":"1002","relationType":"SUPPORTS",\
+                    "summary":"둘째 근거","conflictDescription":null}]
+                    """.strip();
+        }
+        String relation = "CONTRADICTED".equals(status) ? "CONTRADICTS" : "SUPPORTS";
+        return "[{\"pmid\":\"1001\",\"relationType\":\"" + relation
+                + "\",\"summary\":\"판정 근거\",\"conflictDescription\":null}]";
     }
 
     /** PubMed 근거 Fixture */

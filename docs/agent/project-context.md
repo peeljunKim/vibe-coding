@@ -21,7 +21,7 @@
 | Cache/Session | Redis 8.8 Compose, Spring Data Redis와 Redis Session 구현; 건강·제목 기능별 3일 공용 Cache, 기사 변경 Fingerprint, 사용자별 최초 열람 차감과 사용자 동의 재분석, 건강 근거 링크 Mock·운영 HTTP 재검증과 무차감 자동 재분석, 기능별 1분 5회 분석 접수 제한과 차감 없는 당일 이용량 조회 구현 |
 | External Services | Gmail SMTP 발송 Adapter와 Local Mock, Gemini 분석 Port·Mock·명시적 Profile의 구조화 HTTP Adapter, Profile 분리된 건강 근거 링크 HTTP Adapter, 건강 분석 전용 PubMed 검색 Port·Mock·NCBI E-utilities HTTP Adapter 존재; 실제 Gemini 호출은 보류하고 제한된 PubMed 외부 Smoke와 Google·Naver·Kakao Provider 로그인 Smoke는 PASS |
 | Authentication/Authorization | Spring Security, Cookie CSRF, 일반 회원가입·이메일 인증·로그인·로그아웃·계정 복구·탈퇴 복구 확인과 Redis Session 구현; Google·Naver·Kakao Provider Subject 기반 로그인·초대 코드 소셜 가입과 Provider 활성화 공개 조회 구현 |
-| Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E |
+| Testing | Vitest/Testing Library, JUnit/AssertJ/MockMvc, Native MySQL·Docker Redis 통합 테스트, Playwright Browser E2E; 핵심 주장 3개 경계·종합 판정 조합·미인증 계정 로그인 차단 전용 테스트 PASS |
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
 | Monitoring | Actuator, 분석 접수·Worker·Cache·기사 추출의 제한된 Label Custom Metric, Git 추적 Prometheus scrape·6개 Alert Rule·Grafana 11개 Panel·Alertmanager Gmail·Slack 수신 구성; 정상·장애 Fixture, Local 통합 E2E와 Slack 실제 수신 PASS |
 | CI/CD | GitHub Actions에서 Frontend lint/test/build, Backend verify, Compose config 검증; 배포 단계 없음 |
@@ -42,7 +42,8 @@
 
 ### AI와 Evidence
 
-- `gemini-3.7-flash` 무료 등급 사용
+- `gemini-3.8-flash` 무료 등급 사용
+- Gemini 모델 기본값은 Backend 코드에서 관리하며 `AI_MODEL` 환경 변수는 선택 Override로만 사용
 - 공개 기사와 허용된 근거만 AI에 전송
 - 개인정보, 기밀정보, 개인 건강정보 전송 금지
 - PubMed 검색은 NCBI E-utilities 사용

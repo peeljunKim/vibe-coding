@@ -1,5 +1,6 @@
 // 건강 뉴스 분석 결과 화면
 import { useState } from 'react'
+import { CircleCheck, CircleHelp, CircleX, TriangleAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { CreatedShare } from '../api/shares'
 import type { HealthRecordSummary } from '../api/healthRecords'
@@ -26,12 +27,37 @@ interface HealthResultPageProps {
 
 const claimStatus: Record<
   HealthClaimStatus,
-  { label: string; className: string }
+  {
+    label: string
+    className: string
+    tone: string
+    icon: typeof CircleCheck
+  }
 > = {
-  SUPPORTED: { label: '근거 있음', className: 'status-badge--success' },
-  NEEDS_REVIEW: { label: '확인 필요', className: 'status-badge--warning' },
-  CONTRADICTED: { label: '근거와 충돌', className: 'status-badge--danger' },
-  INSUFFICIENT: { label: '자료 부족', className: 'status-badge--neutral' },
+  SUPPORTED: {
+    label: '근거 있음',
+    className: 'status-badge--success',
+    tone: 'success',
+    icon: CircleCheck,
+  },
+  NEEDS_REVIEW: {
+    label: '확인 필요',
+    className: 'status-badge--warning',
+    tone: 'warning',
+    icon: TriangleAlert,
+  },
+  CONTRADICTED: {
+    label: '근거와 충돌',
+    className: 'status-badge--danger',
+    tone: 'danger',
+    icon: CircleX,
+  },
+  INSUFFICIENT: {
+    label: '자료 부족',
+    className: 'status-badge--neutral',
+    tone: 'neutral',
+    icon: CircleHelp,
+  },
 }
 
 function HealthResultPage({
@@ -54,6 +80,17 @@ function HealthResultPage({
   const [shareOpen, setShareOpen] = useState(false)
   const [shareNotice, setShareNotice] = useState<string | null>(null)
   const [savedRecordId, setSavedRecordId] = useState<string | null>(null)
+  const [highlightedAnalysisId, setHighlightedAnalysisId] = useState<
+    string | null
+  >(null)
+  const [expandedAnalysisId, setExpandedAnalysisId] = useState<string | null>(
+    null,
+  )
+  const highlightEnabled = Boolean(
+    data && highlightedAnalysisId === data.analysisId,
+  )
+  const claimExpanded = Boolean(data && expandedAnalysisId === data.analysisId)
+  const StatusIcon = status?.icon
 
   const save = async () => {
     if (!data || !onSave || saveStatus === 'saving' || saveStatus === 'saved') {
@@ -101,11 +138,11 @@ function HealthResultPage({
           aria-labelledby="health-result-heading"
         >
           <div className="health-result-summary__meta">
-            <span
-              className={`status-badge ${status?.className ?? 'status-badge--neutral'}`}
-            >
-              {status?.label ?? '[주장 상태가 필요합니다.]'}
-            </span>
+            {highlightEnabled && status ? (
+              <span className={`status-badge ${status.className}`}>
+                {status.label}
+              </span>
+            ) : null}
             <span>
               {data
                 ? [
@@ -119,19 +156,65 @@ function HealthResultPage({
             </span>
           </div>
           <h1 id="health-result-heading">
-            {data?.claim ?? '[핵심 주장 데이터가 필요합니다.]'}
-          </h1>
-          <h2>기사에서 확인된 핵심 주장</h2>
-          <section className="verdict-card" aria-labelledby="verdict-heading">
-            <h3 id="verdict-heading">판정 요약</h3>
-            {data?.reasons.length ? (
-              data.reasons.map((reason, index) => (
-                <p key={`${index}-${reason}`}>{reason}</p>
-              ))
+            {data && highlightEnabled && status && StatusIcon ? (
+              <button
+                className={`claim-statement-button claim-statement-button--${status.tone}`}
+                type="button"
+                aria-expanded={claimExpanded}
+                aria-controls={
+                  claimExpanded ? 'claim-verdict-reason' : undefined
+                }
+                aria-label={`${data.claim} · ${status.label} · 판정 근거 보기`}
+                onClick={() =>
+                  setExpandedAnalysisId(claimExpanded ? null : data.analysisId)
+                }
+              >
+                <span className="claim-statement-button__text">
+                  {data.claim}
+                </span>
+                <span className="claim-statement-button__status" aria-hidden>
+                  <StatusIcon size={18} strokeWidth={2} />
+                  <span>{status.label}</span>
+                </span>
+              </button>
             ) : (
-              <p>[주장별 쉬운 판정 이유 데이터가 필요합니다.]</p>
+              (data?.claim ?? '[핵심 주장 데이터가 필요합니다.]')
             )}
-          </section>
+          </h1>
+          <div className="claim-section-heading">
+            <h2>기사에서 확인된 핵심 주장</h2>
+            <button
+              className="verdict-highlight-toggle"
+              type="button"
+              aria-pressed={highlightEnabled}
+              disabled={!data}
+              onClick={() => {
+                if (!data) return
+                setHighlightedAnalysisId(
+                  highlightEnabled ? null : data.analysisId,
+                )
+                setExpandedAnalysisId(null)
+              }}
+            >
+              판정 표시
+            </button>
+          </div>
+          {data && highlightEnabled && claimExpanded ? (
+            <section
+              id="claim-verdict-reason"
+              className="verdict-card"
+              aria-labelledby="verdict-heading"
+            >
+              <h3 id="verdict-heading">판정 이유</h3>
+              {data.reasons.length ? (
+                data.reasons.map((reason, index) => (
+                  <p key={`${index}-${reason}`}>{reason}</p>
+                ))
+              ) : (
+                <p>[주장별 쉬운 판정 이유 데이터가 필요합니다.]</p>
+              )}
+            </section>
+          ) : null}
 
           <section
             className="evidence-order"
