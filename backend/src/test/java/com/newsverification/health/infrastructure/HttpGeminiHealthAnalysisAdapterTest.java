@@ -245,6 +245,22 @@ class HttpGeminiHealthAnalysisAdapterTest {
         assertThat(requests).isEmpty();
     }
 
+    /** 비정상 응답의 상태만 노출하고 Provider 본문 차단 */
+    @Test
+    void reportsRejectedHttpStatusWithoutProviderBody() {
+        GeminiHttpClient client = request -> response(
+                403,
+                "{\"error\":{\"message\":\"provider-sensitive-detail\"}}"
+        );
+
+        assertThatThrownBy(() -> adapter(client, completedEvidence()).analyze(
+                article("건강 기사 본문"),
+                NOW.plusSeconds(90)
+        )).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Gemini analysis unavailable: HTTP 403")
+                .hasMessageNotContaining("provider-sensitive-detail");
+    }
+
     /** Gemini Fixture Adapter */
     private HttpGeminiHealthAnalysisAdapter adapter(
             GeminiHttpClient client,

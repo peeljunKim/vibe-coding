@@ -791,7 +791,16 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - API Key 누락 차단과 `AI_MODEL` 없는 Gemini Bean 조립 회귀: PASS
 - Gemini 요청·응답 Schema·횟수 제한 Fixture 검증: PASS
 - 명시적 `-AllowExternalGemini` 옵션과 최대 2회 제한의 수동 Smoke 진입점: PASS
-- 실제 Gemini 주장 추출 1회·근거 판정 1회: NOT RUN (외부 요청 별도 승인 대기)
+- HTTP 상태 진단 보강 후 Backend Maven 전체 검증: PASS (369개, 실패·오류·Skip 0)
+- 실제 Gemini 주장 추출: FAIL (첫 요청 HTTP 403, API Key 또는 연결 프로젝트 권한 확인 필요)
+- 실제 Gemini 근거 판정: NOT RUN (첫 요청 실패로 미호출)
+- Provider 응답 본문을 숨긴 HTTP 상태 분류 보강: PASS
+- Google Cloud 새 무결제 프로젝트 생성·AI Studio 연결: PASS
+- Google 계정 성인 인증 완료 확인: PASS
+- 성인 인증 후 새 무결제 프로젝트 재생성·AI Studio 연결: PASS
+- 새 프로젝트의 Gemini Free Tier 사용 가능 여부: FAIL (`사용할 수 없음`·`제한됨`, 계정 복원 이후의 신뢰 제한 또는 인증 상태 전파 대기 필요)
+- Local `.env` 기본 Provider·모델 Version의 Mock 유지와 Git 제외 확인: PASS
+- 새 Gemini API Key 생성·교체: NOT RUN (제한된 프로젝트의 Key는 동일한 HTTP 403이 예상되어 불필요한 외부 설정 중단)
 - 실제 `gemini` Profile의 전체 애플리케이션 실행: NOT RUN (외부 호출 승인과 실제 PubMed 연결은 별도 단계)
-- 실제 Gemini 호출 횟수: 0회
+- 실제 Gemini 호출 횟수: 1회
 - 실제 PubMed 호출: NOT APPLICABLE (수동 Gemini Smoke는 고정 Fixture 사용)

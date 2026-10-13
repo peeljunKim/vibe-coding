@@ -227,7 +227,9 @@ public final class HttpGeminiHealthAnalysisAdapter implements HealthAnalysisPort
             throw new IllegalStateException("Gemini analysis temporarily unavailable", exception);
         }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IllegalStateException("Gemini analysis temporarily unavailable");
+            throw new IllegalStateException(
+                    "Gemini analysis unavailable: HTTP " + response.statusCode()
+            );
         }
         try {
             String candidateText = candidateText(objectMapper.readTree(response.body()));
