@@ -1045,12 +1045,43 @@ input:focus-visible {
   font-size: 13px;
 }
 
-.health-result-summary h1 {
+.claim-statement {
+  --claim-accent: #83969e;
+
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
   margin: 8px 0 36px;
+}
+
+.health-result-summary .claim-statement h1 {
+  min-width: 0;
+  margin: 0;
   font-size: 34px;
   line-height: 1.38;
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
+}
+
+.claim-statement--success {
+  --claim-accent: #6fa98f;
+}
+
+.claim-statement--warning {
+  --claim-accent: #c7954f;
+}
+
+.claim-statement--danger {
+  --claim-accent: #c47a84;
+}
+
+.claim-statement--neutral {
+  --claim-accent: #8ba0aa;
+}
+
+.claim-statement[class*='claim-statement--'] h1 {
+  border-bottom: 2px solid var(--claim-accent);
 }
 
 .claim-section-heading {
@@ -1092,12 +1123,9 @@ input:focus-visible {
 }
 
 .claim-statement-button {
-  --claim-accent: #83969e;
-
   display: inline-flex;
-  max-width: 100%;
+  flex-shrink: 0;
   align-items: center;
-  gap: 12px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1107,26 +1135,6 @@ input:focus-visible {
   letter-spacing: inherit;
   text-align: left;
   cursor: pointer;
-}
-
-.claim-statement-button--success {
-  --claim-accent: #6fa98f;
-}
-
-.claim-statement-button--warning {
-  --claim-accent: #c7954f;
-}
-
-.claim-statement-button--danger {
-  --claim-accent: #c47a84;
-}
-
-.claim-statement-button--neutral {
-  --claim-accent: #8ba0aa;
-}
-
-.claim-statement-button__text {
-  border-bottom: 2px solid var(--claim-accent);
 }
 
 .claim-statement-button__status {

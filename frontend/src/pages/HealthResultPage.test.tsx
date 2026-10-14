@@ -46,6 +46,9 @@ describe('HealthResultPage report flow', () => {
     fireEvent.click(highlightToggle)
 
     expect(highlightToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      screen.getByRole('heading', { name: '강조할 건강 주장' }),
+    ).toBeInTheDocument()
     expect(screen.getAllByText('확인 필요')).toHaveLength(2)
     const claimButton = screen.getByRole('button', {
       name: '강조할 건강 주장 · 확인 필요 · 판정 근거 보기',

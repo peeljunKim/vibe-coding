@@ -74,9 +74,9 @@ Script는 Database, 애플리케이션 계정과 DML 권한을 준비하고 실�
 
 - Local 기준: Windows Service와 전용 Client MySQL 8.0.30
 - 사용 제외: Scoop 기본 Client MySQL 9.7.1
-- 배포 기준: Local과 동일한 Native MySQL 8.0.30
+- 배포 기준: Native MySQL 8.4 LTS의 배포 시점 최신 패치
 
-배포 전 별도 보관한 초기 SQL과 GitHub의 후속 Version SQL을 같은 MySQL Version의 빈 Database에 순서대로 적용해 검증한다.
+배포 전 별도 보관한 초기 SQL과 GitHub의 후속 Version SQL을 MySQL 8.4 LTS 빈 Database에 순서대로 적용하고 JPA `ddl-auto: validate`와 통합 테스트를 실행한다. Local 검증 기준은 호환 검증이 끝날 때까지 MySQL 8.0.30으로 유지한다.
 
 V0002의 지원 언론사 분류 변경은 실제 배포 전 사용자 승인에 따라 Local 초기 SQL V0001에 통합했다. 이 일회성 기준선 예외의 원래 변경은 PR 16과 Git 이력에서 복구할 수 있으며 Git 이력을 재작성하지 않는다. 이미 V0002를 적용한 Database에는 V0001을 재실행하지 않으며 현재 `category` 컬럼의 `NOT NULL`, 길이와 CHECK 제약의 활성화 및 허용값을 검증한다.
 

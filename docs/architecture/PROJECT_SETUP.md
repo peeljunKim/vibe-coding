@@ -72,7 +72,8 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 - Frontend는 Vercel Hobby, Backend는 Oracle Cloud A1 Always Free 단일 VM 사용
 - Browser의 `/api`, OAuth 시작·Callback 경로는 Vercel 동일 출처 Rewrite를 거쳐 Backend DuckDNS HTTPS Origin으로 전달
 - Oracle VM의 Nginx에서 TLS 종료와 Spring Boot Blue/Green Process Traffic 전환
-- MySQL 8.0.30은 Oracle VM Host Service와 영구 데이터 디렉터리 사용
+- 운영 MySQL은 8.4 LTS의 배포 시점 최신 패치를 Oracle VM Host Service와 영구 데이터 디렉터리에 사용
+- Local MySQL 8.0.30 기준 Schema와 JPA의 8.4 호환 검증은 운영 배포 전 수행
 - Redis·Prometheus·Grafana·Alertmanager는 같은 Oracle VM의 Docker Compose와 영구 Volume 사용
 - Oracle PAYG와 Vercel 유료 Plan 전환 및 과금 Resource 생성 금지
 - 무료 한도 도달 시 자동 유료 확장 대신 기능 제한·중단 허용

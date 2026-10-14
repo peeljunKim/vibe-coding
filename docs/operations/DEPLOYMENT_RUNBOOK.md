@@ -12,7 +12,7 @@ Browser HTTPS
   → Spring Boot Blue 8081 또는 Green 8082
 ```
 
-MySQL 8.0.30은 Oracle VM Host에 직접 설치한다. Redis·Prometheus·Grafana·Alertmanager만 Docker Compose로 실행한다. Oracle PAYG와 Vercel 유료 Plan으로 전환하지 않으며 무료 한도 도달 시 자동 유료 확장 대신 기능 제한이나 중단을 허용한다.
+MySQL Community 8.4 LTS의 배포 시점 최신 패치는 Oracle VM Host에 직접 설치한다. Local 8.0.30 기준 Schema와 JPA의 8.4 호환 검증을 배포 전에 완료한다. Redis·Prometheus·Grafana·Alertmanager만 Docker Compose로 실행한다. Oracle PAYG와 Vercel 유료 Plan으로 전환하지 않으며 무료 한도 도달 시 자동 유료 확장 대신 기능 제한이나 중단을 허용한다.
 
 ## 운영 값 준비
 

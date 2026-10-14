@@ -742,6 +742,8 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Slack `#monitoring-alerts`·`#incident-response` 역할·주제·설명·사용 안내 구성: PASS
 - Slack Incoming Webhook 자동 경보 연결과 `#monitoring-alerts` 실제 수신 확인: PASS
 - Vercel Frontend·Oracle A1 Backend 외부 장애 감지: NOT RUN (운영 URL·관측 위치 확정 후 수행)
+- 운영 MySQL 목표를 지원 중인 8.4 LTS 최신 패치로 문서 정렬: PASS
+- Local 8.0.30 Schema·JPA의 MySQL 8.4 LTS 호환 검증: NOT RUN
 
 ## PR 48 Code Review 보완
 
