@@ -104,6 +104,12 @@ infra/mysql/schema/V0001__create_initial_domain_schema.sql
 .docker/
 output/
 
+# 운영 배포 Runtime 설정과 Vercel Local 연결 정보
+infra/nginx/active-backend.conf
+infra/nginx/news-verification.conf
+frontend/vercel.runtime.json
+frontend/.vercel/
+
 # Local Agent Skill
 .agents/
 skills-lock.json
