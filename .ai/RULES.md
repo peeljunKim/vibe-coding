@@ -47,10 +47,14 @@
 
 ## Deployment Guardrail
 
-- 단일 EC2 Blue/Green 전환은 애플리케이션 배포 중 무중단만 의미
-- EC2, MySQL, Redis 장애까지 견디는 고가용성으로 표현 금지
+- Oracle A1 단일 VM의 Spring Boot Blue/Green 전환은 애플리케이션 배포 중 무중단만 의미
+- Oracle VM, MySQL, Redis 장애까지 견디는 고가용성으로 표현 금지
 - Blue와 Green은 동일 MySQL·Redis를 사용하고 DB Schema 변경은 이전·신규 Version 동시 호환 필수
 - Health Check 실패 시 Traffic 전환 금지와 기존 Version 유지
+- Vercel Hobby와 Oracle Always Free만 사용하고 유료 Plan 전환·과금 Resource 생성 금지
+- 무료 한도 도달 시 자동 유료 확장 대신 기능 제한·배포 중단·Resource 생성 실패 허용
+- 운영 Browser의 API·OAuth 경로는 Vercel 동일 출처 Rewrite를 거쳐 DuckDNS HTTPS Backend로 전달
+- Native MySQL은 Host에 직접 설치하고 Docker는 Redis·Prometheus·Grafana·Alertmanager에만 사용
 - Secret, DuckDNS Token, 실제 `.env`의 Repository 저장 금지
 - 운영 배포, DNS, IAM, Security Group, 비용 발생 Resource 변경은 사용자 승인 필수
 
@@ -98,7 +102,7 @@ Require User Approval:
 - `backend/pom.xml`의 Dependency 추가·삭제·버전 변경
 - Table·Column 삭제·이름 변경·Type 축소, 대량 데이터 변환, Schema 관리 방식 변경
 - 기존 Public API 호환성을 깨는 변경과 인증·인가·Security 정책 변경
-- CI/CD, Docker, AWS Infrastructure 변경
+- CI/CD, Docker, Vercel·Oracle Cloud Infrastructure 변경
 - 외부 서비스 실제 요청과 Network Download
 - 프로젝트 Local Skill 설치·삭제
 - Git Commit, Push, PR 생성, Staging 배포와 Rollback
@@ -114,7 +118,7 @@ Do Not Perform Automatically:
 
 - Secret, API Key, 비밀번호 생성·변경·노출
 - 운영 DB Schema·데이터의 직접 변경·삭제와 Git 관리 Schema SQL 자동 적용
-- AWS IAM, Security Group, DNS 실제 변경
+- Oracle IAM, Network Security List, Vercel, DNS 실제 변경
 - 비용 발생 가능 Resource 생성과 운영 배포
 - 강제 Push, Branch 삭제, `reset --hard`
 - Local 설정과 Secret 파일의 `.gitignore` 일시 해제 또는 강제 Stage

@@ -69,13 +69,15 @@ Redis 장애가 비용 제한을 우회하지 않도록 이용량이나 Lock을 
 
 ## Prototype 배포 결정
 
-- AWS Free Plan의 단일 EC2 사용
-- DuckDNS 무료 Subdomain 사용
-- Reverse Proxy와 Blue/Green Application Container 전환
-- MySQL은 EC2 Host Service와 영구 데이터 디렉터리 사용
-- Redis는 API와 동일 EC2의 영구 Volume 사용
+- Frontend는 Vercel Hobby, Backend는 Oracle Cloud A1 Always Free 단일 VM 사용
+- Browser의 `/api`, OAuth 시작·Callback 경로는 Vercel 동일 출처 Rewrite를 거쳐 Backend DuckDNS HTTPS Origin으로 전달
+- Oracle VM의 Nginx에서 TLS 종료와 Spring Boot Blue/Green Process Traffic 전환
+- MySQL 8.0.30은 Oracle VM Host Service와 영구 데이터 디렉터리 사용
+- Redis·Prometheus·Grafana·Alertmanager는 같은 Oracle VM의 Docker Compose와 영구 Volume 사용
+- Oracle PAYG와 Vercel 유료 Plan 전환 및 과금 Resource 생성 금지
+- 무료 한도 도달 시 자동 유료 확장 대신 기능 제한·중단 허용
 - 애플리케이션 배포 중 연결 유지와 실패 시 기존 Version 복귀
-- EC2·MySQL·Redis 장애 고가용성은 Prototype 범위 밖
+- Oracle VM·MySQL·Redis 장애 고가용성은 Prototype 범위 밖
 - Gemini 3.8 Flash 무료 등급과 PubMed NCBI E-utilities 사용
 
 ## Git 포함 기준
@@ -105,7 +107,8 @@ MySQL, Redis, Grafana 비밀번호는 기본값 없이 필수 환경 변수로 �
 
 - OAuth 공급자별 실제 Key·Secret
 - DuckDNS Subdomain 이름과 Token
-- AWS 계정 Free Plan 대상 여부와 실제 EC2 Instance Type
+- Vercel 운영 Project URL
+- Oracle Cloud Home Region의 A1 Always Free 생성 가능 여부와 실제 Shape
 - 공식 기관별 근거 검색 Adapter
 - 언론사 후보별 추출 결과와 활성화 상태
 - 실제 사용자·분석 데이터 모델

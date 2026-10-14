@@ -1,7 +1,7 @@
 <!-- Repository 구조와 위험 근거 -->
 # Project Discovery와 Risk Guardrail
 
-기준일: 2026-10-12
+기준일: 2026-10-13
 
 ## Confirmed
 
@@ -25,7 +25,7 @@
 | Logging | Root/Spring Security level과 trace/span correlation pattern, Prod ECS 구조화 Console 설정 |
 | Monitoring | Actuator, 분석 접수·Worker·Cache·기사 추출의 제한된 Label Custom Metric, Git 추적 Prometheus scrape·6개 Alert Rule·Grafana 11개 Panel·Alertmanager Gmail·Slack 수신 구성; 정상·장애 Fixture, Local 통합 E2E와 Slack 실제 수신 PASS |
 | CI/CD | GitHub Actions에서 Frontend lint/test/build, Backend verify, Compose config 검증; 배포 단계 없음 |
-| Deployment | AWS Free Plan 단일 EC2, DuckDNS, Blue/Green 애플리케이션 배포로 결정; Pipeline은 아직 없음 |
+| Deployment | Vercel Hobby Frontend, Oracle A1 Always Free 단일 Backend VM, DuckDNS·Nginx HTTPS, Spring Boot Blue/Green으로 결정; Pipeline은 아직 없음 |
 | Container/Infrastructure | MySQL은 Host Service, Compose는 Redis·Prometheus·Grafana와 선택적 `alerts` Profile의 Alertmanager; 현재 Compose에는 Application image 없음 |
 | Code Convention | EditorConfig, Prettier, ESLint strict typed 설정, TypeScript strict 옵션, Java 4-space 들여쓰기 |
 
@@ -66,11 +66,12 @@
 
 ### Deployment
 
-- AWS Free Plan의 단일 EC2와 DuckDNS 사용
-- Blue/Green Application Container와 Reverse Proxy Traffic 전환
-- MySQL은 EC2 Host의 영구 데이터 디렉터리, Redis는 같은 EC2의 영구 Volume 사용
-- 보장 범위는 애플리케이션 배포 중 무중단
-- EC2·MySQL·Redis 장애를 견디는 고가용성은 Prototype 범위 밖
+- Frontend는 Vercel Hobby, Backend는 Oracle Cloud A1 Always Free 단일 VM 사용
+- Browser의 `/api`, OAuth 시작·Callback 경로는 Vercel 동일 출처 Rewrite를 거쳐 Backend DuckDNS HTTPS Origin으로 전달
+- Oracle VM의 Nginx가 HTTPS를 종료하고 Health Check를 통과한 Spring Boot Blue/Green Process로 Traffic 전환
+- MySQL 8.0.30은 Oracle VM Host에 직접 설치하고 Redis·Prometheus·Grafana·Alertmanager만 Docker Compose로 실행
+- Oracle PAYG와 Vercel 유료 Plan으로 전환하지 않고 무료 한도 초과 시 기능 제한·중단을 허용
+- 보장 범위는 애플리케이션 배포 중 무중단이며 Oracle VM·MySQL·Redis 장애 고가용성은 Prototype 범위 밖
 
 ### E2E
 
@@ -98,9 +99,11 @@
 
 [추가 일반 언론사 확대 우선순위를 정할 이용 빈도 또는 선정 기준이 필요합니다.]
 
-[Local 개발 완료 후 사용할 DuckDNS 서브도메인 이름이 필요합니다.]
+[Vercel 운영 Project URL이 필요합니다.]
 
-[Local 개발 완료 후 AWS 계정의 Free Plan 대상 여부 확인이 필요합니다.]
+[Oracle Cloud Home Region의 A1 Always Free 생성 가능 여부와 실제 Shape 정보가 필요합니다.]
+
+[Backend DuckDNS Subdomain 이름과 Token이 필요합니다.]
 
 [Branch 전략과 Release 승인 절차 정보가 필요합니다.]
 
@@ -131,7 +134,7 @@
 | 언론사 구조 변경의 반복 추출 실패 | 건강·제목 분석이 같은 기사 수집 경로 사용 | 별칭 Host를 언론사 ID로 합산해 최근 1시간 유효 시도 10회 이상·실패율 70% 이상이면 원자적으로 `PAUSED_AUTO` 전환, 집계 장애와 기사 추출 결과 분리, 사용자 입력 오류 제외, 보강·재시험 후 조건부 수동 재활성화 |
 | Schema drift | `ddl-auto: validate`, Local 초기 SQL과 이후 GitHub Version SQL 방식, DB 이력 Table 미사용 | Entity와 폐기 번호를 제외한 V0004 이후 호환 SQL을 함께 추가하고 Commit·PR에 적용 결과 기록 |
 | 무료 AI 데이터 처리 | Gemini 무료 등급을 Prototype에 사용 | 공개 기사·허용 근거만 전송하고 개인정보·기밀정보 차단 |
-| 단일 EC2 장애 범위 | API·Native MySQL·Redis가 같은 EC2에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 Backup·Rollback 확인 |
+| 단일 Oracle VM 장애 범위 | API·Native MySQL·Docker Redis가 같은 VM에 배치될 예정 | 배포 무중단과 고가용성을 구분하고 외부 Backup·Rollback 확인 |
 | Blue/Green Schema 충돌 | 두 Application Version이 동일 DB 사용 | Traffic 전환 전 양쪽 Version 호환 Migration 검증 |
 | 선언된 검증과 실행 차이 | Wrapper launcher 부재, Google 신규 가입 화면 E2E 근거 불완전 | 실행 가능성 먼저 확인하고 `NOT RUN`·`EVIDENCE INCOMPLETE`·도구 실패를 구분 |
 | Harness 비추적 | Local Markdown 제외 요청과 CI의 Harness 문서 의존 | `AGENTS.md`, `.ai`, `docs/agent`, 연결된 Architecture 문서를 명시적으로 Git 추적 |

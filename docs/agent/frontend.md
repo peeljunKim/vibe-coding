@@ -59,6 +59,8 @@ Google Identity Services JavaScript Callback 방식과 혼합하지 않고 Sprin
 
 Frontend는 Provider URL을 직접 조합하지 않고 Backend 시작 URL로 전체 페이지 이동한다. Local Backend 기준 주소는 Git에서 제외된 Frontend 환경 설정의 `VITE_BACKEND_BASE_URL`을 사용한다.
 
+운영에서는 Vercel Origin의 `/api`, `/oauth2/authorization/*`, `/oauth/*` 경로를 DuckDNS HTTPS Backend로 Rewrite한다. Browser가 Vercel과 DuckDNS를 서로 다른 인증 Origin으로 직접 오가지 않게 하며, 운영 OAuth Callback은 확정된 Vercel Project URL과 Backend 처리 경로를 Provider Console에 동일하게 등록한다.
+
 로그인 화면은 `GET /api/auth/providers`의 Backend 등록 상태로 Provider 링크를 활성화한다. 상태 조회 실패나 비활성 Provider는 기존 준비 중 표현을 사용하고 로그인 시작 링크를 노출하지 않는다.
 
 ### Provider Callback

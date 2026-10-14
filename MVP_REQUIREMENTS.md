@@ -80,7 +80,7 @@ MVP는 다음 두 기능을 서로 독립적으로 제공한다.
 - 공식 지원 브라우저: PC용 최신 Chrome, Edge
 - 지원 언어: 한국어
 - 초기 실행 환경: 개발자 PC의 로컬 환경
-- 후속 실행 환경: AWS Free Plan의 단일 EC2와 DuckDNS
+- 후속 실행 환경: Vercel Hobby Frontend와 Oracle Cloud A1 Always Free 단일 Backend VM·DuckDNS
 
 화면은 향후 모바일 확장을 고려해 반응형으로 작성하되, 모바일 브라우저는 MVP 검증 범위에 포함하지 않는다.
 
@@ -759,13 +759,15 @@ AI 또는 검색 서비스 장애 시 다음 메시지를 표시한다.
 
 ### 17.3 Prototype 배포
 
-- AWS Free Plan의 단일 EC2를 사용한다.
-- DuckDNS 무료 Subdomain과 HTTPS Reverse Proxy를 사용한다.
-- Application은 Blue/Green Container로 실행하고 Health Check 통과 후 Traffic을 전환한다.
-- MySQL 8.0.30은 API Server와 같은 EC2 Host에 직접 설치하고 영구 데이터 디렉터리를 사용한다.
-- Redis는 API Server와 같은 EC2의 영구 Volume을 사용한다.
+- Frontend는 Vercel Hobby, Backend는 Oracle Cloud A1 Always Free 단일 VM을 사용한다.
+- Browser의 `/api`, OAuth 시작·Callback 경로는 Vercel 동일 출처 Rewrite를 거쳐 Backend DuckDNS HTTPS Origin으로 전달한다.
+- Oracle VM의 Nginx는 TLS를 종료하고 Health Check를 통과한 Spring Boot Blue/Green Process로 Traffic을 전환한다.
+- MySQL 8.0.30은 API Server와 같은 Oracle VM Host에 직접 설치하고 영구 데이터 디렉터리를 사용한다.
+- Redis·Prometheus·Grafana·Alertmanager는 같은 Oracle VM의 Docker Compose와 영구 Volume을 사용한다.
+- Oracle PAYG와 Vercel 유료 Plan으로 전환하지 않고 과금 Resource를 생성하지 않는다.
+- 무료 한도에 도달하면 자동 유료 확장 대신 기능 제한·중단을 허용한다.
 - 무중단 범위는 애플리케이션 배포 중 연결 유지로 제한한다.
-- EC2, MySQL, Redis 장애까지 견디는 고가용성은 Prototype 범위에 포함하지 않는다.
+- Oracle VM, MySQL, Redis 장애까지 견디는 고가용성은 Prototype 범위에 포함하지 않는다.
 - DB 변경은 Blue와 Green Version이 동시에 사용할 수 있게 이전 Version과 호환되어야 한다.
 
 ## 18. 열린 질문과 추후 과제
@@ -776,8 +778,8 @@ AI 또는 검색 서비스 장애 시 다음 메시지를 표시한다.
 - Local 외부 연동 시 사용자가 카카오·구글·네이버 OAuth Key·Secret을 `.env`에 직접 입력
 - Local 메일 연동 시 사용자가 Gmail 계정과 App Password를 `.env`에 직접 입력
 - 배포 전 운영 OAuth Callback URL 등록
-- Local 개발 완료 후 DuckDNS Subdomain 이름과 Token 준비
-- Local 개발 완료 후 AWS 계정의 Free Plan 대상 여부 확인과 실제 EC2 Instance Type 선택
+- Vercel 운영 Project URL과 Backend DuckDNS Subdomain 이름·Token 준비
+- Oracle Cloud Home Region의 A1 Always Free 생성 가능 여부와 실제 Shape 확인
 - 활성화 보류 3곳의 언론사별 추출 보완·재시험과 일반 언론사 확대 우선순위 결정
 - 의료 전문 보완 후보 8곳의 실제 추출 시험
 

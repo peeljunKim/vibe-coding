@@ -128,9 +128,9 @@
 
 ## Next Loop
 
-1. 단일 EC2 외부 장애 감지 구성
+1. Vercel Frontend와 Oracle A1 Backend의 외부 장애 감지 구성
 2. 현재 활성화 보류 3곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-3. DuckDNS·AWS 단일 EC2 Blue/Green 배포 준비와 검증
+3. Vercel Rewrite·DuckDNS HTTPS·Oracle A1 Spring Boot Blue/Green 배포 준비와 검증
 4. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 5. 사용자 별도 요청 후 실제 Gemini 제한 Local Smoke Test
 
@@ -351,7 +351,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - `health_analysis_records.expires_at`과 `idx_health_records_expires` 존재
 - 주장·근거·관계·건강 공유 링크는 저장 기록 삭제 시 Cascade 삭제
 - 미인증 계정 정리에 Application Service·JPA Adapter·일일 Scheduler Pattern 사용
-- 배포 목표는 동일 MySQL을 공유하는 단일 EC2 Blue/Green
+- 배포 목표는 동일 MySQL을 공유하는 단일 Oracle A1 VM의 Spring Boot Blue/Green
 
 ### Inferred
 
@@ -725,7 +725,7 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Gmail SMTP 테스트 경보 전달 시도와 Alertmanager 오류 로그 확인: PASS
 - Slack `#monitoring-alerts`·`#incident-response` 역할·주제·설명·사용 안내 구성: PASS
 - Slack Incoming Webhook 자동 경보 연결과 `#monitoring-alerts` 실제 수신 확인: PASS
-- 단일 EC2 외부 장애 감지: NOT RUN (운영 Host·관측 위치 확정 후 수행)
+- Vercel Frontend·Oracle A1 Backend 외부 장애 감지: NOT RUN (운영 URL·관측 위치 확정 후 수행)
 
 ## PR 48 Code Review 보완
 
