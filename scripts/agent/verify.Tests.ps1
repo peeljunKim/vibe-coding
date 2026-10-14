@@ -202,8 +202,15 @@ try {
     Assert-Contains 'production routing verifies frontend public environment' $productionRoutingOutput '[PASS] Frontend environment contains public values only'
     Assert-Contains 'production routing verifies Nginx routing' $productionRoutingOutput '[PASS] Nginx HTTPS and Blue Green routing template'
     Assert-Contains 'production routing verifies runtime exclusion' $productionRoutingOutput '[PASS] Rendered production configuration Git exclusion'
-    Assert-Contains 'production routing verifies packaged backend configuration' $productionRoutingOutput '[PASS] Backend packaged configuration contains no inline Secret values'
-    Assert-Contains 'production routing verifies Spring proxy settings' $productionRoutingOutput '[PASS] Spring production proxy and Secure Cookie configuration'
+    $backendRuntimeConfigsPresent = (Test-Path -LiteralPath (Join-Path $repoRoot 'backend/src/main/resources/application.yml') -PathType Leaf) `
+        -and (Test-Path -LiteralPath (Join-Path $repoRoot 'backend/src/main/resources/application-prod.yml') -PathType Leaf)
+    if ($backendRuntimeConfigsPresent) {
+        Assert-Contains 'production routing verifies packaged backend configuration' $productionRoutingOutput '[PASS] Backend packaged configuration contains no inline Secret values'
+        Assert-Contains 'production routing verifies Spring proxy settings' $productionRoutingOutput '[PASS] Spring production proxy and Secure Cookie configuration'
+    }
+    else {
+        Assert-Contains 'production routing reports omitted backend runtime configuration' $productionRoutingOutput '[NOT RUN] Backend Runtime configuration: Git-excluded files are absent from this Clean Clone'
+    }
 
     $alertmanagerTemplatePath = Join-Path $repoRoot 'infra\alertmanager\alertmanager.yml'
     $alertmanagerTemplate = Get-Content -Raw -LiteralPath $alertmanagerTemplatePath
