@@ -115,6 +115,9 @@ function Invoke-BackendVerification {
 }
 
 function Invoke-InfrastructureVerification {
+    Invoke-CheckedCommand 'Production routing configuration' $repoRoot 'pwsh' @(
+        '-NoProfile', '-File', (Join-Path $PSScriptRoot 'verify-production-routing.ps1')
+    )
     Invoke-CheckedCommand 'Native MySQL validation regression' $repoRoot 'pwsh' @(
         '-NoProfile', '-File', (Join-Path $PSScriptRoot 'native-mysql-validation.Tests.ps1')
     )
@@ -206,8 +209,11 @@ function Invoke-RepositoryExposureVerification {
             $path -match '(^|/)(credentials|service-account)[^/]*\.json$' -or
             $path -match '\.(pem|key|p12|pfx|jks|keystore|der)$' -or
             $path -match '(^|/)\.npmrc$'
+        $isRenderedProductionConfig = $path -match '^infra/nginx/(active-backend|news-verification)\.conf$' -or
+            $path -eq 'frontend/vercel.runtime.json' -or
+            $path -match '(^|/)\.vercel/'
 
-        if ($isEnvironmentFile -or $isLocalConfig -or $isCredentialFile) {
+        if ($isEnvironmentFile -or $isLocalConfig -or $isCredentialFile -or $isRenderedProductionConfig) {
             $path
         }
     }
@@ -235,6 +241,7 @@ function Invoke-SecretValueVerification {
         '-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----'
     )
     $emailPattern = '(?i)(?<local>[a-z0-9._%+\-]+)@(?<domain>[a-z0-9.-]+\.[a-z]{2,})'
+    $frontendSecretVariablePattern = '(?im)^\s*VITE_[A-Z0-9_]*(?:API_KEY|APP_PASSWORD|ACCESS_TOKEN|CLIENT_SECRET|PRIVATE_KEY|SECRET|PASSWORD|TOKEN|WEBHOOK_URL)[A-Z0-9_]*\s*='
     $reservedEmailDomains = @('example.com', 'example.org', 'example.net', 'example.invalid')
     $detectedPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
@@ -254,6 +261,10 @@ function Invoke-SecretValueVerification {
         $content = Get-Content -LiteralPath $absolutePath -Raw -ErrorAction SilentlyContinue
         if ($null -eq $content) {
             continue
+        }
+
+        if ($content -match $frontendSecretVariablePattern) {
+            [void]$detectedPaths.Add($candidatePath)
         }
 
         foreach ($match in [regex]::Matches($content, $assignmentPattern)) {

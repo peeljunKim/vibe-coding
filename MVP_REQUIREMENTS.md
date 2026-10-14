@@ -762,7 +762,7 @@ AI 또는 검색 서비스 장애 시 다음 메시지를 표시한다.
 - Frontend는 Vercel Hobby, Backend는 Oracle Cloud A1 Always Free 단일 VM을 사용한다.
 - Browser의 `/api`, OAuth 시작·Callback 경로는 Vercel 동일 출처 Rewrite를 거쳐 Backend DuckDNS HTTPS Origin으로 전달한다.
 - Oracle VM의 Nginx는 TLS를 종료하고 Health Check를 통과한 Spring Boot Blue/Green Process로 Traffic을 전환한다.
-- MySQL 8.0.30은 API Server와 같은 Oracle VM Host에 직접 설치하고 영구 데이터 디렉터리를 사용한다.
+- 운영 MySQL은 8.4 LTS의 배포 시점 최신 패치를 API Server와 같은 Oracle VM Host에 직접 설치하고 영구 데이터 디렉터리를 사용한다. Local 8.0.30 기준 Schema의 8.4 호환 검증을 배포 전에 완료한다.
 - Redis·Prometheus·Grafana·Alertmanager는 같은 Oracle VM의 Docker Compose와 영구 Volume을 사용한다.
 - Oracle PAYG와 Vercel 유료 Plan으로 전환하지 않고 과금 Resource를 생성하지 않는다.
 - 무료 한도에 도달하면 자동 유료 확장 대신 기능 제한·중단을 허용한다.

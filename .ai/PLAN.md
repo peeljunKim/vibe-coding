@@ -130,9 +130,25 @@
 
 1. Vercel Frontend와 Oracle A1 Backend의 외부 장애 감지 구성
 2. 현재 활성화 보류 3곳의 언론사별 추출 보완·재시험과 일반 언론사 지원 범위 확대
-3. Vercel Rewrite·DuckDNS HTTPS·Oracle A1 Spring Boot Blue/Green 배포 준비와 검증
+3. Vercel 운영 Project URL·DuckDNS 확정 후 실제 Preview와 Oracle Nginx 배포 검증
 4. Figma MCP 호출 가능 시 PNG 구현과 실제 Design Context 차이 재검증
 5. 사용자 별도 요청 후 실제 Gemini 제한 Local Smoke Test
+
+## Vercel·Oracle 배포 준비
+
+- Frontend 운영 API·OAuth 동일 출처 경로와 Local Backend 주소 분리: PASS
+- Vercel `/api`·`/oauth2`·`/oauth` 외부 Rewrite와 React Router Fallback: PASS
+- 외부 Rewrite Cache 명시적 비활성화: PASS
+- Oracle Nginx HTTPS·Actuator 차단·Spring Boot Blue/Green Loopback 전환 Template: PASS
+- Spring 운영 Forwarded Header와 Secure Session Cookie 확인: PASS
+- Production Routing Clean Clone Harness 연결: PASS
+- Frontend 전체 23개 Test File·110개 Test, Lint·Build: PASS
+- Backend Maven 전체 369개 Test·Package: PASS
+- 실제 `nginx -t`: NOT RUN (Local Nginx 실행 파일과 기존 Docker Image 없음)
+- Vercel Preview·DuckDNS HTTPS·Oracle Traffic 전환: NOT RUN (운영 URL·Subdomain·VM 미확정)
+- Vercel 경유 요청의 Origin 인증과 비회원 Client 주소 신뢰 방식: REQUIRED (공개 Origin 직접 요청의 Header 위조 방지 정책 승인 필요)
+- 운영 Secret 분류·Browser 공개 `VITE_*` 경계·Nginx/Vercel Runtime 설정 Git 제외 검증: PASS
+- Redis·Prometheus·Grafana Docker Host Port Loopback 제한과 Redis·Grafana 비밀번호 필수 주입: PASS (Compose 해석 검증)
 
 ## Backend 표준화 상태
 
@@ -726,6 +742,8 @@ Frontend 환경 설정에는 공개 값만 저장하며, `VITE_` 변수에 Clien
 - Slack `#monitoring-alerts`·`#incident-response` 역할·주제·설명·사용 안내 구성: PASS
 - Slack Incoming Webhook 자동 경보 연결과 `#monitoring-alerts` 실제 수신 확인: PASS
 - Vercel Frontend·Oracle A1 Backend 외부 장애 감지: NOT RUN (운영 URL·관측 위치 확정 후 수행)
+- 운영 MySQL 목표를 지원 중인 8.4 LTS 최신 패치로 문서 정렬: PASS
+- Local 8.0.30 Schema·JPA의 MySQL 8.4 LTS 호환 검증: NOT RUN
 
 ## PR 48 Code Review 보완
 

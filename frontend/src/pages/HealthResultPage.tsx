@@ -155,10 +155,19 @@ function HealthResultPage({
                 : '[기사 발행 정보가 필요합니다.]'}
             </span>
           </div>
-          <h1 id="health-result-heading">
+          <div
+            className={`claim-statement${
+              data && highlightEnabled && status
+                ? ` claim-statement--${status.tone}`
+                : ''
+            }`}
+          >
+            <h1 id="health-result-heading">
+              {data?.claim ?? '[핵심 주장 데이터가 필요합니다.]'}
+            </h1>
             {data && highlightEnabled && status && StatusIcon ? (
               <button
-                className={`claim-statement-button claim-statement-button--${status.tone}`}
+                className="claim-statement-button"
                 type="button"
                 aria-expanded={claimExpanded}
                 aria-controls={
@@ -169,18 +178,13 @@ function HealthResultPage({
                   setExpandedAnalysisId(claimExpanded ? null : data.analysisId)
                 }
               >
-                <span className="claim-statement-button__text">
-                  {data.claim}
-                </span>
                 <span className="claim-statement-button__status" aria-hidden>
                   <StatusIcon size={18} strokeWidth={2} />
                   <span>{status.label}</span>
                 </span>
               </button>
-            ) : (
-              (data?.claim ?? '[핵심 주장 데이터가 필요합니다.]')
-            )}
-          </h1>
+            ) : null}
+          </div>
           <div className="claim-section-heading">
             <h2>기사에서 확인된 핵심 주장</h2>
             <button

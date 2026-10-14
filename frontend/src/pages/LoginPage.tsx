@@ -11,10 +11,12 @@ import AppHeader from '../components/AppHeader'
 import googleLoginImage from '../assets/oauth/google-login.png'
 import kakaoLoginImage from '../assets/oauth/kakao-login.png'
 import naverLoginImage from '../assets/oauth/naver-login.png'
+import { resolveBackendBaseUrl } from '../config/backend'
 
-const backendBaseUrl = (
-  import.meta.env.VITE_BACKEND_BASE_URL ?? 'http://localhost:8080'
-).replace(/\/$/, '')
+const backendBaseUrl = resolveBackendBaseUrl(
+  import.meta.env.VITE_BACKEND_BASE_URL,
+  import.meta.env.DEV ? 'http://localhost:8080' : '',
+)
 
 const oauthProviders = [
   {

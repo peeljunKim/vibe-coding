@@ -167,6 +167,7 @@ try {
     New-Item -ItemType Directory -Path $testRoot -Force *> $null
 
     foreach ($relativePath in @(
+            'scripts/agent/verify-production-routing.ps1',
             'scripts/agent/verify-monitoring.ps1',
             'scripts/agent/alertmanager-configuration.ps1',
             'scripts/agent/start-alertmanager.ps1',
@@ -177,7 +178,11 @@ try {
             'infra/alertmanager/alertmanager.yml',
             'infra/grafana/provisioning/dashboards/dashboards.yml',
             'infra/grafana/provisioning/datasources/prometheus.yml',
-            'docs/operations/MONITORING_RUNBOOK.md'
+            'infra/nginx/news-verification.conf.template',
+            'infra/nginx/active-backend.conf.template',
+            'frontend/vercel.json',
+            'docs/operations/MONITORING_RUNBOOK.md',
+            'docs/operations/DEPLOYMENT_RUNBOOK.md'
         )) {
         $path = Join-Path $repoRoot $relativePath
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -189,6 +194,22 @@ try {
         if ($LASTEXITCODE -eq 0) {
             $failures.Add("monitoring Clean Clone file is ignored: $relativePath")
         }
+    }
+
+    $productionRoutingOutput = & $powerShell -NoProfile -File (Join-Path $repoRoot 'scripts\agent\verify-production-routing.ps1') 2>&1 | Out-String
+    Assert-Equal 'production routing verification exit code' 0 $LASTEXITCODE
+    Assert-Contains 'production routing verifies Vercel rewrites' $productionRoutingOutput '[PASS] Vercel same-origin API and OAuth rewrites with cache opt-out'
+    Assert-Contains 'production routing verifies frontend public environment' $productionRoutingOutput '[PASS] Frontend environment contains public values only'
+    Assert-Contains 'production routing verifies Nginx routing' $productionRoutingOutput '[PASS] Nginx HTTPS and Blue Green routing template'
+    Assert-Contains 'production routing verifies runtime exclusion' $productionRoutingOutput '[PASS] Rendered production configuration Git exclusion'
+    $backendRuntimeConfigsPresent = (Test-Path -LiteralPath (Join-Path $repoRoot 'backend/src/main/resources/application.yml') -PathType Leaf) `
+        -and (Test-Path -LiteralPath (Join-Path $repoRoot 'backend/src/main/resources/application-prod.yml') -PathType Leaf)
+    if ($backendRuntimeConfigsPresent) {
+        Assert-Contains 'production routing verifies packaged backend configuration' $productionRoutingOutput '[PASS] Backend packaged configuration contains no inline Secret values'
+        Assert-Contains 'production routing verifies Spring proxy settings' $productionRoutingOutput '[PASS] Spring production proxy and Secure Cookie configuration'
+    }
+    else {
+        Assert-Contains 'production routing reports omitted backend runtime configuration' $productionRoutingOutput '[NOT RUN] Backend Runtime configuration: Git-excluded files are absent from this Clean Clone'
     }
 
     $alertmanagerTemplatePath = Join-Path $repoRoot 'infra\alertmanager\alertmanager.yml'
@@ -283,6 +304,22 @@ try {
     $result = Invoke-Verification $repository
     Assert-Equal 'reserved example email exits successfully' 0 $result.ExitCode
     Assert-Contains 'reserved example email passes privacy check' $result.Output '[PASS] Repository candidate Secret and personal value check'
+
+    $repository = New-VerificationRepository
+    $runtimeConfigPath = Join-Path $repository 'infra/nginx/active-backend.conf'
+    New-Item -ItemType Directory -Path (Split-Path $runtimeConfigPath) -Force *> $null
+    Set-Content -LiteralPath $runtimeConfigPath -Value 'server 127.0.0.1:8081;' -NoNewline
+    $result = Invoke-Verification $repository
+    Assert-Equal 'rendered production config exits with failure' 1 $result.ExitCode
+    Assert-Contains 'rendered production config reaches exposure check' $result.Output 'Git-tracked Local or Secret configuration detected'
+
+    $repository = New-VerificationRepository
+    $frontendEnvironmentPath = Join-Path $repository 'frontend/.env.example'
+    New-Item -ItemType Directory -Path (Split-Path $frontendEnvironmentPath) -Force *> $null
+    Set-Content -LiteralPath $frontendEnvironmentPath -Value 'VITE_API_KEY=' -NoNewline
+    $result = Invoke-Verification $repository
+    Assert-Equal 'frontend secret variable exits with failure' 1 $result.ExitCode
+    Assert-Contains 'frontend secret variable reaches value check' $result.Output 'Possible Secret or personal value detected'
 
     foreach ($reviewDocument in @('docs/agent/code-review.md', 'docs/agent/backend-review.md')) {
         $repository = New-VerificationRepository

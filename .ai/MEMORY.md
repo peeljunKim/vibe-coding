@@ -22,7 +22,7 @@
 - 언론사 추출 장애 정책: 건강·제목 공통 기사 수집 경로에서 정상 URL의 최근 1시간 시도를 별칭 Host가 아닌 언론사 ID 기준으로 Redis 집계하고 10회 이상·실패율 70% 이상이면 시간·사유와 함께 `ACTIVE`를 `PAUSED_AUTO`로 한 번만 전환하며, Redis 집계 장애는 기사 추출 결과와 분리하고 기본 Profile은 Mock 알림, `smtp`·`prod`는 관리자 Gmail 알림 사용; 보강·재시험 후 Local Script는 Redis 시도·실패 집계를 먼저 제거하고 `PAUSED_AUTO`만 조건부로 `ACTIVE` 복구
 - 현재 기술 지원 후보: 연합뉴스, 뉴시스, KBS, MBC, SBS, YTN, 중앙일보, 동아일보, 한겨레, 경향신문, 한국일보, 국민일보, 서울신문, 매일경제, 한국경제, 헬스조선, 코메디닷컴
 - 의료 전문 보완 후보: 청년의사, 의협신문, 데일리메디, 메디게이트뉴스, 라포르시안, 병원신문, 메디칼업저버, 의학신문
-- Deployment: Vercel Hobby Frontend와 Oracle Cloud A1 Always Free 단일 Backend VM, Backend DuckDNS·Nginx HTTPS, Local과 동일한 Native MySQL 8.0.30, Docker Redis·Monitoring
+- Deployment: Vercel Hobby Frontend와 Oracle Cloud A1 Always Free 단일 Backend VM, Backend DuckDNS·Nginx HTTPS, 운영 Native MySQL 8.4 LTS 최신 패치, Docker Redis·Monitoring; Local 8.0.30 Schema의 8.4 호환 검증은 배포 전 필요
 - Availability: Oracle VM 장애 대응이 아닌 Spring Boot Blue/Green 애플리케이션 배포 중 무중단만 보장
 - Cost Boundary: Oracle PAYG와 Vercel 유료 Plan 전환 없이 무료 한도 초과 시 기능 제한·중단을 허용하고 과금 Resource를 생성하지 않음
 - E2E: Playwright, Vite 개발 서버, PR Chromium, Release 전 Chrome·Edge 검증

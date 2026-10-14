@@ -13,6 +13,12 @@ pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope backend
 pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope infra
 pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope docs
 
+# Vercel Rewrite·Nginx Blue Green·Spring Proxy 운영 설정 검증
+pwsh -NoProfile -File scripts/agent/verify-production-routing.ps1
+
+# 배포 직전 Git 제외 Backend Runtime 설정까지 필수 검증
+pwsh -NoProfile -File scripts/agent/verify-production-routing.ps1 -RequireRuntimeConfig
+
 # 전체 검증
 pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope all
 
@@ -101,7 +107,7 @@ Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사�
 
 언론사 추출 실패율은 기본·`www`·모바일 등 별칭 Host를 언론사 ID 기준으로 합산한다. Redis 집계가 실패해도 성공한 기사 추출을 실패로 바꾸거나 원래 추출 오류를 가리지 않는지 단위 테스트로 검증한다. 자동 중단 언론사의 수동 재활성화는 추출 규칙 보강과 재시험 성공 뒤에만 실행한다. Local 운영 Script는 기본적으로 분리된 테스트 Database를 대상으로 하며 `-RetestPassed` 명시, DML 전용 계정, UTF-8 Hex로 비교하는 정확한 언론사명과 현재 `PAUSED_AUTO` 상태를 모두 확인한다. 테스트 Database는 `<REDIS_KEY_PREFIX>:test`, 개발 Database는 기존 `REDIS_KEY_PREFIX`에서 해당 언론사 ID의 시도·실패 집계를 먼저 제거하며 Redis 확인이나 정리에 실패하면 상태를 변경하지 않는다. 갱신은 `PAUSED_AUTO` 조건부 단일 행 변경으로 수행하고 대상·변경 전·변경 후 상태를 출력한다. `ACTIVE`, `PAUSED_MANUAL`, `CANDIDATE`는 덮어쓰지 않으며 언론사 도메인 상태도 변경하지 않는다. Database 비밀번호는 Process 환경 변수, Git에서 제외된 `.env`, 마스킹 입력 순서로 사용하며 Redis 비밀번호는 Process 환경 변수 또는 Git에서 제외된 `.env`에서만 읽는다. 두 비밀번호 모두 저장하거나 출력하지 않는다.
 
-모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 개인 이메일·Client ID·Key·Secret·Token·Webhook URL·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder와 `example.com`, `example.org`, `example.net`, `example.invalid`, `.example` 예약 Domain 이메일은 허용한다. 공개 API 경로와 Localhost URL은 자격 증명이 아니므로 이 검사 대상에서 제외한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
+모든 Scope는 완료 전에 Git 추적·Stage·비무시 신규 파일을 검사한다. 실제 `.env`, Local 전용 설정, Credentials, Service Account, Private Key 파일이나 개인 이메일·Client ID·Key·Secret·Token·Webhook URL·App Password 값 후보가 발견되면 검증을 실패 처리한다. 빈 값, 환경 변수 참조, 명시적 Placeholder와 `example.com`, `example.org`, `example.net`, `example.invalid`, `.example` 예약 Domain 이메일은 허용한다. 공개 API 경로와 Localhost URL은 자격 증명이 아니므로 이 검사 대상에서 제외한다. `VITE_*`는 Browser 공개 값 전용이므로 이름에 Secret·Password·Token·API Key·Webhook을 포함한 변수를 빈 값으로라도 선언하지 않는다. 실제 Host·Port를 반영한 Nginx·Vercel Runtime 설정은 Git에서 제외한다. 검사 목적으로 `.gitignore`를 해제하지 않는다.
 
 ## 실제 검증 순서
 
@@ -109,7 +115,7 @@ Native MySQL 통합 테스트는 개발 Database와 계정에 `_test` 접미사�
 | --- | --- | --- |
 | Frontend | ESLint → Vitest → TypeScript/Vite Build | `frontend/package.json`, GitHub Actions |
 | Backend | Compile → JUnit → Package | Maven `verify`, GitHub Actions |
-| Infrastructure | 존재하는 Schema SQL Metadata → DB 이력 Table 금지 → Compose 해석 | Local 초기 SQL 또는 Git 후속 Version SQL, 검증 Process 전용 환경 변수와 `docker compose config --quiet` |
+| Infrastructure | 운영 Routing 설정 → 존재하는 Schema SQL Metadata → DB 이력 Table 금지 → Compose 해석 | Vercel Rewrite·Nginx Template·Spring Proxy 설정, Local 초기 SQL 또는 Git 후속 Version SQL, 검증 Process 전용 환경 변수와 `docker compose config --quiet` |
 | E2E | Vite 개발 서버 → Chromium Scenario → Release Chrome·Edge | Playwright 전략, 지원 Browser 정책 |
 | Docs/Harness | 필수 파일·참조 확인 → Diff whitespace 검사 | `AGENTS.md`, Harness 구조 |
 

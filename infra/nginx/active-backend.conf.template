@@ -1,0 +1,2 @@
+# Blue 또는 Green 활성 Backend Port
+server 127.0.0.1:__ACTIVE_BACKEND_PORT__ max_fails=3 fail_timeout=10s;

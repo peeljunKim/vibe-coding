@@ -69,7 +69,7 @@
 - Frontend는 Vercel Hobby, Backend는 Oracle Cloud A1 Always Free 단일 VM 사용
 - Browser의 `/api`, OAuth 시작·Callback 경로는 Vercel 동일 출처 Rewrite를 거쳐 Backend DuckDNS HTTPS Origin으로 전달
 - Oracle VM의 Nginx가 HTTPS를 종료하고 Health Check를 통과한 Spring Boot Blue/Green Process로 Traffic 전환
-- MySQL 8.0.30은 Oracle VM Host에 직접 설치하고 Redis·Prometheus·Grafana·Alertmanager만 Docker Compose로 실행
+- 운영 MySQL은 8.4 LTS의 배포 시점 최신 패치를 Oracle VM Host에 직접 설치하고 Redis·Prometheus·Grafana·Alertmanager만 Docker Compose로 실행; Local 8.0.30 Schema의 8.4 호환 검증은 NOT RUN
 - Oracle PAYG와 Vercel 유료 Plan으로 전환하지 않고 무료 한도 초과 시 기능 제한·중단을 허용
 - 보장 범위는 애플리케이션 배포 중 무중단이며 Oracle VM·MySQL·Redis 장애 고가용성은 Prototype 범위 밖
 
