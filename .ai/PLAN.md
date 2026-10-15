@@ -141,7 +141,8 @@
 - 외부 Rewrite Cache 명시적 비활성화: PASS
 - Oracle Nginx HTTPS·Actuator 차단·Spring Boot Blue/Green Loopback 전환 Template: PASS
 - Spring 운영 Forwarded Header와 Secure Session Cookie 확인: PASS
-- Production Routing Clean Clone Harness 연결: PASS
+- Production Routing Clean Clone Harness 연결과 `verify.Tests.ps1` 재실행: PASS (사용자 실행 확인, Runtime 배포 회귀 추가 후 Agent 재실행)
+- Vercel Git 제외 Runtime 설정의 CLI 배포 연결과 배포 전 필수 검증: PASS
 - Frontend 전체 23개 Test File·110개 Test, Lint·Build: PASS
 - Backend Maven 전체 369개 Test·Package: PASS
 - 실제 `nginx -t`: NOT RUN (Local Nginx 실행 파일과 기존 Docker Image 없음)

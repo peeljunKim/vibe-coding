@@ -23,7 +23,7 @@ MySQL Community 8.4 LTS의 배포 시점 최신 패치는 Oracle VM Host에 직�
 - Blue Port `8081`, Green Port `8082`
 - Git에서 제외된 운영 환경 변수와 Secret
 
-실제 값은 Repository의 Placeholder에 기록하지 않는다. DuckDNS Host가 확정되면 `frontend/vercel.json`의 Backend Origin과 Nginx Template의 `__BACKEND_DUCKDNS_HOST__`를 배포 단계에서 치환한다.
+실제 값은 Repository의 Placeholder에 기록하지 않는다. DuckDNS Host가 확정되면 `frontend/vercel.json`을 `frontend/vercel.runtime.json`으로 복사한 뒤 Backend Origin을 치환하고, Nginx Template의 `__BACKEND_DUCKDNS_HOST__`도 배포 단계에서 치환한다.
 
 DuckDNS Host와 Blue/Green Port는 자격 증명이 아니라 외부 또는 내부 운영 식별값이다. 숨김만으로 보안을 확보할 수는 없지만 운영 설정 혼입을 막기 위해 Git 추적 Template에는 Placeholder만 유지한다. 치환 결과인 `frontend/vercel.runtime.json`, `infra/nginx/news-verification.conf`, `infra/nginx/active-backend.conf`는 Git에서 제외하고 배포용 임시 Directory 또는 Oracle의 `/etc/nginx/news-verification/`에서만 생성한다.
 
@@ -40,7 +40,7 @@ Backend Secret은 Oracle의 Repository 밖 권한 제한 환경 파일이나 Sec
 
 Git에서 제외된 `backend/src/main/resources/application*.yml`도 Build 시 JAR에 포함되므로 실제 Secret을 직접 작성하지 않는다. 이 파일에는 `${ENVIRONMENT_VARIABLE}` 참조만 두고, 운영 값은 Repository 밖에서 주입한다. Git에서 제외된 `frontend/.env.local` 역시 `VITE_*` 값을 Browser Bundle에 포함하므로 Secret 저장소로 사용하지 않는다.
 
-Clean Clone CI에서는 Git 추적 Template과 노출 경계만 검사한다. 배포용 JAR를 만들기 전에는 다음 명령으로 Git 제외 Backend 설정까지 반드시 검사한다.
+Clean Clone CI에서는 Git 추적 Template과 노출 경계만 검사한다. 배포용 JAR와 Vercel Runtime 설정을 준비한 뒤에는 다음 명령으로 Git 제외 설정까지 반드시 검사한다.
 
 ```powershell
 pwsh -NoProfile -File scripts/agent/verify-production-routing.ps1 -RequireRuntimeConfig
@@ -54,6 +54,20 @@ pwsh -NoProfile -File scripts/agent/verify-production-routing.ps1 -RequireRuntim
 - 나머지 경로는 React Router를 위해 `index.html`로 전달
 - `/api`·OAuth 외부 Rewrite Cache는 `x-vercel-enable-rewrite-caching: 0`으로 명시적 비활성화
 - 운영 Frontend Build에는 `VITE_BACKEND_BASE_URL`을 설정하지 않음
+
+Git에서 제외된 `vercel.runtime.json`은 Vercel Git 자동 배포가 읽지 않는다. Backend Origin을 Repository에 남기지 않는 현재 정책에서는 Git 자동 배포를 연결하지 않고, `frontend`에서 Runtime 설정을 명시한 CLI 배포만 사용한다. Preview와 운영 배포에서 추적 중인 `vercel.json`을 직접 사용하지 않는다.
+
+```powershell
+Set-Location frontend
+Copy-Item vercel.json vercel.runtime.json
+# vercel.runtime.json의 replace-with-backend.duckdns.org만 실제 DuckDNS Host로 치환
+pwsh -NoProfile -File ..\scripts\agent\verify-production-routing.ps1 -RequireRuntimeConfig
+$deploymentUrl = vercel deploy --prod --skip-domain --local-config vercel.runtime.json
+# 배포 URL의 /api와 OAuth 경로를 확인한 뒤 운영 Domain으로 승격
+vercel promote $deploymentUrl
+```
+
+`--local-config vercel.runtime.json`을 생략하면 추적 중인 Placeholder 설정이 사용되므로 배포하지 않는다. 향후 Git 자동 배포가 필요하면 Runtime 파일을 안전하게 생성하는 별도 CI 설계를 승인받은 뒤 전환한다.
 
 Provider Console의 운영 Callback은 Vercel 운영 Origin의 `/oauth/google`, `/oauth/naver`, `/oauth/kakao`를 등록한다. Backend의 `APP_BASE_URL`도 같은 Vercel 운영 Origin을 사용한다.
 
@@ -87,7 +101,7 @@ Blue와 Green은 동일 MySQL과 Redis를 공유한다. Schema 변경은 이전�
 
 ## 현재 미실행
 
-- Vercel Project 생성과 Git 연결
+- Vercel Project 생성과 Local CLI 연결
 - Oracle A1 VM 생성
 - DuckDNS Subdomain과 인증서 발급
 - 운영 Secret 주입

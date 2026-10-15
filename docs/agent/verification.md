@@ -83,6 +83,8 @@ pwsh -NoProfile -File scripts/agent/verify-publisher-extraction.ps1 `
     -MaxRedirects <확정값>
 ```
 
+기본 Production Routing 검증은 Clean Clone에 Git 제외 Vercel Runtime JSON과 Backend Runtime YAML이 없으면 해당 항목을 `NOT RUN`으로 기록한다. 실제 배포 직전에는 `-RequireRuntimeConfig`를 사용하며 Runtime 설정이 없거나 보안·Proxy 설정이 유효하지 않으면 실패해야 한다. Vercel 배포는 `--local-config vercel.runtime.json`을 사용해야 하며, `verify.Tests.ps1`은 Clean Clone과 배포 환경의 기대 결과를 구분해 회귀 검증한다.
+
 Script는 기존 Repository 도구만 사용한다. Frontend는 npm scripts, Backend는 Maven Wrapper launcher 또는 현재 Wrapper JAR, Infrastructure는 Native MySQL Schema 정적 검사와 Docker Compose를 사용한다. 새 Lint, Formatter, Test 도구를 설치하지 않는다.
 
 `script-utilities.ps1`은 직접 실행하는 진입점이 아니라 Setup·검증 Script가 함께 사용하는 `.env` 값 처리와 Java 17 탐색 함수 모음이다. 개발 Database 설정, 테스트 Database 설정, Native MySQL 검증, Redis 검증, Full-stack Smoke는 권한과 필수 서비스가 다르므로 각각의 공개 진입점을 유지한다. Harness 자체 회귀와 Local MVP 실행 순서 회귀는 `verify.Tests.ps1` 한 파일에서 검증한다.
