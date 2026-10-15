@@ -202,6 +202,8 @@ try {
     Assert-Contains 'production routing verifies frontend public environment' $productionRoutingOutput '[PASS] Frontend environment contains public values only'
     Assert-Contains 'production routing verifies Nginx routing' $productionRoutingOutput '[PASS] Nginx HTTPS and Blue Green routing template'
     Assert-Contains 'production routing verifies runtime exclusion' $productionRoutingOutput '[PASS] Rendered production configuration Git exclusion'
+    Assert-Contains 'production routing verifies Vercel runtime deployment' $productionRoutingOutput '[PASS] Vercel deployment uses the rendered Runtime configuration'
+    Assert-Contains 'production routing reports omitted Vercel runtime configuration' $productionRoutingOutput '[NOT RUN] Vercel Runtime configuration: Git-excluded file is absent from this Clean Clone'
     $backendRuntimeConfigsPresent = (Test-Path -LiteralPath (Join-Path $repoRoot 'backend/src/main/resources/application.yml') -PathType Leaf) `
         -and (Test-Path -LiteralPath (Join-Path $repoRoot 'backend/src/main/resources/application-prod.yml') -PathType Leaf)
     if ($backendRuntimeConfigsPresent) {

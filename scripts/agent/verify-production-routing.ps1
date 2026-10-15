@@ -9,8 +9,10 @@ Set-StrictMode -Version Latest
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $vercelPath = Join-Path $repoRoot 'frontend\vercel.json'
+$vercelRuntimePath = Join-Path $repoRoot 'frontend\vercel.runtime.json'
 $frontendEnvExamplePath = Join-Path $repoRoot 'frontend\.env.example'
 $frontendRoot = Join-Path $repoRoot 'frontend'
+$deploymentRunbookPath = Join-Path $repoRoot 'docs\operations\DEPLOYMENT_RUNBOOK.md'
 $nginxPath = Join-Path $repoRoot 'infra\nginx\news-verification.conf.template'
 $activeBackendPath = Join-Path $repoRoot 'infra\nginx\active-backend.conf.template'
 $applicationConfigPath = Join-Path $repoRoot 'backend\src\main\resources\application.yml'
@@ -24,6 +26,7 @@ $runtimePaths = @(
 foreach ($requiredPath in @(
         $vercelPath,
         $frontendEnvExamplePath,
+        $deploymentRunbookPath,
         $nginxPath,
         $activeBackendPath
     )) {
@@ -90,6 +93,38 @@ if ($rewrites[-1].source -ne '/(.*)') {
     throw 'Vercel SPA fallback must be the final rewrite'
 }
 Write-Host '[PASS] Vercel same-origin API and OAuth rewrites with cache opt-out'
+
+$deploymentRunbook = Get-Content -LiteralPath $deploymentRunbookPath -Raw
+if ($deploymentRunbook -notmatch '(?m)^\$deploymentUrl = vercel deploy --prod --skip-domain --local-config vercel\.runtime\.json\r?$' `
+        -or $deploymentRunbook -notmatch '(?m)^vercel promote \$deploymentUrl\r?$') {
+    throw 'Vercel deployment must explicitly use and promote the rendered Runtime configuration'
+}
+Write-Host '[PASS] Vercel deployment uses the rendered Runtime configuration'
+
+if (Test-Path -LiteralPath $vercelRuntimePath -PathType Leaf) {
+    $vercelRuntimeRaw = Get-Content -LiteralPath $vercelRuntimePath -Raw
+    $vercelRuntime = $vercelRuntimeRaw | ConvertFrom-Json
+    $runtimeRewrites = @($vercelRuntime.rewrites | Where-Object { $_.source -in $expectedRewrites.Keys })
+    $runtimeHosts = @($runtimeRewrites | ForEach-Object { ([Uri]$_.destination).Host } | Select-Object -Unique)
+    if ($runtimeRewrites.Count -ne $expectedRewrites.Count `
+            -or $runtimeHosts.Count -ne 1 `
+            -or $runtimeHosts[0] -eq 'replace-with-backend.duckdns.org' `
+            -or -not $runtimeHosts[0].EndsWith('.duckdns.org')) {
+        throw 'Rendered Vercel configuration must use one non-placeholder DuckDNS Backend host'
+    }
+    $expectedRuntime = (Get-Content -LiteralPath $vercelPath -Raw).Replace('replace-with-backend.duckdns.org', $runtimeHosts[0]) | ConvertFrom-Json
+    if (($vercelRuntime | ConvertTo-Json -Depth 20 -Compress) `
+            -ne ($expectedRuntime | ConvertTo-Json -Depth 20 -Compress)) {
+        throw 'Rendered Vercel configuration must differ from the tracked template only by Backend host'
+    }
+    Write-Host '[PASS] Vercel Runtime configuration contains the deployment Backend host'
+}
+elseif ($RequireRuntimeConfig) {
+    throw 'Git-excluded frontend/vercel.runtime.json is required for deployment preflight'
+}
+else {
+    Write-Host '[NOT RUN] Vercel Runtime configuration: Git-excluded file is absent from this Clean Clone'
+}
 
 $nginx = Get-Content -LiteralPath $nginxPath -Raw
 foreach ($requiredPattern in @(
