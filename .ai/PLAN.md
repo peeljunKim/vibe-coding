@@ -147,7 +147,7 @@
 - Backend Maven 전체 369개 Test·Package: PASS
 - 실제 `nginx -t`: NOT RUN (Local Nginx 실행 파일과 기존 Docker Image 없음)
 - Vercel Preview·DuckDNS HTTPS·Oracle Traffic 전환: NOT RUN (운영 URL·Subdomain·VM 미확정)
-- Vercel 경유 요청의 Origin 인증과 비회원 Client 주소 신뢰 방식: REQUIRED (공개 Origin 직접 요청의 Header 위조 방지 정책 승인 필요)
+- Vercel Origin 인증·비회원 IP 경계: Nginx Template·Runtime 치환 도구 준비, Middleware는 NOT RUN (`@vercel/functions` 추가 승인 필요, 연결 전 운영 적용 차단)
 - 운영 Secret 분류·Browser 공개 `VITE_*` 경계·Nginx/Vercel Runtime 설정 Git 제외 검증: PASS
 - Redis·Prometheus·Grafana Docker Host Port Loopback 제한과 Redis·Grafana 비밀번호 필수 주입: PASS (Compose 해석 검증)
 

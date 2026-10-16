@@ -16,7 +16,10 @@ pwsh -NoProfile -File scripts/agent/verify.ps1 -Scope docs
 # Vercel Rewrite·Nginx Blue Green·Spring Proxy 운영 설정 검증
 pwsh -NoProfile -File scripts/agent/verify-production-routing.ps1
 
-# 배포 직전 Git 제외 Backend Runtime 설정까지 필수 검증
+# Process 환경 변수 주입 후 Git 제외 운영 Routing 파일 준비
+pwsh -NoProfile -File scripts/agent/prepare-production-routing.ps1
+
+# 배포 직전 Middleware 연결과 Git 제외 Runtime 설정까지 필수 검증
 pwsh -NoProfile -File scripts/agent/verify-production-routing.ps1 -RequireRuntimeConfig
 
 # 전체 검증
@@ -84,6 +87,8 @@ pwsh -NoProfile -File scripts/agent/verify-publisher-extraction.ps1 `
 ```
 
 기본 Production Routing 검증은 Clean Clone에 Git 제외 Vercel Runtime JSON과 Backend Runtime YAML이 없으면 해당 항목을 `NOT RUN`으로 기록한다. 실제 배포 직전에는 `-RequireRuntimeConfig`를 사용하며 Runtime 설정이 없거나 보안·Proxy 설정이 유효하지 않으면 실패해야 한다. Vercel 배포는 `--local-config vercel.runtime.json`을 사용해야 하며, `verify.Tests.ps1`은 Clean Clone과 배포 환경의 기대 결과를 구분해 회귀 검증한다.
+
+Origin 인증 준비 도구는 Process 환경 변수만 사용하고 실제 값을 출력하지 않는다. Runtime 파일은 Git 제외·미추적·기존 파일 없음 조건을 확인하고 파일 권한 제한 후 기록한다. `verify.Tests.ps1`은 메모리 치환과 잘못된 Host·Origin·Secret·Port 거부를 검증한다. Middleware 연결 전 운영 적용과 `nginx -t`, Vercel Header 전달·Cookie·OAuth 실제 검증은 `NOT RUN`으로 유지한다.
 
 Script는 기존 Repository 도구만 사용한다. Frontend는 npm scripts, Backend는 Maven Wrapper launcher 또는 현재 Wrapper JAR, Infrastructure는 Native MySQL Schema 정적 검사와 Docker Compose를 사용한다. 새 Lint, Formatter, Test 도구를 설치하지 않는다.
 

@@ -203,7 +203,12 @@ try {
     Assert-Contains 'production routing verifies Nginx routing' $productionRoutingOutput '[PASS] Nginx HTTPS and Blue Green routing template'
     Assert-Contains 'production routing verifies runtime exclusion' $productionRoutingOutput '[PASS] Rendered production configuration Git exclusion'
     Assert-Contains 'production routing verifies Vercel runtime deployment' $productionRoutingOutput '[PASS] Vercel deployment uses the rendered Runtime configuration'
-    Assert-Contains 'production routing reports omitted Vercel runtime configuration' $productionRoutingOutput '[NOT RUN] Vercel Runtime configuration: Git-excluded file is absent from this Clean Clone'
+    if (Test-Path -LiteralPath (Join-Path $repoRoot 'frontend/vercel.runtime.json')) {
+        Assert-Contains 'production routing verifies Vercel runtime configuration' $productionRoutingOutput '[PASS] Vercel Runtime configuration contains the deployment Backend host'
+    }
+    else {
+        Assert-Contains 'production routing reports omitted Vercel runtime configuration' $productionRoutingOutput '[NOT RUN] Vercel Runtime configuration: Git-excluded file is absent from this Clean Clone'
+    }
     $backendRuntimeConfigsPresent = (Test-Path -LiteralPath (Join-Path $repoRoot 'backend/src/main/resources/application.yml') -PathType Leaf) `
         -and (Test-Path -LiteralPath (Join-Path $repoRoot 'backend/src/main/resources/application-prod.yml') -PathType Leaf)
     if ($backendRuntimeConfigsPresent) {
@@ -212,6 +217,39 @@ try {
     }
     else {
         Assert-Contains 'production routing reports omitted backend runtime configuration' $productionRoutingOutput '[NOT RUN] Backend Runtime configuration: Git-excluded files are absent from this Clean Clone'
+    }
+
+    . (Join-Path $repoRoot 'scripts/agent/production-routing-configuration.ps1')
+    $routingParameters = @{
+        RepositoryRoot = $repoRoot
+        BackendHost = 'routing-fixture.duckdns.org'
+        FrontendOrigin = 'https://routing.example.invalid'
+        ActivePort = 8082
+    }
+    $routingParameters['OriginSecret'] = ('0123456789abcdef' * 4)
+    $routing = New-ProductionRoutingConfiguration @routingParameters
+    Assert-Contains 'rendered Nginx public host' $routing['infra/nginx/news-verification.conf'] 'proxy_set_header Host routing.example.invalid;'
+    Assert-Contains 'rendered Nginx origin authentication' $routing['infra/nginx/news-verification.conf'] ('"' + $routingParameters.OriginSecret + '" 1;')
+    Assert-Contains 'rendered active port' $routing['infra/nginx/active-backend.conf'] '127.0.0.1:8082'
+    if ($routing['frontend/vercel.runtime.json'].Contains($routingParameters.OriginSecret)) {
+        $failures.Add('Origin Secret leaked into Vercel static configuration')
+    }
+    foreach ($invalidInput in @(
+            @{ BackendHost = 'invalid.duckdns.org; include injected;' },
+            @{ BackendHost = 'replace-with-backend.duckdns.org' },
+            @{ FrontendOrigin = 'https://user:password@example.invalid' },
+            @{ FrontendOrigin = 'https://routing.example.invalid/path' },
+            @{ FrontendOrigin = 'http://routing.example.invalid' },
+            @{ OriginSecret = ('a' * 64) },
+            @{ OriginSecret = 'short' },
+            @{ ActivePort = 9000 }
+        )) {
+        $invalidParameters = $routingParameters.Clone()
+        foreach ($key in $invalidInput.Keys) { $invalidParameters[$key] = $invalidInput[$key] }
+        $rejected = $false
+        try { $null = New-ProductionRoutingConfiguration @invalidParameters }
+        catch { $rejected = $true }
+        if (-not $rejected) { $failures.Add('Invalid production routing input was accepted') }
     }
 
     $alertmanagerTemplatePath = Join-Path $repoRoot 'infra\alertmanager\alertmanager.yml'

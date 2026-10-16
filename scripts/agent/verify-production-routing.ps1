@@ -101,6 +101,13 @@ if ($deploymentRunbook -notmatch '(?m)^\$deploymentUrl = vercel deploy --prod --
 }
 Write-Host '[PASS] Vercel deployment uses the rendered Runtime configuration'
 
+if (-not (Test-Path -LiteralPath (Join-Path $frontendRoot 'middleware.ts') -PathType Leaf)) {
+    if ($RequireRuntimeConfig) {
+        throw 'Vercel origin authentication Middleware must be connected before deployment'
+    }
+    Write-Host '[NOT RUN] Vercel Origin authentication Middleware: dependency approval and connection pending'
+}
+
 if (Test-Path -LiteralPath $vercelRuntimePath -PathType Leaf) {
     $vercelRuntimeRaw = Get-Content -LiteralPath $vercelRuntimePath -Raw
     $vercelRuntime = $vercelRuntimeRaw | ConvertFrom-Json
@@ -133,12 +140,23 @@ foreach ($requiredPattern in @(
         'include /etc/nginx/news-verification/active-backend.conf;',
         'location ^~ /actuator/',
         'location ~ ^/(api|oauth2|oauth)(/|$)',
+        '"__ORIGIN_PROXY_SECRET__" 1;',
+        'if ($articlecheck_origin_allowed = 0) { return 404; }',
+        'if ($http_x_articlecheck_client_ip = "") { return 404; }',
+        'proxy_set_header Forwarded "";',
+        'proxy_set_header X-Forwarded-For $http_x_articlecheck_client_ip;',
+        'proxy_set_header X-Forwarded-Host __FRONTEND_PUBLIC_HOST__;',
+        'proxy_set_header X-Articlecheck-Origin "";',
+        'proxy_set_header X-Articlecheck-Client-IP "";',
         'proxy_set_header X-Forwarded-Proto https;',
         'proxy_pass http://news_verification_backend;'
     )) {
     if (-not $nginx.Contains($requiredPattern)) {
         throw "Nginx routing requirement missing: $requiredPattern"
     }
+}
+if ($nginx.Contains('$proxy_add_x_forwarded_for')) {
+    throw 'Nginx must not append untrusted client Forwarded headers'
 }
 $nginxHosts = [regex]::Matches($nginx, '(?m)^\s*server_name\s+(?<host>[^;]+);')
 if ($nginxHosts.Count -ne 2 `
