@@ -58,9 +58,8 @@ pwsh -NoProfile -File scripts/agent/verify-production-routing.ps1 -RequireRuntim
 Git에서 제외된 `vercel.runtime.json`은 Vercel Git 자동 배포가 읽지 않는다. Backend Origin을 Repository에 남기지 않는 현재 정책에서는 Git 자동 배포를 연결하지 않고, `frontend`에서 Runtime 설정을 명시한 CLI 배포만 사용한다. Preview와 운영 배포에서 추적 중인 `vercel.json`을 직접 사용하지 않는다.
 
 ```powershell
+pwsh -NoProfile -File scripts/agent/prepare-production-routing.ps1
 Set-Location frontend
-Copy-Item vercel.json vercel.runtime.json
-# vercel.runtime.json의 replace-with-backend.duckdns.org만 실제 DuckDNS Host로 치환
 pwsh -NoProfile -File ..\scripts\agent\verify-production-routing.ps1 -RequireRuntimeConfig
 $deploymentUrl = vercel deploy --prod --skip-domain --local-config vercel.runtime.json
 # 배포 URL의 /api와 OAuth 경로를 확인한 뒤 운영 Domain으로 승격
@@ -85,7 +84,24 @@ Provider Console의 운영 Callback은 Vercel 운영 Origin의 `/oauth/google`, 
 
 현재 비회원 이용량과 요청 제한은 Backend가 확인한 원격 주소를 비식별 신호로 사용한다. Vercel은 `x-vercel-forwarded-for`와 `x-forwarded-for`에 Client 주소를 제공하지만, 공개 DuckDNS Origin의 직접 요청은 같은 Header를 위조할 수 있다.
 
-운영 배포 전에 Vercel을 거친 요청만 신뢰할 수 있도록 Origin 인증 경계를 정하거나, 비회원 식별 정책을 Vercel 구조에 맞게 변경해야 한다. 이 결정 전에는 현재 Nginx Template을 운영에 적용하지 않는다. Vercel Function과 공유 Secret을 쓰는 방식은 Function 사용량과 구현 범위를 늘리고, Cookie 중심 식별은 IP 기반 남용 방어를 약화하므로 별도 승인 대상이다.
+준비한 Nginx Template은 `X-Articlecheck-Origin`을 확인한 뒤 Middleware가 재작성한 `X-Articlecheck-Client-IP`만 전달한다. 요청자가 보낸 `Forwarded`는 제거하고, `X-Forwarded-For`를 덧붙이지 않고 교체한다. Host는 확정된 Frontend Host로 고정하며 Origin Secret은 Spring으로 전달하지 않는다. API·OAuth 경로의 접근 로그는 비활성화한다. Nginx 오류 로그에도 Cookie·Secret을 추가하지 않고 OAuth Query가 포함되는지 실제 운영 검증에서 확인한다.
+
+`prepare-production-routing.ps1`은 다음 Process 환경 변수로 세 Runtime 파일을 생성한다. 실제 값은 출력하지 않고 기존 파일을 덮어쓰지 않으며 Git 제외와 파일 권한을 검사한다. Nginx Runtime 파일에는 Origin Secret이 포함되므로 Oracle의 Repository 밖 `/etc/nginx/news-verification/`로 옮겨 최소 권한으로 관리하고 `nginx -T` 출력을 공유하거나 CI Artifact로 저장하지 않는다. Template은 Nginx `http` Context에서 include한다.
+
+| 변수 | 입력 내용 |
+| --- | --- |
+| `BACKEND_DUCKDNS_HOST` | 확정된 DuckDNS Host 이름만 입력 |
+| `FRONTEND_PUBLIC_ORIGIN` | 확정된 Vercel HTTPS Origin, 경로·Query 제외 |
+| `ORIGIN_PROXY_SECRET` | 별도로 준비한 256-bit 난수의 소문자 64자리 Hex 값 |
+| `ACTIVE_BACKEND_PORT` | `8081` 또는 `8082`, 기본 `8081` |
+
+Vercel 서버 환경 변수에도 같은 `ORIGIN_PROXY_SECRET`을 등록하고 `VITE_`를 사용하지 않는다. Secret을 명령행 인자나 Shell 기록에 입력하지 않는다. Backend Spring Boot는 Loopback에서만 실행하고 Secure Cookie와 기존 CSRF·권한 검사를 유지한다. ACME 인증서 발급·갱신 방식은 VM 준비 후 별도로 구성한다.
+
+**현재 적용 차단:** Vercel Middleware는 아직 연결되지 않았다. 공식 Helper `@vercel/functions` Dependency 승인 후 API·OAuth 경로에만 적용하고 사용자 입력 인증·IP Header 제거, 플랫폼 IP 검증, Secret 주입을 구현해야 한다. 준비된 Nginx만 먼저 적용하면 API·OAuth 요청이 404로 차단된다. `-RequireRuntimeConfig`는 이 상태에서 배포를 거부한다.
+
+실제 Preview에서 IPv4·IPv6, Header 위조, 다중 Set-Cookie, CSRF, OAuth Redirect·Callback과 직접 DuckDNS 요청 차단을 확인한다. Naver 서버 간 연결 해제 Callback이 필요하면 공급자 검증 방식부터 확정하며 인증 예외를 임의로 추가하지 않는다. Hobby 한도 초과 또는 Middleware 장애 때 직접 Origin 경로로 우회하지 않는다.
+
+롤백은 이전 Vercel 배포와 호환되는 Nginx 설정을 함께 복원한다. Origin 인증만 끄거나 이전의 무인증 Template을 운영에 다시 적용하지 않는다.
 
 ## Blue Green 전환
 
